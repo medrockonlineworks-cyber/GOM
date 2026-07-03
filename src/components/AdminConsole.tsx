@@ -1,0 +1,850 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import React, { useState } from 'react';
+import { useApp } from '../context/AppContext';
+import { motion, AnimatePresence } from 'motion/react';
+import { 
+  Users, 
+  ArrowUpRight, 
+  ArrowDownLeft, 
+  Sliders, 
+  Volume2, 
+  Headphones, 
+  FileSpreadsheet, 
+  Check, 
+  X, 
+  Plus, 
+  Trash2, 
+  CornerDownRight, 
+  Search, 
+  Coins,
+  ShieldCheck,
+  TrendingUp,
+  Settings,
+  Terminal,
+  Activity,
+  Edit
+} from 'lucide-react';
+
+interface AdminConsoleProps {
+  onExit?: () => void;
+}
+
+export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
+  const { 
+    users, 
+    transactions, 
+    supportMessages, 
+    auditLogs, 
+    scalingMultiplier, 
+    systemReports,
+    approveTransaction, 
+    rejectTransaction, 
+    updateScalingMultiplier, 
+    updateProductCost, 
+    updateAllProductCosts,
+    addAnnouncement, 
+    deleteAnnouncement, 
+    replyToSupport,
+    adjustUserBalance,
+    productCosts,
+    rechargeAccounts,
+    addRechargeAccount,
+    updateRechargeAccount,
+    deleteRechargeAccount
+  } = useApp();
+
+  const [activeAdminSubTab, setActiveAdminSubTab] = useState<'users' | 'recharges' | 'withdrawals' | 'orders' | 'announcements' | 'support' | 'reports'>('recharges');
+  
+  // States
+  const [searchQuery, setSearchQuery] = useState('');
+  const [newAnnTitle, setNewAnnTitle] = useState('');
+  const [newAnnContent, setNewAnnContent] = useState('');
+  const [annSuccess, setAnnSuccess] = useState(false);
+
+  const [supportReplies, setSupportReplies] = useState<{ [ticketId: string]: string }>({});
+  const [adjustAmounts, setAdjustAmounts] = useState<{ [userId: string]: string }>({});
+
+  // Recharge Accounts Form State
+  const [isAddingAccount, setIsAddingAccount] = useState(false);
+  const [editingAccountId, setEditingAccountId] = useState<string | null>(null);
+  const [formBank, setFormBank] = useState('');
+  const [formAccName, setFormAccName] = useState('');
+  const [formAccNo, setFormAccNo] = useState('');
+
+  const editAccount = (acc: any) => {
+    setEditingAccountId(acc.id);
+    setFormBank(acc.bank);
+    setFormAccName(acc.accName);
+    setFormAccNo(acc.accNo);
+    setIsAddingAccount(false);
+  };
+
+  const cancelForm = () => {
+    setIsAddingAccount(false);
+    setEditingAccountId(null);
+    setFormBank('');
+    setFormAccName('');
+    setFormAccNo('');
+  };
+
+  const saveAccount = () => {
+    if (!formBank.trim() || !formAccName.trim() || !formAccNo.trim()) {
+      alert("Please fill in all bank details.");
+      return;
+    }
+
+    if (editingAccountId !== null) {
+      updateRechargeAccount(editingAccountId, formBank, formAccName, formAccNo);
+    } else {
+      addRechargeAccount(formBank, formAccName, formAccNo);
+    }
+    cancelForm();
+  };
+
+  const pendingRecharges = transactions.filter(t => t.type === 'recharge' && t.status === 'pending');
+  const pendingWithdrawals = transactions.filter(t => t.type === 'withdraw' && t.status === 'pending');
+  
+  const filteredUsers = users.filter(u => 
+    u.phoneNumber.includes(searchQuery) || 
+    u.id.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const handleCreateAnnouncement = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newAnnTitle.trim() || !newAnnContent.trim()) return;
+
+    addAnnouncement(newAnnTitle, newAnnContent);
+    setNewAnnTitle('');
+    setNewAnnContent('');
+    setAnnSuccess(true);
+    setTimeout(() => setAnnSuccess(false), 2000);
+  };
+
+  const handleSupportReplySubmit = (ticketId: string) => {
+    const reply = supportReplies[ticketId];
+    if (!reply || !reply.trim()) return;
+
+    replyToSupport(ticketId, reply);
+    setSupportReplies(prev => {
+      const copy = { ...prev };
+      delete copy[ticketId];
+      return copy;
+    });
+  };
+
+  const handleAdjustUserBalanceSubmit = (userId: string, isAddition: boolean) => {
+    const rawVal = adjustAmounts[userId];
+    const val = Number(rawVal);
+    if (!rawVal || isNaN(val) || val <= 0) {
+      alert('Please enter a valid amount greater than 0.');
+      return;
+    }
+
+    adjustUserBalance(userId, isAddition ? val : -val);
+    setAdjustAmounts(prev => ({ ...prev, [userId]: '' }));
+    alert(`Successfully ${isAddition ? 'added' : 'deducted'} ${val} ETB ${isAddition ? 'to' : 'from'} user's balance.`);
+  };
+
+  return (
+    <div className="flex-1 flex flex-col bg-slate-50">
+      
+      {/* ADMIN CONTROL PANEL HEADER */}
+      <div className="bg-deep-forest text-white px-5 py-4 shrink-0 shadow-md flex items-center justify-between border-b border-white/10">
+        <div className="flex items-center gap-2 select-none">
+          <div className="w-7 h-7 bg-amber-500 rounded-lg flex items-center justify-center shrink-0 shadow-sm animate-pulse">
+            <div className="w-3.5 h-3.5 border-2 border-deep-forest rotate-45"></div>
+          </div>
+          <div>
+            <h2 className="text-xs font-black uppercase tracking-widest text-amber-500">Administrator Panel</h2>
+            <p className="text-[10px] text-slate-300">Live marketplace operations desk</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="hidden sm:block text-right">
+            <span className="text-[9px] uppercase tracking-wider font-extrabold text-emerald-400 bg-emerald-950/40 px-2.5 py-1 rounded-full border border-emerald-900/30">
+              ● System Online
+            </span>
+          </div>
+          {onExit && (
+            <button
+              onClick={onExit}
+              className="bg-rose-600 hover:bg-rose-700 text-white font-black text-[10px] uppercase tracking-wider px-3.5 py-2 rounded-xl border border-rose-500/20 flex items-center gap-1 cursor-pointer transition-all hover:scale-105 active:scale-95 shadow-sm"
+            >
+              <X size={12} /> Exit Operations
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* QUICK HORIZONTAL NAV RAIL */}
+      <div className="bg-white border-b border-slate-200 py-2.5 px-4 overflow-x-auto flex gap-1.5 scrollbar-none shrink-0">
+        <button
+          onClick={() => setActiveAdminSubTab('recharges')}
+          className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap shrink-0 transition-all flex items-center gap-1.5 ${
+            activeAdminSubTab === 'recharges' 
+              ? 'bg-bronze text-white shadow-sm' 
+              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+          }`}
+        >
+          <ArrowUpRight size={13} />
+          Deposits
+          {pendingRecharges.length > 0 && (
+            <span className="bg-amber-400 text-slate-900 text-[9px] font-black px-1.5 py-0.5 rounded-full">
+              {pendingRecharges.length}
+            </span>
+          )}
+        </button>
+
+        <button
+          onClick={() => setActiveAdminSubTab('withdrawals')}
+          className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap shrink-0 transition-all flex items-center gap-1.5 ${
+            activeAdminSubTab === 'withdrawals' 
+              ? 'bg-bronze text-white shadow-sm' 
+              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+          }`}
+        >
+          <ArrowDownLeft size={13} />
+          Withdraws
+          {pendingWithdrawals.length > 0 && (
+            <span className="bg-amber-400 text-slate-900 text-[9px] font-black px-1.5 py-0.5 rounded-full">
+              {pendingWithdrawals.length}
+            </span>
+          )}
+        </button>
+
+        <button
+          onClick={() => setActiveAdminSubTab('users')}
+          className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap shrink-0 transition-all flex items-center gap-1.5 ${
+            activeAdminSubTab === 'users' 
+              ? 'bg-bronze text-white shadow-sm' 
+              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+          }`}
+        >
+          <Users size={13} />
+          Users
+        </button>
+
+        <button
+          onClick={() => setActiveAdminSubTab('orders')}
+          className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap shrink-0 transition-all flex items-center gap-1.5 ${
+            activeAdminSubTab === 'orders' 
+              ? 'bg-bronze text-white shadow-sm' 
+              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+          }`}
+        >
+          <Sliders size={13} />
+          Pricing Model
+        </button>
+
+        <button
+          onClick={() => setActiveAdminSubTab('announcements')}
+          className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap shrink-0 transition-all flex items-center gap-1.5 ${
+            activeAdminSubTab === 'announcements' 
+              ? 'bg-bronze text-white shadow-sm' 
+              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+          }`}
+        >
+          <Volume2 size={13} />
+          Broadcast
+        </button>
+
+        <button
+          onClick={() => setActiveAdminSubTab('support')}
+          className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap shrink-0 transition-all flex items-center gap-1.5 ${
+            activeAdminSubTab === 'support' 
+              ? 'bg-bronze text-white shadow-sm' 
+              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+          }`}
+        >
+          <Headphones size={13} />
+          Support
+        </button>
+
+        <button
+          onClick={() => setActiveAdminSubTab('reports')}
+          className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap shrink-0 transition-all flex items-center gap-1.5 ${
+            activeAdminSubTab === 'reports' 
+              ? 'bg-bronze text-white shadow-sm' 
+              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+          }`}
+        >
+          <Activity size={13} />
+          Log & Reports
+        </button>
+      </div>
+
+      {/* ADMIN SUB-VIEW AREA */}
+      <div className="flex-1 overflow-y-auto p-5 space-y-5">
+        
+        {/* RECHARGE VERIFICATION QUEUE */}
+        {activeAdminSubTab === 'recharges' && (
+          <div className="space-y-4">
+            <h3 className="text-sm font-extrabold text-slate-700 flex items-center gap-1.5">
+              📥 Pending Deposits Verification Queue ({pendingRecharges.length})
+            </h3>
+            <p className="text-[11px] text-slate-500 mt-1 leading-normal">
+              Review and verify the CBE, Dashen, Awash, or Abyssinia manual receipts transfer references below to credit users.
+            </p>
+
+            {pendingRecharges.length === 0 ? (
+              <div className="bg-white border border-slate-200 rounded-2xl p-8 text-center text-xs text-slate-400 font-bold">
+                No pending bank recharges currently awaiting verification.
+              </div>
+            ) : (
+              pendingRecharges.map(tx => (
+                <div key={tx.id} className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm space-y-3.5">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <span className="block text-xs font-black text-slate-800">{tx.bankName}</span>
+                      <span className="block text-[10px] text-slate-400 font-bold mt-0.5">Phone: {tx.userPhone}</span>
+                      <span className="block text-[10px] text-amber-900 font-black mt-0.5">TXID / Reference: {tx.accountNumberOrRef}</span>
+                    </div>
+                    <span className="text-base font-black text-bronze">
+                      {tx.amount.toLocaleString()} ETB
+                    </span>
+                  </div>
+
+                  <div className="flex gap-2 pt-2 border-t border-slate-100 justify-end">
+                    <button
+                      onClick={() => rejectTransaction(tx.id)}
+                      className="bg-red-50 hover:bg-red-100 text-red-700 font-bold text-xs px-3 py-2 rounded-xl flex items-center gap-1 border border-red-200/50 cursor-pointer"
+                    >
+                      <X size={14} /> Reject Payment
+                    </button>
+                    <button
+                      onClick={() => approveTransaction(tx.id)}
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-4 py-2 rounded-xl flex items-center gap-1 shadow cursor-pointer"
+                    >
+                      <Check size={14} /> Approve CBE / Bank Transfer
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+
+            {/* RECHARGE ACCOUNTS CONFIGURATION */}
+            <div className="pt-4 border-t border-slate-200 mt-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-extrabold text-slate-700 flex items-center gap-1.5">
+                    💳 Receiving Bank Accounts Config
+                  </h3>
+                  <p className="text-[11px] text-slate-500 mt-0.5 leading-normal">
+                    Manage the receiving bank accounts that users see and copy during deposit/recharge.
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    setIsAddingAccount(true);
+                    setEditingAccountId(null);
+                    setFormBank('');
+                    setFormAccName('');
+                    setFormAccNo('');
+                  }}
+                  className="bg-bronze hover:bg-bronze-hover text-white text-[10px] font-bold px-2.5 py-1.5 rounded-lg flex items-center gap-1 shadow cursor-pointer transition-all active:scale-95"
+                >
+                  <Plus size={12} /> Add Bank Account
+                </button>
+              </div>
+
+              {/* Form to add or edit an account */}
+              {(isAddingAccount || editingAccountId !== null) && (
+                <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3 shadow-inner">
+                  <span className="text-xs font-black text-slate-700 block">
+                    {editingAccountId !== null ? '✏️ Edit Bank Account' : '➕ Add New Bank Account'}
+                  </span>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">Bank Name</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Commercial Bank of Ethiopia (CBE)"
+                        value={formBank}
+                        onChange={(e) => setFormBank(e.target.value)}
+                        className="w-full bg-white border border-slate-200 rounded-xl p-2 text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-bronze"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">Account Holder Name</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Global Online Market PLC"
+                        value={formAccName}
+                        onChange={(e) => setFormAccName(e.target.value)}
+                        className="w-full bg-white border border-slate-200 rounded-xl p-2 text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-bronze"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">Account Number</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. 1000552233445"
+                        value={formAccNo}
+                        onChange={(e) => setFormAccNo(e.target.value)}
+                        className="w-full bg-white border border-slate-200 rounded-xl p-2 text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-bronze"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                    <button
+                      onClick={cancelForm}
+                      className="bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 font-bold text-xs px-3 py-1.5 rounded-xl cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={saveAccount}
+                      className="bg-bronze hover:bg-bronze-hover text-white font-bold text-xs px-3 py-1.5 rounded-xl flex items-center gap-1 shadow cursor-pointer"
+                    >
+                      <Check size={14} /> Save Account
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Accounts list */}
+              <div className="space-y-2">
+                {rechargeAccounts.length === 0 ? (
+                  <div className="text-center text-xs text-slate-400 font-bold py-4">
+                    No receiving accounts configured. Users will not be able to deposit!
+                  </div>
+                ) : (
+                  rechargeAccounts.map(acc => (
+                    <div key={acc.id} className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div>
+                        <span className="block text-xs font-black text-slate-800">{acc.bank}</span>
+                        <span className="block text-[10px] text-slate-400 font-bold mt-0.5">Account: {acc.accNo}</span>
+                        <span className="block text-[10px] text-bronze font-bold mt-0.5">Name: {acc.accName}</span>
+                      </div>
+                      <div className="flex gap-2 justify-end self-end sm:self-center">
+                        <button
+                          onClick={() => editAccount(acc)}
+                          className="bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 font-bold text-xs px-2.5 py-1.5 rounded-xl flex items-center gap-1 cursor-pointer"
+                        >
+                          <Edit size={12} /> Edit
+                        </button>
+                        <button
+                          onClick={() => deleteRechargeAccount(acc.id)}
+                          className="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200/50 font-bold text-xs px-2.5 py-1.5 rounded-xl flex items-center gap-1 cursor-pointer"
+                        >
+                          <Trash2 size={12} /> Delete
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* WITHDRAWAL APPROVAL QUEUE */}
+        {activeAdminSubTab === 'withdrawals' && (
+          <div className="space-y-4">
+            <h3 className="text-sm font-extrabold text-slate-700 flex items-center gap-1.5">
+              📤 Pending Withdrawal Approvals Queue ({pendingWithdrawals.length})
+            </h3>
+            <p className="text-[11px] text-slate-500 mt-1 leading-normal">
+              Authorize user payout requests. Deducted assets will be permanently verified.
+            </p>
+
+            {pendingWithdrawals.length === 0 ? (
+              <div className="bg-white border border-slate-200 rounded-2xl p-8 text-center text-xs text-slate-400 font-bold">
+                No pending withdrawals currently awaiting payout approval.
+              </div>
+            ) : (
+              pendingWithdrawals.map(tx => (
+                <div key={tx.id} className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm space-y-3.5">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <span className="block text-xs font-black text-deep-forest">{tx.bankName}</span>
+                      <span className="block text-[10px] text-slate-400 font-bold mt-0.5">Account Number: {tx.accountNumberOrRef}</span>
+                      <span className="block text-[10px] text-slate-500 font-medium mt-0.5">Phone: {tx.userPhone}</span>
+                    </div>
+                    <span className="text-base font-black text-red-600">
+                      {tx.amount.toLocaleString()} ETB
+                    </span>
+                  </div>
+
+                  <div className="flex gap-2 pt-2 border-t border-slate-100 justify-end">
+                    <button
+                      onClick={() => rejectTransaction(tx.id)}
+                      className="bg-red-50 hover:bg-red-100 text-red-700 font-bold text-xs px-3 py-2 rounded-xl flex items-center gap-1 border border-red-200/50 cursor-pointer"
+                    >
+                      <X size={14} /> Reject & Refund Payout
+                    </button>
+                    <button
+                      onClick={() => approveTransaction(tx.id)}
+                      className="bg-bronze hover:bg-bronze-hover text-white font-bold text-xs px-4 py-2 rounded-xl flex items-center gap-1 shadow cursor-pointer"
+                    >
+                      <Check size={14} /> Mark Payout Complete
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+
+        {/* USER DIRECTORY MANAGEMENT */}
+        {activeAdminSubTab === 'users' && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-extrabold text-slate-700">👥 User Accounts Directory</h3>
+              <span className="text-[10px] font-extrabold bg-amber-100 text-amber-950 px-2 py-0.5 rounded-full">
+                {users.length} Registered
+              </span>
+            </div>
+
+            {/* Search Bar */}
+            <div className="relative">
+              <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                <Search size={14} />
+              </span>
+              <input
+                type="text"
+                placeholder="Search phone number or UID..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full bg-white text-xs pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-1 focus:ring-bronze font-medium text-slate-700"
+              />
+            </div>
+
+            <div className="space-y-2.5 max-h-[500px] overflow-y-auto pr-1">
+              {filteredUsers.map(user => (
+                <div key={user.id} className="bg-white border border-slate-200 rounded-2xl p-3.5 shadow-sm space-y-2">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <span className="text-xs font-black text-slate-800">{user.phoneNumber}</span>
+                      <span className="block text-[9px] text-slate-400 font-extrabold uppercase mt-0.5">UID: {user.id}</span>
+                    </div>
+                    <span className={`text-[9px] font-black px-2 py-0.5 rounded-full ${
+                      user.role === 'admin' ? 'bg-amber-100 text-amber-950' : 'bg-slate-100 text-slate-800'
+                    }`}>
+                      {user.role.toUpperCase()}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2 text-center pt-2 border-t border-slate-100 text-[10px]">
+                    <div className="bg-slate-50 p-1.5 rounded-lg">
+                      <span className="block text-[8px] text-slate-400 uppercase font-bold">Balance</span>
+                      <span className="font-extrabold text-slate-700">{user.walletBalance.toLocaleString()} ETB</span>
+                    </div>
+                    <div className="bg-slate-50 p-1.5 rounded-lg">
+                      <span className="block text-[8px] text-slate-400 uppercase font-bold">Earnings</span>
+                      <span className="font-extrabold text-slate-700">{user.totalEarnings.toLocaleString()} ETB</span>
+                    </div>
+                    <div className="bg-slate-50 p-1.5 rounded-lg">
+                      <span className="block text-[8px] text-slate-400 uppercase font-bold">Task Stage</span>
+                      <span className="font-extrabold text-bronze">Order {Math.min(10, user.currentOrderIndex + 1)}/10</span>
+                    </div>
+                  </div>
+
+                  {/* Manual Balance Adjustment */}
+                  <div className="bg-amber-100/10 border border-amber-200/40 rounded-xl p-2.5 flex flex-col gap-1.5">
+                    <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider block">
+                      🛠️ Manual Balance Adjustment
+                    </span>
+                    <div className="flex gap-2">
+                      <input
+                        type="number"
+                        placeholder="Amount in ETB (e.g. 500)"
+                        value={adjustAmounts[user.id] || ''}
+                        onChange={(e) => setAdjustAmounts(prev => ({ ...prev, [user.id]: e.target.value }))}
+                        className="flex-1 min-w-0 bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-bronze"
+                      />
+                      <button
+                        onClick={() => handleAdjustUserBalanceSubmit(user.id, true)}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[10px] uppercase px-3 py-1.5 rounded-lg active:scale-95 transition-all whitespace-nowrap cursor-pointer shadow-sm"
+                      >
+                        + Add
+                      </button>
+                      <button
+                        onClick={() => handleAdjustUserBalanceSubmit(user.id, false)}
+                        className="bg-rose-600 hover:bg-rose-700 text-white font-black text-[10px] uppercase px-3 py-1.5 rounded-lg active:scale-95 transition-all whitespace-nowrap cursor-pointer shadow-sm"
+                      >
+                        - Reduce
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ORDER PRICING MODEL CONFIG */}
+        {activeAdminSubTab === 'orders' && (
+          <div className="space-y-4">
+            <h3 className="text-sm font-extrabold text-slate-700 flex items-center gap-1.5">
+              📈 Sequential Pricing scaling config
+            </h3>
+            <p className="text-[11px] text-slate-500 mt-1 leading-normal">
+              Adjust the multiplier that automatically scales successive order material costs progressively, preventing manual calculations.
+            </p>
+
+            {/* Scaling Multiplier Setting */}
+            <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm space-y-3">
+              <div>
+                <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">Progressive Scaling Multiplier (e.g. 1.5 = +50%)</label>
+                <div className="flex gap-2">
+                  <input
+                    type="number"
+                    step="0.1"
+                    min="1.1"
+                    max="3"
+                    value={scalingMultiplier}
+                    onChange={(e) => updateScalingMultiplier(Number(e.target.value))}
+                    className="w-24 bg-slate-50 border border-slate-200 rounded-xl p-2 text-xs font-bold text-slate-800 text-center"
+                  />
+                  <div className="flex-1 bg-slate-50 rounded-xl px-3 py-2 text-[10px] text-slate-500 font-medium flex items-center justify-between">
+                    <span>Multiplier factor: {scalingMultiplier}x per order stage.</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const currentL1Prod = productCosts.find(p => p.id === 1);
+                        const currentL1Cost = currentL1Prod?.baseCost || 975;
+                        if (confirm(`Are you sure you want to reset and auto-scale all level material costs progressively using this multiplier? Level 1 cost of ${currentL1Cost} ETB will be used as the base, and Level 2-10 will be dynamically scaled and progressive constraints will be enforced.`)) {
+                          const newCosts = [];
+                          const base = currentL1Cost;
+                          for (let level = 1; level <= 10; level++) {
+                            const cost = Math.round(base * Math.pow(scalingMultiplier, level - 1));
+                            const defaultPct = level === 1 ? 15 : 
+                                               level === 2 ? 18 : 
+                                               level === 3 ? 20 : 
+                                               level === 4 ? 22 : 
+                                               level === 5 ? 25 : 
+                                               level === 6 ? 28 : 
+                                               level === 7 ? 30 : 
+                                               level === 8 ? 32 : 
+                                               level === 9 ? 35 : 40;
+                            newCosts.push({
+                              id: level,
+                              baseCost: cost,
+                              rewardMultiplier: defaultPct / 100
+                            });
+                          }
+                          updateAllProductCosts(newCosts);
+                          alert("All 10 product level costs and commissions have been auto-scaled successfully with progressive constraints!");
+                        }
+                      }}
+                      className="bg-bronze hover:bg-bronze-hover text-white text-[9px] uppercase tracking-wider px-2.5 py-1 rounded-lg transition-colors cursor-pointer font-extrabold ml-2"
+                    >
+                      ⚡ Auto-Scale All
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Helpful progression constraint info alert */}
+            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-[11px] text-amber-800 space-y-1 shadow-sm leading-relaxed">
+              <span className="font-extrabold uppercase text-[10px] tracking-wider text-amber-900 block">📊 Progressive Rule Enforced:</span>
+              <p>
+                To maintain a healthy platform economy, the system guarantees that the price of each order level is strictly greater than the previous level's total return (payout = material cost + reward commission). If an edit or scaling multiplier violates this rule, subsequent levels will automatically scale upwards to preserve proper progression.
+              </p>
+            </div>
+
+            {/* Individual base costs update */}
+            <div className="space-y-2.5">
+              <span className="block text-xs font-extrabold text-slate-400 uppercase tracking-wider">Configure Base Level & Rewards</span>
+              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((level) => {
+                const currentProd = productCosts.find(p => p.id === level);
+                const currentCost = currentProd?.baseCost || 975;
+                const currentRewardPercent = Math.round((currentProd?.rewardMultiplier || 0.15) * 100);
+
+                return (
+                  <div key={level} className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm space-y-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs font-black text-slate-800">Product Order Level #{level}</span>
+                      <span className="text-[10px] font-extrabold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
+                        Fully Customizable Cost & Commission
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[9px] font-bold text-slate-500 uppercase mb-1">Material Cost (ETB)</label>
+                        <input
+                          type="number"
+                          value={currentCost}
+                          onChange={(e) => updateProductCost(level, Number(e.target.value), currentRewardPercent)}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2 text-xs font-bold text-slate-800"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[9px] font-bold text-slate-500 uppercase mb-1">Commission Percent (%)</label>
+                        <input
+                          type="number"
+                          value={currentRewardPercent}
+                          onChange={(e) => updateProductCost(level, currentCost, Number(e.target.value))}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2 text-xs font-bold text-slate-800"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* ANNOUNCEMENT BROADCAST CENTER */}
+        {activeAdminSubTab === 'announcements' && (
+          <div className="space-y-4">
+            <h3 className="text-sm font-extrabold text-slate-700">📢 Announcement Broadcast Center</h3>
+
+            {/* Announcement form */}
+            <form onSubmit={handleCreateAnnouncement} className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm space-y-3">
+              {annSuccess && (
+                <div className="p-2.5 bg-emerald-50 text-emerald-600 rounded-xl text-[10px] font-bold border border-emerald-100">
+                  Announcement broadcasted successfully!
+                </div>
+              )}
+
+              <div>
+                <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">Notice Title</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. CBE Bank Holiday Details"
+                  value={newAnnTitle}
+                  onChange={(e) => setNewAnnTitle(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-bronze"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">Message Content</label>
+                <textarea
+                  required
+                  rows={3}
+                  placeholder="Type official system broadcast message details..."
+                  value={newAnnContent}
+                  onChange={(e) => setNewAnnContent(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-bronze resize-none"
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="w-full bg-bronze hover:bg-bronze-hover text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                <Plus size={14} /> Broadcast Announcement
+              </button>
+            </form>
+          </div>
+        )}
+
+        {/* CUSTOMER SUPPORT VERIFICATION replies */}
+        {activeAdminSubTab === 'support' && (
+          <div className="space-y-4">
+            <h3 className="text-sm font-extrabold text-slate-700">💬 Customer Support Ticket Board</h3>
+            <p className="text-[11px] text-slate-500 leading-relaxed">
+              Answer user questions regarding deposits and payout delays directly.
+            </p>
+
+            {supportMessages.filter(m => m.status === 'open').length === 0 ? (
+              <div className="bg-white border border-slate-200 rounded-2xl p-8 text-center text-xs text-slate-400 font-bold">
+                No open customer support tickets.
+              </div>
+            ) : (
+              supportMessages.filter(m => m.status === 'open').map(ticket => (
+                <div key={ticket.id} className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm space-y-3">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <span className="block text-xs font-black text-slate-800">{ticket.subject}</span>
+                      <span className="block text-[10px] text-slate-400 font-bold mt-0.5">From User: {ticket.userPhone} (ID: {ticket.userId})</span>
+                    </div>
+                    <span className="text-[9px] bg-amber-100 text-amber-700 font-black px-2 py-0.5 rounded-full uppercase">
+                      Open
+                    </span>
+                  </div>
+
+                  <p className="text-xs text-slate-600 bg-slate-50 p-2.5 rounded-xl border border-slate-100 leading-relaxed font-medium">
+                    {ticket.message}
+                  </p>
+
+                  <div className="space-y-2 pt-2 border-t border-slate-100">
+                    <label className="block text-[9px] font-extrabold text-slate-500 uppercase tracking-wider">Reply as Administrator</label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        placeholder="Transfer verified, funds credited..."
+                        value={supportReplies[ticket.id] || ''}
+                        onChange={(e) => setSupportReplies(prev => ({ ...prev, [ticket.id]: e.target.value }))}
+                        className="flex-1 bg-slate-50 border border-slate-200 rounded-xl p-2 text-xs"
+                      />
+                      <button
+                        onClick={() => handleSupportReplySubmit(ticket.id)}
+                        className="bg-bronze hover:bg-bronze-hover text-white font-bold text-xs px-3 py-2 rounded-xl flex items-center shrink-0 cursor-pointer"
+                      >
+                        Send
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+
+        {/* LEDGER AND SYSTEM STATS REPORTS */}
+        {activeAdminSubTab === 'reports' && (
+          <div className="space-y-4">
+            <h3 className="text-sm font-extrabold text-slate-700">📊 Market Platform System Reports</h3>
+
+            {/* Quick Metrics grid */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-white border border-slate-200 p-3.5 rounded-2xl shadow-sm text-center">
+                <span className="block text-[9px] text-slate-400 font-bold uppercase">Total Users</span>
+                <span className="text-base font-black text-slate-800">{systemReports.totalUsers}</span>
+              </div>
+              <div className="bg-white border border-slate-200 p-3.5 rounded-2xl shadow-sm text-center">
+                <span className="block text-[9px] text-slate-400 font-bold uppercase">Deposits Paid</span>
+                <span className="text-base font-black text-emerald-700">{systemReports.totalRecharged} ETB</span>
+              </div>
+              <div className="bg-white border border-slate-200 p-3.5 rounded-2xl shadow-sm text-center">
+                <span className="block text-[9px] text-slate-400 font-bold uppercase">Payouts Settled</span>
+                <span className="text-base font-black text-red-600">{systemReports.totalWithdrawn} ETB</span>
+              </div>
+              <div className="bg-white border border-slate-200 p-3.5 rounded-2xl shadow-sm text-center">
+                <span className="block text-[9px] text-slate-400 font-bold uppercase">Commissions Paid</span>
+                <span className="text-base font-black text-amber-900">{systemReports.totalRewardsDistributed} ETB</span>
+              </div>
+            </div>
+
+            {/* Real-time scrollable system-wide audit logs */}
+            <div className="space-y-2 pt-2">
+              <span className="block text-xs font-extrabold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                <Terminal size={14} /> Cryptographic Audit Ledger
+              </span>
+              <div className="bg-slate-900 text-emerald-400 p-4 rounded-2xl font-mono text-[10px] space-y-2 h-72 overflow-y-auto border border-slate-800 shadow-inner">
+                {auditLogs.map((log) => (
+                  <div key={log.id} className="space-y-0.5 pb-2 border-b border-slate-800/60 leading-relaxed">
+                    <div className="flex justify-between items-center text-[9px] text-slate-500 font-black">
+                      <span>[{new Date(log.createdAt).toLocaleTimeString()}]</span>
+                      <span>{log.id}</span>
+                    </div>
+                    <div className="font-extrabold text-slate-300">
+                      ACTION: {log.action} | PHONE: {log.userPhone}
+                    </div>
+                    <p className="text-emerald-300/85">{log.details}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+      </div>
+    </div>
+  );
+};
