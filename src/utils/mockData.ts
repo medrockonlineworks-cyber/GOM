@@ -134,7 +134,7 @@ export const ALTERNATIVE_PRODUCTS_POOLS: { [key: number]: { productName: string;
 export const INITIAL_ANNOUNCEMENTS: Announcement[] = [
   {
     id: "ann-1",
-    title: "✨ Welcome to Global Online Market!",
+    title: "✨ Welcome to GOM!",
     content: "We are thrilled to launch our advanced order matching and scaling system. Register today to receive an instant 500 ETB Welcome Bonus! Complete 10 daily tasks to maximize your commissions.",
     createdAt: new Date().toISOString()
   },

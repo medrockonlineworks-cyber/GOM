@@ -28,7 +28,9 @@ import {
   ArrowDownLeft,
   Headphones,
   Copy,
-  CheckCircle2
+  CheckCircle2,
+  Download,
+  Share
 } from 'lucide-react';
 
 type UserTab = 'home' | 'orders' | 'my';
@@ -37,6 +39,61 @@ function AppContent() {
   const { currentUser, deposit, withdraw, addSupportTicket, rechargeAccounts } = useApp();
   const [activeTab, setActiveTab] = useState<UserTab>('home');
   const [isAdminView, setIsAdminView] = useState(false);
+
+  // PWA & Installation states
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [showInstallBanner, setShowInstallBanner] = useState(false);
+  const [isIOS, setIsIOS] = useState(false);
+  const [isAlreadyInstalled, setIsAlreadyInstalled] = useState(false);
+
+  React.useEffect(() => {
+    // 1. Check if already running in standalone mode (installed PWA)
+    const isStandalone = 
+      window.matchMedia('(display-mode: standalone)').matches ||
+      (window.navigator as any).standalone === true;
+    
+    setIsAlreadyInstalled(isStandalone);
+    
+    if (isStandalone) {
+      return;
+    }
+
+    // 2. Detect iOS device
+    const iOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+    setIsIOS(iOSDevice);
+
+    // 3. Listen for browser install prompt trigger (Chrome/Android/Desktop)
+    const handleBeforeInstallPrompt = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      setShowInstallBanner(true);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+    // 4. Show the custom install helper after 3.5 seconds on mobile if not already installed
+    const timer = setTimeout(() => {
+      setShowInstallBanner(true);
+    }, 3500);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      clearTimeout(timer);
+    };
+  }, []);
+
+  const handleInstallClick = async () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      console.log(`User installation decision: ${outcome}`);
+      setDeferredPrompt(null);
+      setShowInstallBanner(false);
+    } else {
+      // General alert if native prompt is not available
+      alert("To install GOM:\n\n1. Tap the browser options/menu button (three dots or share button).\n2. Select 'Add to Home screen' or 'Install'.");
+    }
+  };
 
   // Common modal triggers
   const [rechargeModalOpen, setRechargeModalOpen] = useState(false);
@@ -108,8 +165,8 @@ function AppContent() {
     setRechargeSuccess(false);
 
     const amt = Number(rechargeAmount);
-    if (isNaN(amt) || amt <= 0) {
-      setRechargeError('Please enter a valid recharge amount.');
+    if (isNaN(amt) || amt < 200) {
+      setRechargeError('The minimum recharge amount is 200 ETB.');
       return;
     }
 
@@ -131,8 +188,13 @@ function AppContent() {
     setWithdrawSuccess(false);
 
     const amt = Number(withdrawAmount);
-    if (isNaN(amt) || amt <= 0) {
-      setWithdrawError('Please enter a valid withdrawal amount.');
+    if (isNaN(amt) || amt < 200) {
+      setWithdrawError('The minimum withdrawal amount is 200 ETB.');
+      return;
+    }
+
+    if (amt > 75000) {
+      setWithdrawError('The maximum withdrawal amount is 75,000 ETB.');
       return;
     }
 
@@ -189,11 +251,22 @@ function AppContent() {
             <div className="w-3.5 h-3.5 border-2 border-deep-forest rotate-45"></div>
           </div>
           <h1 className="text-sm font-black tracking-tight uppercase">
-            Global <span className="text-bronze font-light italic text-xs">Online Market</span>
+            GOM
           </h1>
         </div>
 
         <div className="flex gap-2.5 items-center">
+          {!isAlreadyInstalled && (
+            <button
+              onClick={() => setShowInstallBanner(true)}
+              className="bg-bronze hover:bg-bronze-hover active:opacity-90 text-white px-2.5 py-1 rounded-lg text-[9px] font-black uppercase flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
+              title="Install GOM"
+            >
+              <img src="/gom-logo.svg" alt="GOM Logo" className="w-3.5 h-3.5 rounded-xs object-contain" />
+              <span>Install GOM</span>
+            </button>
+          )}
+
           <div className="flex items-center gap-1.5 bg-deep-forest-light px-2 py-1 rounded-lg border border-deep-forest-light">
             <span className="text-[9px] uppercase tracking-wider text-bronze">Secure</span>
             <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></div>
@@ -445,11 +518,13 @@ function AppContent() {
                         <input
                           type="number"
                           required
-                          placeholder="e.g. 1000"
+                          min="200"
+                          placeholder="Min 200"
                           value={rechargeAmount}
                           onChange={(e) => setRechargeAmount(e.target.value)}
                           className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-bronze"
                         />
+                        <span className="text-[9px] text-slate-400 mt-1 block">Minimum: 200 ETB</span>
                       </div>
                       <div>
                         <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">Transfer TXID / Ref</label>
@@ -567,12 +642,15 @@ function AppContent() {
                           <input
                             type="number"
                             required
+                            min="200"
+                            max="75000"
                             disabled={isLocked}
-                            placeholder="ETB"
+                            placeholder="Min 200 - Max 75k"
                             value={withdrawAmount}
                             onChange={(e) => setWithdrawAmount(e.target.value)}
                             className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-bronze disabled:opacity-50"
                           />
+                          <span className="text-[9px] text-slate-400 mt-1 block">Min: 200 | Max: 75,000 ETB</span>
                         </div>
                       </div>
 
@@ -665,6 +743,107 @@ function AppContent() {
                   <Send size={14} /> Send Message to Agent
                 </button>
               </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* --- PWA INSTALLATION PROMPT / POPUP MODAL --- */}
+      <AnimatePresence>
+        {showInstallBanner && !isAlreadyInstalled && (
+          <div className="fixed inset-0 bg-slate-900/60 flex items-end sm:items-center justify-center p-4 z-50 backdrop-blur-xs">
+            <motion.div
+              initial={{ y: 150, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 150, opacity: 0 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 350 }}
+              className="bg-white rounded-t-3xl sm:rounded-3xl p-6 max-w-sm w-full space-y-5 border border-slate-100 shadow-2xl relative"
+            >
+              <button
+                onClick={() => setShowInstallBanner(false)}
+                className="absolute top-4 right-4 text-slate-400 hover:text-slate-700 p-1.5 bg-slate-100 hover:bg-slate-200 rounded-full cursor-pointer transition-colors"
+                title="Dismiss"
+              >
+                <X size={14} />
+              </button>
+
+              {/* App Identity Row */}
+              <div className="flex gap-4 items-center">
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-900 to-slate-900 p-0.5 shadow-md flex items-center justify-center shrink-0">
+                  <img src="/gom-logo.svg" alt="GOM" className="w-full h-full object-contain rounded-[14px]" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-slate-900 uppercase tracking-tight">Install GOM App</h3>
+                  <p className="text-[10px] text-amber-600 font-extrabold tracking-wide uppercase mt-0.5">Global Online Market</p>
+                  <p className="text-[10px] text-slate-400">Ethiopia's Premium Reward Platform</p>
+                </div>
+              </div>
+
+              {/* Benefits */}
+              <div className="space-y-2 bg-slate-50 p-3 rounded-2xl border border-slate-100 text-[10px] text-slate-600 leading-relaxed">
+                <div className="flex items-center gap-2 font-semibold text-slate-800">
+                  <div className="w-1.5 h-1.5 rounded-full bg-amber-500"></div>
+                  <span>⚡ Instant full-screen dedicated window</span>
+                </div>
+                <div className="flex items-center gap-2 font-semibold text-slate-800">
+                  <div className="w-1.5 h-1.5 rounded-full bg-amber-500"></div>
+                  <span>📱 Low data consumption &amp; offline ready</span>
+                </div>
+                <div className="flex items-center gap-2 font-semibold text-slate-800">
+                  <div className="w-1.5 h-1.5 rounded-full bg-amber-500"></div>
+                  <span>🔒 Secure real-time cloud database syncing</span>
+                </div>
+              </div>
+
+              {/* Conditional Install CTA or Guide */}
+              {isIOS ? (
+                // iOS Installation Guide
+                <div className="bg-amber-50/80 border border-amber-200/50 rounded-2xl p-4 text-[11px] text-amber-950 space-y-2.5">
+                  <div className="font-extrabold uppercase tracking-wider text-[9px] text-amber-800 flex items-center gap-1">
+                    <span className="animate-pulse">📱</span> iOS Safari Installation Guide
+                  </div>
+                  <div className="leading-relaxed space-y-1.5">
+                    <div className="flex items-start gap-1.5">
+                      <span className="font-black text-amber-900">1.</span>
+                      <span>Tap the <span className="font-extrabold inline-flex items-center gap-0.5 bg-white border border-amber-300 px-1.5 py-0.5 rounded text-slate-700 text-[10px]"><Share size={10} /> Share</span> button at the bottom of Safari.</span>
+                    </div>
+                    <div className="flex items-start gap-1.5">
+                      <span className="font-black text-amber-900">2.</span>
+                      <span>Scroll down and tap <span className="font-extrabold text-amber-950">"Add to Home Screen"</span>.</span>
+                    </div>
+                    <div className="flex items-start gap-1.5">
+                      <span className="font-black text-amber-900">3.</span>
+                      <span>Tap <span className="font-extrabold text-amber-900">"Add"</span> in the top-right corner to finish.</span>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                // Android / Desktop / Chrome installation CTA
+                <div className="space-y-2">
+                  <button
+                    onClick={handleInstallClick}
+                    className="w-full bg-gradient-to-r from-blue-900 to-slate-900 hover:from-blue-850 hover:to-slate-850 text-white font-extrabold py-3 rounded-xl shadow-lg hover:shadow-xl transition-all text-xs flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <Download size={14} className="animate-bounce" /> Install App to Device
+                  </button>
+                  
+                  {!deferredPrompt && (
+                    <p className="text-[9px] text-slate-400 text-center leading-relaxed">
+                      If the automatic button is inactive, tap your browser's menu (three dots <span className="font-black">⋮</span>) and select <span className="font-bold text-slate-500">"Add to Home Screen"</span>.
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* Close / Dismiss */}
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setShowInstallBanner(false)}
+                  className="w-full bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold py-2 rounded-lg text-[10px] cursor-pointer transition-colors text-center"
+                >
+                  Continue in Browser
+                </button>
+              </div>
             </motion.div>
           </div>
         )}

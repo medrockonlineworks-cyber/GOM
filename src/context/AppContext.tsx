@@ -22,6 +22,46 @@ import {
   INITIAL_USERS,
   ALTERNATIVE_PRODUCTS_POOLS
 } from '../utils/mockData';
+import { 
+  collection, 
+  doc, 
+  setDoc, 
+  onSnapshot, 
+  deleteDoc, 
+  writeBatch
+} from 'firebase/firestore';
+import { db } from '../lib/firebase';
+
+enum OperationType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  LIST = 'list',
+  GET = 'get',
+  WRITE = 'write',
+}
+
+interface FirestoreErrorInfo {
+  error: string;
+  operationType: OperationType;
+  path: string | null;
+  authInfo: {
+    userId?: string | null;
+    email?: string | null;
+    emailVerified?: boolean | null;
+  };
+}
+
+function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+  const errInfo: FirestoreErrorInfo = {
+    error: error instanceof Error ? error.message : String(error),
+    authInfo: {},
+    operationType,
+    path
+  };
+  console.error('Firestore Error: ', JSON.stringify(errInfo));
+  throw new Error(JSON.stringify(errInfo));
+}
 
 export const sanitizeProductCosts = (costs: { id: number; baseCost: number; rewardMultiplier: number }[]) => {
   const sorted = [...costs].sort((a, b) => a.id - b.id);
@@ -230,7 +270,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         userId: "SYSTEM",
         userPhone: "SYSTEM",
         action: "INITIALIZE",
-        details: "Global Online Market system initialized successfully.",
+        details: "GOM system initialized successfully.",
         createdAt: new Date().toISOString()
       }
     ];
@@ -304,42 +344,215 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Dynamic calculated orders for the active user
   const [orders, setOrders] = useState<Order[]>([]);
 
-  // Sync to localStorage
-  useEffect(() => {
-    localStorage.setItem('gom_users', JSON.stringify(users));
-  }, [users]);
+  // Seeding helper for empty Firestore database
+  const seedInitialData = async () => {
+    try {
+      const batch = writeBatch(db);
+      
+      // 1. Seed users
+      INITIAL_USERS.forEach((u) => {
+        const updated = { ...u };
+        if (!updated.inviteCode) {
+          const phoneDigits = updated.phoneNumber.replace(/[^0-9]/g, '');
+          const suffix = phoneDigits.slice(-5) || updated.id.slice(-5);
+          updated.inviteCode = `GOM${suffix}`;
+        }
+        if (updated.referralCount === undefined) updated.referralCount = 0;
+        if (updated.referralEarnings === undefined) updated.referralEarnings = 0;
+        if (!updated.completedOrderIds) updated.completedOrderIds = [];
+        if (!updated.cycleProductOverrides || updated.cycleProductOverrides.length === 0) {
+          const overrides: { id: number; productName: string; productImage: string }[] = [];
+          for (let id = 1; id <= 10; id++) {
+            const pool = ALTERNATIVE_PRODUCTS_POOLS[id];
+            if (pool && pool.length > 0) {
+              const randomIndex = Math.floor(Math.random() * pool.length);
+              const selected = pool[randomIndex];
+              overrides.push({
+                id,
+                productName: selected.productName,
+                productImage: selected.productImage
+              });
+            }
+          }
+          updated.cycleProductOverrides = overrides;
+        }
+        const userRef = doc(db, 'users', updated.id);
+        batch.set(userRef, updated);
+      });
+      
+      // 2. Seed announcements
+      INITIAL_ANNOUNCEMENTS.forEach((a) => {
+        const ref = doc(db, 'announcements', a.id);
+        batch.set(ref, a);
+      });
+      
+      // 3. Seed bank accounts
+      const initialAccounts = [
+        { id: 'acc-1', bank: 'Commercial Bank of Ethiopia (CBE)', accName: 'Global Online Market PLC', accNo: '1000552233445' },
+        { id: 'acc-2', bank: 'Dashen Bank', accName: 'Global Online Market PLC', accNo: '001244558832' },
+        { id: 'acc-3', bank: 'Bank of Abyssinia (BoA)', accName: 'Global Online Market PLC', accNo: '55887744331' },
+        { id: 'acc-4', bank: 'Awash Bank', accName: 'Global Online Market PLC', accNo: '013204938200' }
+      ];
+      initialAccounts.forEach((acc) => {
+        const ref = doc(db, 'rechargeAccounts', acc.id);
+        batch.set(ref, acc);
+      });
+      
+      // 4. Seed system config
+      const configRef = doc(db, 'systemConfig', 'global');
+      batch.set(configRef, {
+        scalingMultiplier: 1.5,
+        productCosts: productCosts
+      });
+      
+      // 5. Seed audit logs
+      const initLog = {
+        id: 'log-init',
+        userId: 'SYSTEM',
+        userPhone: 'SYSTEM',
+        action: 'INITIALIZE',
+        details: 'GOM system initialized successfully on cloud database.',
+        createdAt: new Date().toISOString()
+      };
+      const logRef = doc(db, 'auditLogs', initLog.id);
+      batch.set(logRef, initLog);
+      
+      await batch.commit();
+      console.log("Firebase database seeded successfully!");
+    } catch (e) {
+      console.error("Error seeding Firebase:", e);
+    }
+  };
 
+  // Real-time synchronization listeners
+  useEffect(() => {
+    // 1. Users sync
+    const unsubUsers = onSnapshot(collection(db, 'users'), (snapshot) => {
+      const list: User[] = [];
+      snapshot.forEach((doc) => {
+        list.push(doc.data() as User);
+      });
+      
+      if (list.length > 0) {
+        setUsers(list);
+        localStorage.setItem('gom_users', JSON.stringify(list));
+      } else {
+        // If Firestore is empty, seed it
+        seedInitialData();
+      }
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'users');
+    });
+
+    // 2. Transactions sync
+    const unsubTx = onSnapshot(collection(db, 'transactions'), (snapshot) => {
+      const list: Transaction[] = [];
+      snapshot.forEach((doc) => {
+        list.push(doc.data() as Transaction);
+      });
+      list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      setTransactions(list);
+      localStorage.setItem('gom_transactions', JSON.stringify(list));
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'transactions');
+    });
+
+    // 3. Announcements sync
+    const unsubAnn = onSnapshot(collection(db, 'announcements'), (snapshot) => {
+      const list: Announcement[] = [];
+      snapshot.forEach((doc) => {
+        list.push(doc.data() as Announcement);
+      });
+      list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      setAnnouncements(list);
+      localStorage.setItem('gom_announcements', JSON.stringify(list));
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'announcements');
+    });
+
+    // 4. Support sync
+    const unsubSup = onSnapshot(collection(db, 'support'), (snapshot) => {
+      const list: SupportMessage[] = [];
+      snapshot.forEach((doc) => {
+        list.push(doc.data() as SupportMessage);
+      });
+      list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      setSupportMessages(list);
+      localStorage.setItem('gom_support', JSON.stringify(list));
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'support');
+    });
+
+    // 5. AuditLogs sync
+    const unsubLogs = onSnapshot(collection(db, 'auditLogs'), (snapshot) => {
+      const list: AuditLog[] = [];
+      snapshot.forEach((doc) => {
+        list.push(doc.data() as AuditLog);
+      });
+      list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      setAuditLogs(list);
+      localStorage.setItem('gom_audit_logs', JSON.stringify(list));
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'auditLogs');
+    });
+
+    // 6. RechargeAccounts sync
+    const unsubAcc = onSnapshot(collection(db, 'rechargeAccounts'), (snapshot) => {
+      const list: RechargeAccount[] = [];
+      snapshot.forEach((doc) => {
+        list.push(doc.data() as RechargeAccount);
+      });
+      setRechargeAccounts(list);
+      localStorage.setItem('gom_recharge_accounts', JSON.stringify(list));
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'rechargeAccounts');
+    });
+
+    // 7. Config sync
+    const unsubConfig = onSnapshot(doc(db, 'systemConfig', 'global'), (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        if (typeof data.scalingMultiplier === 'number') {
+          setScalingMultiplier(data.scalingMultiplier);
+          localStorage.setItem('gom_scaling_multiplier', data.scalingMultiplier.toString());
+        }
+        if (Array.isArray(data.productCosts)) {
+          setProductCosts(data.productCosts);
+          localStorage.setItem('gom_product_costs', JSON.stringify(data.productCosts));
+        }
+      }
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, 'systemConfig/global');
+    });
+
+    return () => {
+      unsubUsers();
+      unsubTx();
+      unsubAnn();
+      unsubSup();
+      unsubLogs();
+      unsubAcc();
+      unsubConfig();
+    };
+  }, []);
+
+  // Sync currentUser update when users array is modified in Firestore
+  useEffect(() => {
+    if (currentUser) {
+      const updated = users.find(u => u.id === currentUser.id);
+      if (updated) {
+        if (JSON.stringify(updated) !== JSON.stringify(currentUser)) {
+          setCurrentUser(updated);
+          localStorage.setItem('gom_current_user', JSON.stringify(updated));
+        }
+      }
+    }
+  }, [users, currentUser]);
+
+  // Keep localStorage session synced
   useEffect(() => {
     localStorage.setItem('gom_current_user', JSON.stringify(currentUser));
   }, [currentUser]);
-
-  useEffect(() => {
-    localStorage.setItem('gom_transactions', JSON.stringify(transactions));
-  }, [transactions]);
-
-  useEffect(() => {
-    localStorage.setItem('gom_announcements', JSON.stringify(announcements));
-  }, [announcements]);
-
-  useEffect(() => {
-    localStorage.setItem('gom_support', JSON.stringify(supportMessages));
-  }, [supportMessages]);
-
-  useEffect(() => {
-    localStorage.setItem('gom_audit_logs', JSON.stringify(auditLogs));
-  }, [auditLogs]);
-
-  useEffect(() => {
-    localStorage.setItem('gom_scaling_multiplier', scalingMultiplier.toString());
-  }, [scalingMultiplier]);
-
-  useEffect(() => {
-    localStorage.setItem('gom_product_costs', JSON.stringify(productCosts));
-  }, [productCosts]);
-
-  useEffect(() => {
-    localStorage.setItem('gom_recharge_accounts', JSON.stringify(rechargeAccounts));
-  }, [rechargeAccounts]);
 
   // Recalculate dynamic orders list whenever user changes, productCosts scale, or balance shifts
   useEffect(() => {
@@ -434,7 +647,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [users, transactions]);
 
   // HELPERS
-  const logAudit = (userId: string, userPhone: string, action: string, details: string) => {
+  const logAudit = async (userId: string, userPhone: string, action: string, details: string) => {
     const log: AuditLog = {
       id: generateId('LOG'),
       userId,
@@ -443,7 +656,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       details,
       createdAt: new Date().toISOString()
     };
-    setAuditLogs(prev => [log, ...prev]);
+    try {
+      await setDoc(doc(db, 'auditLogs', log.id), log);
+    } catch (e) {
+      console.error("Error writing audit log to Firestore:", e);
+    }
   };
 
   // AUTH ACTIONS
@@ -508,25 +725,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         createdAt: new Date().toISOString(),
         description: `Referral Reward of 200 ETB credited for inviting ${trimmedPhone}.`
       });
-
-      // Update referrer user in the list
-      setUsers(prev => prev.map(u => {
-        if (u.id === referrer.id) {
-          const updatedReferrer = {
-            ...u,
-            walletBalance: u.walletBalance + 200,
-            referralEarnings: (u.referralEarnings || 0) + 200,
-            referralCount: (u.referralCount || 0) + 1
-          };
-          // Sync active session if the admin/referrer is logged in
-          if (currentUser && currentUser.id === u.id) {
-            setCurrentUser(updatedReferrer);
-          }
-          return updatedReferrer;
-        }
-        return u;
-      }));
-      logAudit(referrer.id, referrer.phoneNumber, 'REFERRAL_BONUS', `Referred ${trimmedPhone}. Credited +200 ETB.`);
     }
 
     const overrides: { id: number; productName: string; productImage: string }[] = [];
@@ -572,13 +770,50 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       description: 'Registration 500 ETB Welcome Bonus credited.'
     };
 
-    setUsers(prev => [...prev, newUser]);
-    setTransactions(prev => [welcomeBonusTransaction, ...additionalTxs, ...prev]);
-    setCurrentUser(newUser);
+    try {
+      const batch = writeBatch(db);
 
-    logAudit(userId, trimmedPhone, 'REGISTER', `Successfully registered. Automatically credited 500 Welcome Bonus.${referredBy ? ' Plus 100 referral bonus.' : ''}`);
+      // Write user and welcome bonus
+      batch.set(doc(db, 'users', userId), newUser);
+      batch.set(doc(db, 'transactions', welcomeBonusTransaction.id), welcomeBonusTransaction);
 
-    return { success: true, message: `Registration successful! Welcome bonus of 500 ETB credited.${referredBy ? ' Additional 100 ETB referral bonus credited!' : ''}` };
+      // Add referral transactions
+      additionalTxs.forEach((tx) => {
+        batch.set(doc(db, 'transactions', tx.id), tx);
+      });
+
+      // Update referrer user in Firestore
+      if (referredBy) {
+        const referrerToUpdate = users.find(u => u.id === referredBy);
+        if (referrerToUpdate) {
+          const updatedReferrer = {
+            ...referrerToUpdate,
+            walletBalance: referrerToUpdate.walletBalance + 200,
+            referralEarnings: (referrerToUpdate.referralEarnings || 0) + 200,
+            referralCount: (referrerToUpdate.referralCount || 0) + 1
+          };
+          batch.set(doc(db, 'users', referredBy), updatedReferrer);
+        }
+      }
+
+      await batch.commit();
+
+      // Sync active session
+      setCurrentUser(newUser);
+
+      await logAudit(userId, trimmedPhone, 'REGISTER', `Successfully registered. Automatically credited 500 Welcome Bonus.${referredBy ? ' Plus 100 referral bonus.' : ''}`);
+      if (referredBy) {
+        const referrerToUpdate = users.find(u => u.id === referredBy);
+        if (referrerToUpdate) {
+          await logAudit(referrerToUpdate.id, referrerToUpdate.phoneNumber, 'REFERRAL_BONUS', `Referred ${trimmedPhone}. Credited +200 ETB.`);
+        }
+      }
+
+      return { success: true, message: `Registration successful! Welcome bonus of 500 ETB credited.${referredBy ? ' Additional 100 ETB referral bonus credited!' : ''}` };
+    } catch (e) {
+      console.error("Error committing registration batch to Firestore:", e);
+      return { success: false, message: 'Registration failed. Please try again.' };
+    }
   };
 
   const login = async (phoneNumber: string, passwordPlain: string) => {
@@ -595,45 +830,43 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     setCurrentUser(matchedUser);
-    logAudit(matchedUser.id, matchedUser.phoneNumber, 'LOGIN', 'Successful login.');
+    await logAudit(matchedUser.id, matchedUser.phoneNumber, 'LOGIN', 'Successful login.');
 
     return { success: true, message: 'Login successful!' };
   };
 
-  const logout = () => {
+  const logout = async () => {
     if (currentUser) {
-      logAudit(currentUser.id, currentUser.phoneNumber, 'LOGOUT', 'User logged out.');
+      await logAudit(currentUser.id, currentUser.phoneNumber, 'LOGOUT', 'User logged out.');
       setCurrentUser(null);
     }
   };
 
   const resetPassword = async (phoneNumber: string, passwordPlain: string) => {
     const trimmedPhone = phoneNumber.trim();
-    const userIdx = users.findIndex(u => u.phoneNumber === trimmedPhone);
-    if (userIdx === -1) {
+    const matchedUser = users.find(u => u.phoneNumber === trimmedPhone);
+    if (!matchedUser) {
       return { success: false, message: 'Phone number not found.' };
     }
 
     const hashed = await hashPassword(passwordPlain);
-    const updatedUsers = [...users];
-    updatedUsers[userIdx] = {
-      ...updatedUsers[userIdx],
+    const updatedUser = {
+      ...matchedUser,
       passwordHash: hashed
     };
 
-    setUsers(updatedUsers);
-    
-    // Update currentUser if applicable
-    if (currentUser && currentUser.phoneNumber === trimmedPhone) {
-      setCurrentUser(updatedUsers[userIdx]);
+    try {
+      await setDoc(doc(db, 'users', matchedUser.id), updatedUser);
+      await logAudit(matchedUser.id, trimmedPhone, 'RESET_PASSWORD', 'Password reset successfully.');
+      return { success: true, message: 'Password reset successfully.' };
+    } catch (e) {
+      console.error("Error resetting password:", e);
+      return { success: false, message: 'Failed to reset password. Please try again.' };
     }
-
-    logAudit(updatedUsers[userIdx].id, trimmedPhone, 'RESET_PASSWORD', 'Password reset successfully.');
-    return { success: true, message: 'Password reset successfully.' };
   };
 
   // WALLET ACTIONS
-  const deposit = (amount: number, bankName: string, refCode: string) => {
+  const deposit = async (amount: number, bankName: string, refCode: string) => {
     if (!currentUser) return;
 
     const depositTx: Transaction = {
@@ -649,11 +882,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       description: `Pending recharge of ${amount} ETB via ${bankName}. Reference: ${refCode}`
     };
 
-    setTransactions(prev => [depositTx, ...prev]);
-    logAudit(currentUser.id, currentUser.phoneNumber, 'DEPOSIT_REQUEST', `Requested deposit of ${amount} ETB via ${bankName}`);
+    try {
+      await setDoc(doc(db, 'transactions', depositTx.id), depositTx);
+      await logAudit(currentUser.id, currentUser.phoneNumber, 'DEPOSIT_REQUEST', `Requested deposit of ${amount} ETB via ${bankName}`);
+    } catch (e) {
+      console.error("Error requesting deposit:", e);
+    }
   };
 
-  const withdraw = (amount: number, bankName: string, accNo: string) => {
+  const withdraw = async (amount: number, bankName: string, accNo: string) => {
     if (!currentUser) return { success: false, message: 'Not logged in.' };
 
     const completedCount = currentUser.completedOrderIds ? currentUser.completedOrderIds.length : 0;
@@ -668,8 +905,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return { success: false, message: 'Insufficient wallet balance.' };
     }
 
-    // Standard security checks: lock withdrawal amount immediately by deducting it from the balance,
-    // so they can't double spend while it is pending approval.
     const updatedUser = {
       ...currentUser,
       walletBalance: currentUser.walletBalance - amount
@@ -688,96 +923,84 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       description: `Pending withdrawal of ${amount} ETB to ${bankName} (${accNo}).`
     };
 
-    // Update state
-    setTransactions(prev => [withdrawTx, ...prev]);
-    setUsers(prev => prev.map(u => u.id === currentUser.id ? updatedUser : u));
-    setCurrentUser(updatedUser);
+    try {
+      const batch = writeBatch(db);
+      batch.set(doc(db, 'users', currentUser.id), updatedUser);
+      batch.set(doc(db, 'transactions', withdrawTx.id), withdrawTx);
+      await batch.commit();
 
-    logAudit(currentUser.id, currentUser.phoneNumber, 'WITHDRAW_REQUEST', `Requested withdrawal of ${amount} ETB to ${bankName}. Account: ${accNo}`);
-
-    return { success: true, message: 'Withdrawal request submitted! Pending admin approval.' };
-  };
-
-  // ADMIN ACTIONS
-  const approveTransaction = (txId: string) => {
-    const txIdx = transactions.findIndex(t => t.id === txId);
-    if (txIdx === -1) return;
-
-    const tx = transactions[txIdx];
-    if (tx.status !== 'pending') return;
-
-    const updatedTransactions = [...transactions];
-    updatedTransactions[txIdx] = { ...tx, status: 'approved' };
-    setTransactions(updatedTransactions);
-
-    // If it's a deposit, credit the user's wallet now
-    if (tx.type === 'recharge') {
-      setUsers(prev => prev.map(u => {
-        if (u.id === tx.userId) {
-          const updatedUser = {
-            ...u,
-            walletBalance: u.walletBalance + tx.amount
-          };
-          // Sync active user session
-          if (currentUser && currentUser.id === u.id) {
-            setCurrentUser(updatedUser);
-          }
-          return updatedUser;
-        }
-        return u;
-      }));
-      logAudit('ADMIN', 'ADMIN', 'APPROVE_RECHARGE', `Approved recharge of ${tx.amount} ETB for User ${tx.userId}`);
-    } else if (tx.type === 'withdraw') {
-      // Withdrawal was already deducted on request, so just approve the receipt
-      logAudit('ADMIN', 'ADMIN', 'APPROVE_WITHDRAWAL', `Approved withdrawal of ${tx.amount} ETB for User ${tx.userId}`);
+      await logAudit(currentUser.id, currentUser.phoneNumber, 'WITHDRAW_REQUEST', `Requested withdrawal of ${amount} ETB to ${bankName}. Account: ${accNo}`);
+      return { success: true, message: 'Withdrawal request submitted! Pending admin approval.' };
+    } catch (e) {
+      console.error("Error requesting withdrawal:", e);
+      return { success: false, message: 'Failed to submit withdrawal request. Please try again.' };
     }
   };
 
-  const rejectTransaction = (txId: string) => {
-    const txIdx = transactions.findIndex(t => t.id === txId);
-    if (txIdx === -1) return;
+  // ADMIN ACTIONS
+  const approveTransaction = async (txId: string) => {
+    const tx = transactions.find(t => t.id === txId);
+    if (!tx || tx.status !== 'pending') return;
 
-    const tx = transactions[txIdx];
-    if (tx.status !== 'pending') return;
+    try {
+      const batch = writeBatch(db);
+      batch.set(doc(db, 'transactions', txId), { ...tx, status: 'approved' });
 
-    const updatedTransactions = [...transactions];
-    updatedTransactions[txIdx] = { ...tx, status: 'rejected' };
-    setTransactions(updatedTransactions);
-
-    // If it's a withdrawal rejection, refund the user!
-    if (tx.type === 'withdraw') {
-      setUsers(prev => prev.map(u => {
-        if (u.id === tx.userId) {
+      if (tx.type === 'recharge') {
+        const userDocRef = doc(db, 'users', tx.userId);
+        const userToUpdate = users.find(u => u.id === tx.userId);
+        if (userToUpdate) {
           const updatedUser = {
-            ...u,
-            walletBalance: u.walletBalance + tx.amount
+            ...userToUpdate,
+            walletBalance: userToUpdate.walletBalance + tx.amount
           };
-          // Sync session
-          if (currentUser && currentUser.id === u.id) {
-            setCurrentUser(updatedUser);
-          }
-          return updatedUser;
+          batch.set(userDocRef, updatedUser);
         }
-        return u;
-      }));
-      logAudit('ADMIN', 'ADMIN', 'REJECT_WITHDRAWAL', `Rejected withdrawal of ${tx.amount} ETB for User ${tx.userId}. Funds refunded.`);
-    } else {
-      logAudit('ADMIN', 'ADMIN', 'REJECT_RECHARGE', `Rejected recharge of ${tx.amount} ETB for User ${tx.userId}`);
+      }
+
+      await batch.commit();
+      await logAudit('ADMIN', 'ADMIN', 'APPROVE_RECHARGE', `Approved recharge of ${tx.amount} ETB for User ${tx.userId}`);
+    } catch (e) {
+      console.error("Error approving transaction:", e);
+    }
+  };
+
+  const rejectTransaction = async (txId: string) => {
+    const tx = transactions.find(t => t.id === txId);
+    if (!tx || tx.status !== 'pending') return;
+
+    try {
+      const batch = writeBatch(db);
+      batch.set(doc(db, 'transactions', txId), { ...tx, status: 'rejected' });
+
+      if (tx.type === 'withdraw') {
+        const userDocRef = doc(db, 'users', tx.userId);
+        const userToUpdate = users.find(u => u.id === tx.userId);
+        if (userToUpdate) {
+          const updatedUser = {
+            ...userToUpdate,
+            walletBalance: userToUpdate.walletBalance + tx.amount
+          };
+          batch.set(userDocRef, updatedUser);
+        }
+      }
+
+      await batch.commit();
+      await logAudit('ADMIN', 'ADMIN', 'REJECT_WITHDRAWAL', `Rejected withdrawal of ${tx.amount} ETB for User ${tx.userId}. Funds refunded.`);
+    } catch (e) {
+      console.error("Error rejecting transaction:", e);
     }
   };
 
   // USER MARKETPLACE & ORDER CYCLE
-  const addToCart = (orderId: number) => {
+  const addToCart = async (orderId: number) => {
     if (!currentUser) return;
     localStorage.setItem(`gom_cart_${currentUser.id}_${orderId}`, 'true');
-    
-    // Force order list recalculation
-    setUsers([...users]);
     setCartTrigger(prev => prev + 1);
-    logAudit(currentUser.id, currentUser.phoneNumber, 'ADD_TO_CART', `Added Order ${orderId} product to cart.`);
+    await logAudit(currentUser.id, currentUser.phoneNumber, 'ADD_TO_CART', `Added Order ${orderId} product to cart.`);
   };
 
-  const submitOrder = (orderId: number) => {
+  const submitOrder = async (orderId: number) => {
     if (!currentUser) return { success: false, message: 'Not logged in.' };
 
     const order = orders.find(o => o.id === orderId);
@@ -787,20 +1010,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return { success: false, message: `Insufficient balance. Minimum recharge of ${order.minRechargeRequired} ETB required.` };
     }
 
-    // Deduct material cost, credit reward commission, unlock next sequential level
-    const cost = order.materialCost;
     const reward = order.reward;
-    const netGains = reward; // Balance delta: - cost + (cost + reward) = + reward! 
-    // Wait, let's understand the flow:
-    // "8. Credit wallet with reward amount.
-    //  9. Automatically unlock next order."
-    // Wait! Is the material cost deducted, or does the user just pay and get refunded + commission?
-    // Usually, order matching tasks on digital marketing platforms involve locking/submitting material cost and receiving the material cost back PLUS the commission.
-    // Yes! "Credit wallet with reward amount" usually means the total returned is Cost + Reward, so their net balance increases by the Reward commission.
-    // If we deduct Material Cost now, and then credit the Reward, their wallet balance increases by `reward` (if they got their material cost back) OR they spent material cost and received reward?
-    // Actually, "Credit wallet with reward amount" means the net commission is rewarded. Let's make it so their wallet receives the Reward commission as net profit (they pay the material cost, and the platform credits them the material cost + reward commission!).
-    // That means their final wallet balance increases by `reward` ETB, and their `totalEarnings` increases by `reward` ETB.
-    // This is the cleanest, most rewarding, and logical way that ensures they don't lose money on orders (they pay Cost, and get Cost + Reward back, so Net Change = +Reward).
     const newBalance = currentUser.walletBalance + reward;
     const newTotalEarnings = currentUser.totalEarnings + reward;
 
@@ -814,7 +1024,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       completedOrderIds: [...currentUser.completedOrderIds, orderId]
     };
 
-    // Add reward transaction
     const orderTx: Transaction = {
       id: generateId('COM'),
       userId: currentUser.id,
@@ -826,19 +1035,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       description: `Task complete: Order ${orderId} "${order.productName}" successfully processed. Reward commission of ${reward} ETB credited.`
     };
 
-    // Clear cart key
     localStorage.removeItem(`gom_cart_${currentUser.id}_${orderId}`);
 
-    setTransactions(prev => [orderTx, ...prev]);
-    setUsers(prev => prev.map(u => u.id === currentUser.id ? updatedUser : u));
-    setCurrentUser(updatedUser);
+    try {
+      const batch = writeBatch(db);
+      batch.set(doc(db, 'users', currentUser.id), updatedUser);
+      batch.set(doc(db, 'transactions', orderTx.id), orderTx);
+      await batch.commit();
 
-    logAudit(currentUser.id, currentUser.phoneNumber, 'COMPLETE_ORDER', `Completed Order ${orderId}. Commission: ${reward} ETB.`);
-
-    return { success: true, message: `Order ${orderId} successfully completed! ${reward} ETB commission added to your wallet.` };
+      await logAudit(currentUser.id, currentUser.phoneNumber, 'COMPLETE_ORDER', `Completed Order ${orderId}. Commission: ${reward} ETB.`);
+      return { success: true, message: `Order ${orderId} successfully completed! ${reward} ETB commission added to your wallet.` };
+    } catch (e) {
+      console.error("Error submitting order:", e);
+      return { success: false, message: 'Failed to complete order. Please try again.' };
+    }
   };
 
-  const resetOrderCycle = () => {
+  const resetOrderCycle = async () => {
     if (!currentUser) return { success: false, message: 'No user is currently logged in.' };
     
     // Check if they completed all 10 orders
@@ -886,8 +1099,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       };
     });
     const updatedCosts = sanitizeProductCosts(rawScaledCosts);
-    setProductCosts(updatedCosts);
-    localStorage.setItem('gom_product_costs', JSON.stringify(updatedCosts));
 
     const updatedUser: User = {
       ...currentUser,
@@ -901,23 +1112,40 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       localStorage.removeItem(`gom_cart_${currentUser.id}_${p.id}`);
     });
 
-    setUsers(prev => prev.map(u => u.id === currentUser.id ? updatedUser : u));
-    setCurrentUser(updatedUser);
-    logAudit(currentUser.id, currentUser.phoneNumber, 'RESET_CYCLE', `Reset task cycle. Loaded brand new materials & equipment. Configured dynamic Level 1 cost: ${newLevel1Base} ETB.`);
+    try {
+      const batch = writeBatch(db);
+      batch.set(doc(db, 'users', currentUser.id), updatedUser);
+      batch.set(doc(db, 'systemConfig', 'global'), {
+        scalingMultiplier,
+        productCosts: updatedCosts
+      });
+      await batch.commit();
 
-    return { 
-      success: true, 
-      message: `Task cycle reset successfully! Brand new materials have been loaded and arranged dynamically. First order balance is configured at ${newLevel1Base} ETB.` 
-    };
+      await logAudit(currentUser.id, currentUser.phoneNumber, 'RESET_CYCLE', `Reset task cycle. Loaded brand new materials & equipment. Configured dynamic Level 1 cost: ${newLevel1Base} ETB.`);
+      return { 
+        success: true, 
+        message: `Task cycle reset successfully! Brand new materials have been loaded and arranged dynamically. First order balance is configured at ${newLevel1Base} ETB.` 
+      };
+    } catch (e) {
+      console.error("Error resetting cycle:", e);
+      return { success: false, message: 'Failed to reset cycle in database. Please try again.' };
+    }
   };
 
   // ADMIN SETTINGS & MANAGEMENT
-  const updateScalingMultiplier = (multiplier: number) => {
-    setScalingMultiplier(multiplier);
-    logAudit('ADMIN', 'ADMIN', 'CONFIG_SCALE', `Updated progressive order scaling multiplier to ${multiplier}`);
+  const updateScalingMultiplier = async (multiplier: number) => {
+    try {
+      await setDoc(doc(db, 'systemConfig', 'global'), {
+        scalingMultiplier: multiplier,
+        productCosts
+      });
+      await logAudit('ADMIN', 'ADMIN', 'CONFIG_SCALE', `Updated progressive order scaling multiplier to ${multiplier}`);
+    } catch (e) {
+      console.error("Error updating scaling multiplier:", e);
+    }
   };
 
-  const updateProductCost = (id: number, cost: number, rewardPercent: number) => {
+  const updateProductCost = async (id: number, cost: number, rewardPercent: number) => {
     const rawCosts = productCosts.map(p => {
       if (p.id === id) {
         return { ...p, baseCost: cost, rewardMultiplier: rewardPercent / 100 };
@@ -925,33 +1153,55 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return p;
     });
     const updatedCosts = sanitizeProductCosts(rawCosts);
-    setProductCosts(updatedCosts);
-    logAudit('ADMIN', 'ADMIN', 'CONFIG_PRODUCT', `Updated Order ${id} base material cost to ${cost} ETB, reward commission to ${rewardPercent}% (Subsequent levels sanitized if necessary)`);
+    try {
+      await setDoc(doc(db, 'systemConfig', 'global'), {
+        scalingMultiplier,
+        productCosts: updatedCosts
+      });
+      await logAudit('ADMIN', 'ADMIN', 'CONFIG_PRODUCT', `Updated Order ${id} base material cost to ${cost} ETB, reward commission to ${rewardPercent}% (Subsequent levels sanitized if necessary)`);
+    } catch (e) {
+      console.error("Error updating product cost:", e);
+    }
   };
 
-  const updateAllProductCosts = (newCosts: { id: number; baseCost: number; rewardMultiplier: number }[]) => {
+  const updateAllProductCosts = async (newCosts: { id: number; baseCost: number; rewardMultiplier: number }[]) => {
     const sanitized = sanitizeProductCosts(newCosts);
-    setProductCosts(sanitized);
-    logAudit('ADMIN', 'ADMIN', 'CONFIG_ALL_PRODUCTS', `Updated and progressively auto-scaled all 10 product levels according to progressive greater-than cost constraints.`);
+    try {
+      await setDoc(doc(db, 'systemConfig', 'global'), {
+        scalingMultiplier,
+        productCosts: sanitized
+      });
+      await logAudit('ADMIN', 'ADMIN', 'CONFIG_ALL_PRODUCTS', `Updated and progressively auto-scaled all 10 product levels according to progressive greater-than cost constraints.`);
+    } catch (e) {
+      console.error("Error updating all product costs:", e);
+    }
   };
 
-  const addAnnouncement = (title: string, content: string) => {
+  const addAnnouncement = async (title: string, content: string) => {
     const newAnn: Announcement = {
       id: generateId('ANN'),
       title,
       content,
       createdAt: new Date().toISOString()
     };
-    setAnnouncements(prev => [newAnn, ...prev]);
-    logAudit('ADMIN', 'ADMIN', 'ADD_ANNOUNCEMENT', `Created announcement: "${title}"`);
+    try {
+      await setDoc(doc(db, 'announcements', newAnn.id), newAnn);
+      await logAudit('ADMIN', 'ADMIN', 'ADD_ANNOUNCEMENT', `Created announcement: "${title}"`);
+    } catch (e) {
+      console.error("Error adding announcement:", e);
+    }
   };
 
-  const deleteAnnouncement = (id: string) => {
-    setAnnouncements(prev => prev.filter(a => a.id !== id));
-    logAudit('ADMIN', 'ADMIN', 'DELETE_ANNOUNCEMENT', `Deleted announcement with ID ${id}`);
+  const deleteAnnouncement = async (id: string) => {
+    try {
+      await deleteDoc(doc(db, 'announcements', id));
+      await logAudit('ADMIN', 'ADMIN', 'DELETE_ANNOUNCEMENT', `Deleted announcement with ID ${id}`);
+    } catch (e) {
+      console.error("Error deleting announcement:", e);
+    }
   };
 
-  const addSupportTicket = (subject: string, message: string) => {
+  const addSupportTicket = async (subject: string, message: string) => {
     if (!currentUser) return;
     const newMsg: SupportMessage = {
       id: generateId('SUP'),
@@ -962,48 +1212,41 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       status: 'open',
       createdAt: new Date().toISOString()
     };
-    setSupportMessages(prev => [newMsg, ...prev]);
-    logAudit(currentUser.id, currentUser.phoneNumber, 'SUPPORT_CREATE', `Opened support ticket: "${subject}"`);
+    try {
+      await setDoc(doc(db, 'support', newMsg.id), newMsg);
+      await logAudit(currentUser.id, currentUser.phoneNumber, 'SUPPORT_CREATE', `Opened support ticket: "${subject}"`);
+    } catch (e) {
+      console.error("Error opening support ticket:", e);
+    }
   };
 
-  const replyToSupport = (id: string, reply: string) => {
-    setSupportMessages(prev => prev.map(m => {
-      if (m.id === id) {
-        return {
-          ...m,
-          reply,
-          status: 'resolved'
-        };
-      }
-      return m;
-    }));
-    logAudit('ADMIN', 'ADMIN', 'SUPPORT_REPLY', `Resolved and replied to support ticket ${id}`);
+  const replyToSupport = async (id: string, reply: string) => {
+    const ticket = supportMessages.find(m => m.id === id);
+    if (!ticket) return;
+    const updatedTicket = {
+      ...ticket,
+      reply,
+      status: 'resolved' as const
+    };
+    try {
+      await setDoc(doc(db, 'support', id), updatedTicket);
+      await logAudit('ADMIN', 'ADMIN', 'SUPPORT_REPLY', `Resolved and replied to support ticket ${id}`);
+    } catch (e) {
+      console.error("Error replying to support:", e);
+    }
   };
 
-  const adjustUserBalance = (userId: string, amount: number) => {
-    setUsers(prev => prev.map(u => {
-      if (u.id === userId) {
-        const newBalance = Math.max(0, u.walletBalance + amount);
-        const updatedUser = {
-          ...u,
-          walletBalance: newBalance
-        };
-        if (currentUser && currentUser.id === u.id) {
-          setCurrentUser(updatedUser);
-        }
-        return updatedUser;
-      }
-      return u;
-    }));
+  const adjustUserBalance = async (userId: string, amount: number) => {
+    const userToUpdate = users.find(u => u.id === userId);
+    if (!userToUpdate) return;
 
-    const logMsg = amount >= 0 
-      ? `Admin manually added ${amount} ETB to User ID ${userId} balance.` 
-      : `Admin manually deducted ${Math.abs(amount)} ETB from User ID ${userId} balance.`;
-      
-    logAudit('ADMIN', 'ADMIN', 'ADJUST_BALANCE', logMsg);
+    const newBalance = Math.max(0, userToUpdate.walletBalance + amount);
+    const updatedUser = {
+      ...userToUpdate,
+      walletBalance: newBalance
+    };
 
-    // Create an approved transaction in history so the user is informed
-    const targetPhone = users.find(u => u.id === userId)?.phoneNumber || 'UNKNOWN';
+    const targetPhone = userToUpdate.phoneNumber;
     const manualTx: Transaction = {
       id: generateId('tx'),
       userId,
@@ -1018,86 +1261,99 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         ? `Manual Credit: Admin added +${amount} ETB to balance.` 
         : `Manual Debit: Admin deducted -${Math.abs(amount)} ETB from balance.`
     };
-    setTransactions(prev => [manualTx, ...prev]);
+
+    try {
+      const batch = writeBatch(db);
+      batch.set(doc(db, 'users', userId), updatedUser);
+      batch.set(doc(db, 'transactions', manualTx.id), manualTx);
+      await batch.commit();
+
+      const logMsg = amount >= 0 
+        ? `Admin manually added ${amount} ETB to User ID ${userId} balance.` 
+        : `Admin manually deducted ${Math.abs(amount)} ETB from User ID ${userId} balance.`;
+      await logAudit('ADMIN', 'ADMIN', 'ADJUST_BALANCE', logMsg);
+    } catch (e) {
+      console.error("Error adjusting user balance:", e);
+    }
   };
 
-  const addRechargeAccount = (bank: string, accName: string, accNo: string) => {
+  const addRechargeAccount = async (bank: string, accName: string, accNo: string) => {
     const newAcc: RechargeAccount = {
       id: generateId('ACC'),
       bank,
       accName,
       accNo: accNo.trim()
     };
-    setRechargeAccounts(prev => [...prev, newAcc]);
-    logAudit('ADMIN', 'ADMIN', 'ADD_RECHARGE_ACCOUNT', `Added recharge bank account: ${bank} - ${accNo}`);
+    try {
+      await setDoc(doc(db, 'rechargeAccounts', newAcc.id), newAcc);
+      await logAudit('ADMIN', 'ADMIN', 'ADD_RECHARGE_ACCOUNT', `Added recharge bank account: ${bank} - ${accNo}`);
+    } catch (e) {
+      console.error("Error adding recharge account:", e);
+    }
   };
 
-  const updateRechargeAccount = (id: string, bank: string, accName: string, accNo: string) => {
-    setRechargeAccounts(prev => prev.map(acc => {
-      if (acc.id === id) {
-        return { ...acc, bank, accName, accNo: accNo.trim() };
-      }
-      return acc;
-    }));
-    logAudit('ADMIN', 'ADMIN', 'UPDATE_RECHARGE_ACCOUNT', `Updated recharge bank account: ${bank} - ${accNo}`);
-  };
-
-  const deleteRechargeAccount = (id: string) => {
+  const updateRechargeAccount = async (id: string, bank: string, accName: string, accNo: string) => {
     const acc = rechargeAccounts.find(a => a.id === id);
-    setRechargeAccounts(prev => prev.filter(acc => acc.id !== id));
-    if (acc) {
-      logAudit('ADMIN', 'ADMIN', 'DELETE_RECHARGE_ACCOUNT', `Deleted recharge bank account: ${acc.bank} - ${acc.accNo}`);
+    if (!acc) return;
+    const updatedAcc = { ...acc, bank, accName, accNo: accNo.trim() };
+    try {
+      await setDoc(doc(db, 'rechargeAccounts', id), updatedAcc);
+      await logAudit('ADMIN', 'ADMIN', 'UPDATE_RECHARGE_ACCOUNT', `Updated recharge bank account: ${bank} - ${accNo}`);
+    } catch (e) {
+      console.error("Error updating recharge account:", e);
     }
   };
 
-  const factoryReset = () => {
-    localStorage.removeItem('gom_users');
-    localStorage.removeItem('gom_current_user');
-    localStorage.removeItem('gom_transactions');
-    localStorage.removeItem('gom_announcements');
-    localStorage.removeItem('gom_support');
-    localStorage.removeItem('gom_audit_logs');
-    localStorage.removeItem('gom_scaling_multiplier');
-    localStorage.removeItem('gom_product_costs');
-    localStorage.removeItem('gom_recharge_accounts');
-    
-    // Clear carts
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key && key.startsWith('gom_cart_')) {
-        localStorage.removeItem(key);
-      }
+  const deleteRechargeAccount = async (id: string) => {
+    const acc = rechargeAccounts.find(a => a.id === id);
+    if (!acc) return;
+    try {
+      await deleteDoc(doc(db, 'rechargeAccounts', id));
+      await logAudit('ADMIN', 'ADMIN', 'DELETE_RECHARGE_ACCOUNT', `Deleted recharge bank account: ${acc.bank} - ${acc.accNo}`);
+    } catch (e) {
+      console.error("Error deleting recharge account:", e);
     }
+  };
 
-    setUsers(INITIAL_USERS);
-    setCurrentUser(null);
-    setTransactions([]);
-    setAnnouncements(INITIAL_ANNOUNCEMENTS);
-    setRechargeAccounts([
-      { id: 'acc-1', bank: 'Commercial Bank of Ethiopia (CBE)', accName: 'Global Online Market PLC', accNo: '1000552233445' },
-      { id: 'acc-2', bank: 'Dashen Bank', accName: 'Global Online Market PLC', accNo: '001244558832' },
-      { id: 'acc-3', bank: 'Bank of Abyssinia (BoA)', accName: 'Global Online Market PLC', accNo: '55887744331' },
-      { id: 'acc-4', bank: 'Awash Bank', accName: 'Global Online Market PLC', accNo: '013204938200' }
-    ]);
-    setSupportMessages([]);
-    setAuditLogs([
-      {
-        id: "log-reset",
-        userId: "SYSTEM",
-        userPhone: "SYSTEM",
-        action: "FACTORY_RESET",
-        details: "System underwent a factory reset. All default data restored.",
-        createdAt: new Date().toISOString()
-      }
-    ]);
-    setScalingMultiplier(1.5);
-    setProductCosts(INITIAL_PRODUCTS_RAW.map(p => ({
-      id: p.id,
-      baseCost: p.baseCost,
-      rewardMultiplier: p.rewardMultiplier
-    })));
-
-    window.location.reload();
+  const factoryReset = async () => {
+    localStorage.clear();
+    try {
+      const batch = writeBatch(db);
+      
+      // Delete users in batch
+      users.forEach(u => {
+        batch.delete(doc(db, 'users', u.id));
+      });
+      // Delete transactions
+      transactions.forEach(tx => {
+        batch.delete(doc(db, 'transactions', tx.id));
+      });
+      // Delete announcements
+      announcements.forEach(ann => {
+        batch.delete(doc(db, 'announcements', ann.id));
+      });
+      // Delete support messages
+      supportMessages.forEach(msg => {
+        batch.delete(doc(db, 'support', msg.id));
+      });
+      // Delete audit logs
+      auditLogs.forEach(log => {
+        batch.delete(doc(db, 'auditLogs', log.id));
+      });
+      // Delete bank accounts
+      rechargeAccounts.forEach(acc => {
+        batch.delete(doc(db, 'rechargeAccounts', acc.id));
+      });
+      
+      await batch.commit();
+      
+      // Re-seed with fresh data
+      await seedInitialData();
+      
+      window.location.reload();
+    } catch (e) {
+      console.error("Error factory resetting system:", e);
+    }
   };
 
   return (

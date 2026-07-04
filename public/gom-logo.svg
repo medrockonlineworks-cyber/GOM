@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1E3A8A" />
+      <stop offset="100%" stop-color="#0D1B2A" />
+    </linearGradient>
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F59E0B" />
+      <stop offset="50%" stop-color="#FBBF24" />
+      <stop offset="100%" stop-color="#D97706" />
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#000000" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+
+  <!-- Rounded App Icon Background -->
+  <rect width="512" height="512" rx="112" fill="url(#bgGrad)" />
+
+  <!-- Inner Glowing Ring -->
+  <rect x="24" y="24" width="464" height="464" rx="88" fill="none" stroke="url(#goldGrad)" stroke-width="4" stroke-opacity="0.3" />
+
+  <!-- Center Decorative Globe/Network & Letter G -->
+  <g transform="translate(256, 256)" filter="url(#shadow)">
+    <!-- Globe Meridians / Network Lines -->
+    <circle r="140" fill="none" stroke="url(#goldGrad)" stroke-width="6" stroke-opacity="0.2" />
+    <ellipse rx="140" ry="50" fill="none" stroke="url(#goldGrad)" stroke-width="4" stroke-opacity="0.25" />
+    <ellipse rx="50" ry="140" fill="none" stroke="url(#goldGrad)" stroke-width="4" stroke-opacity="0.25" />
+    <line x1="-140" y1="0" x2="140" y2="0" stroke="url(#goldGrad)" stroke-width="4" stroke-opacity="0.25" />
+    <line x1="0" y1="-140" x2="0" y2="140" stroke="url(#goldGrad)" stroke-width="4" stroke-opacity="0.25" />
+
+    <!-- Sleek Golden Letter G and Basket/Globe Accent -->
+    <!-- Draw a stylized 3D-looking Letter G that curves like a dynamic arrow -->
+    <path d="M 60,-50 
+             A 90,90 0 1,0 60,70 
+             L 0,70 
+             L 0,30 
+             L 30,30 
+             A 50,50 0 1,1 30,-20 
+             L 50,-40" 
+          fill="none" 
+          stroke="url(#goldGrad)" 
+          stroke-width="24" 
+          stroke-linecap="round" 
+          stroke-linejoin="round" />
+
+    <!-- Core Star/Sparkle Glow -->
+    <path d="M 0,-10 L 3,-3 L 10,0 L 3,3 L 0,10 L -3,3 L -10,0 L -3,-3 Z" fill="#FFFFFF" transform="translate(30, 30) scale(1.5)" />
+    
+    <!-- Connection Dots -->
+    <circle cx="0" cy="-140" r="10" fill="#FFFFFF" />
+    <circle cx="-140" cy="0" r="10" fill="url(#goldGrad)" />
+    <circle cx="140" cy="0" r="10" fill="url(#goldGrad)" />
+    <circle cx="0" cy="140" r="10" fill="#FFFFFF" />
+  </g>
+
+  <!-- App Title text inside icon (clean minimal display) -->
+  <text x="256" y="450" font-family="'Inter', sans-serif" font-weight="900" font-size="36" fill="#FFFFFF" letter-spacing="8" text-anchor="middle" opacity="0.9">GOM</text>
+</svg>

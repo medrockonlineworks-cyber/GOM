@@ -1,5 +1,5 @@
 {
-  "name": "Global Online Market",
+  "name": "GOM",
   "description": "A premium fintech-style mobile application featuring custom order scaling, Ethiopian bank integrations, a wallet system, and a robust admin console.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
