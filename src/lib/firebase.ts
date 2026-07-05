@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getFirestore } from 'firebase/firestore';
+import { initializeFirestore } from 'firebase/firestore';
 
 const firebaseConfig = {
   apiKey: "AIzaSyBUhJx3uCQqiAXrtj_pOkcL7tY5cjKE1So",
@@ -11,6 +11,8 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
-const db = getFirestore(app, "ai-studio-globalonlinemark-9acee852-dea2-4921-af69-f1bc4c5c38a6");
+const db = initializeFirestore(app, {
+  experimentalForceLongPolling: true
+}, "ai-studio-globalonlinemark-9acee852-dea2-4921-af69-f1bc4c5c38a6");
 
 export { app, db };

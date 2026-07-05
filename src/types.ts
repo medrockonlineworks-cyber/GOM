@@ -21,6 +21,7 @@ export interface User {
   referralCount?: number; // number of successful referrals
   referralEarnings?: number; // total earned from referrals
   cycleProductOverrides?: { id: number; productName: string; productImage: string }[];
+  lastOrderCompletedAt?: string; // ISO string representing when the last order task was completed
 }
 
 export type TransactionType = 'recharge' | 'withdraw' | 'payment' | 'reward' | 'welcome_bonus' | 'referral_bonus';
@@ -37,6 +38,7 @@ export interface Transaction {
   status: TransactionStatus;
   createdAt: string;
   description: string;
+  screenshot?: string; // base64 or object URL representing the payment screenshot
 }
 
 export type OrderStatus = 'locked' | 'available' | 'in_cart' | 'completed';

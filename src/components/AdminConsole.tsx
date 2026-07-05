@@ -29,9 +29,50 @@ import {
   Edit
 } from 'lucide-react';
 
+import { formatUserPhoneId } from '../utils/translations';
+
 interface AdminConsoleProps {
   onExit?: () => void;
 }
+
+const resizeImageBase64 = (base64Str: string, maxWidth = 300, maxHeight = 300): Promise<string> => {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.src = base64Str;
+    img.onload = () => {
+      let width = img.width;
+      let height = img.height;
+
+      // Calculate new dimensions preserving aspect ratio
+      if (width > height) {
+        if (width > maxWidth) {
+          height = Math.round((height * maxWidth) / width);
+          width = maxWidth;
+        }
+      } else {
+        if (height > maxHeight) {
+          width = Math.round((width * maxHeight) / height);
+          height = maxHeight;
+        }
+      }
+
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/png'));
+      } else {
+        resolve(base64Str);
+      }
+    };
+    img.onerror = () => {
+      resolve(base64Str);
+    };
+  });
+};
 
 export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
   const { 
@@ -54,10 +95,17 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
     rechargeAccounts,
     addRechargeAccount,
     updateRechargeAccount,
-    deleteRechargeAccount
+    deleteRechargeAccount,
+    bankLogos,
+    marketplaceLogos,
+    updateBankLogo,
+    updateMarketplaceLogo,
+    deleteBankLogo,
+    deleteMarketplaceLogo
   } = useApp();
 
-  const [activeAdminSubTab, setActiveAdminSubTab] = useState<'users' | 'recharges' | 'withdrawals' | 'orders' | 'announcements' | 'support' | 'reports'>('recharges');
+  const [activeAdminSubTab, setActiveAdminSubTab] = useState<'users' | 'recharges' | 'withdrawals' | 'orders' | 'announcements' | 'support' | 'reports' | 'logos'>('recharges');
+  const [activeScreenshot, setActiveScreenshot] = useState<string | null>(null);
   
   // States
   const [searchQuery, setSearchQuery] = useState('');
@@ -275,6 +323,18 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
           <Activity size={13} />
           Log & Reports
         </button>
+
+        <button
+          onClick={() => setActiveAdminSubTab('logos')}
+          className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap shrink-0 transition-all flex items-center gap-1.5 ${
+            activeAdminSubTab === 'logos' 
+              ? 'bg-bronze text-white shadow-sm' 
+              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+          }`}
+        >
+          <Settings size={13} />
+          Customize Logos
+        </button>
       </div>
 
       {/* ADMIN SUB-VIEW AREA */}
@@ -300,8 +360,28 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
                   <div className="flex justify-between items-start">
                     <div>
                       <span className="block text-xs font-black text-slate-800">{tx.bankName}</span>
-                      <span className="block text-[10px] text-slate-400 font-bold mt-0.5">Phone: {tx.userPhone}</span>
+                      <span className="block text-[10px] text-slate-400 font-bold mt-0.5">Phone: {formatUserPhoneId(tx.userPhone)}</span>
                       <span className="block text-[10px] text-amber-900 font-black mt-0.5">TXID / Reference: {tx.accountNumberOrRef}</span>
+                      {tx.screenshot && (
+                        <div className="mt-2.5 p-2 bg-slate-50 rounded-xl border border-slate-200 inline-block">
+                          <span className="block text-[9px] text-slate-500 font-extrabold mb-1 uppercase tracking-wider">Uploaded Screenshot:</span>
+                          <button
+                            type="button"
+                            onClick={() => setActiveScreenshot(tx.screenshot)}
+                            className="block cursor-zoom-in text-left border border-slate-200 rounded-lg overflow-hidden relative group"
+                          >
+                            <img 
+                              src={tx.screenshot} 
+                              alt="Payment Receipt" 
+                              className="max-h-36 rounded-lg object-contain border border-slate-200 hover:opacity-90 transition-opacity" 
+                              referrerPolicy="no-referrer"
+                            />
+                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-[10px] text-white font-bold gap-1">
+                              🔎 Click to Zoom
+                            </div>
+                          </button>
+                        </div>
+                      )}
                     </div>
                     <span className="text-base font-black text-bronze">
                       {tx.amount.toLocaleString()} ETB
@@ -465,7 +545,7 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
                     <div>
                       <span className="block text-xs font-black text-deep-forest">{tx.bankName}</span>
                       <span className="block text-[10px] text-slate-400 font-bold mt-0.5">Account Number: {tx.accountNumberOrRef}</span>
-                      <span className="block text-[10px] text-slate-500 font-medium mt-0.5">Phone: {tx.userPhone}</span>
+                      <span className="block text-[10px] text-slate-500 font-medium mt-0.5">Phone: {formatUserPhoneId(tx.userPhone)}</span>
                     </div>
                     <span className="text-base font-black text-red-600">
                       {tx.amount.toLocaleString()} ETB
@@ -521,8 +601,7 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
                 <div key={user.id} className="bg-white border border-slate-200 rounded-2xl p-3.5 shadow-sm space-y-2">
                   <div className="flex justify-between items-center">
                     <div>
-                      <span className="text-xs font-black text-slate-800">{user.phoneNumber}</span>
-                      <span className="block text-[9px] text-slate-400 font-extrabold uppercase mt-0.5">UID: {user.id}</span>
+                      <span className="text-xs font-black text-slate-800">{formatUserPhoneId(user.phoneNumber)}</span>
                     </div>
                     <span className={`text-[9px] font-black px-2 py-0.5 rounded-full ${
                       user.role === 'admin' ? 'bg-amber-100 text-amber-950' : 'bg-slate-100 text-slate-800'
@@ -542,7 +621,7 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
                     </div>
                     <div className="bg-slate-50 p-1.5 rounded-lg">
                       <span className="block text-[8px] text-slate-400 uppercase font-bold">Task Stage</span>
-                      <span className="font-extrabold text-bronze">Order {Math.min(10, user.currentOrderIndex + 1)}/10</span>
+                      <span className="font-extrabold text-bronze">Order {Math.min(15, user.currentOrderIndex + 1)}/15</span>
                     </div>
                   </div>
 
@@ -610,20 +689,25 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
                       onClick={() => {
                         const currentL1Prod = productCosts.find(p => p.id === 1);
                         const currentL1Cost = currentL1Prod?.baseCost || 975;
-                        if (confirm(`Are you sure you want to reset and auto-scale all level material costs progressively using this multiplier? Level 1 cost of ${currentL1Cost} ETB will be used as the base, and Level 2-10 will be dynamically scaled and progressive constraints will be enforced.`)) {
+                        if (confirm(`Are you sure you want to reset and auto-scale all level material costs progressively using this multiplier? Level 1 cost of ${currentL1Cost} ETB will be used as the base, and Level 2-15 will be dynamically scaled and progressive constraints will be enforced.`)) {
                           const newCosts = [];
                           const base = currentL1Cost;
-                          for (let level = 1; level <= 10; level++) {
+                          for (let level = 1; level <= 15; level++) {
                             const cost = Math.round(base * Math.pow(scalingMultiplier, level - 1));
-                            const defaultPct = level === 1 ? 15 : 
-                                               level === 2 ? 18 : 
-                                               level === 3 ? 20 : 
-                                               level === 4 ? 22 : 
-                                               level === 5 ? 25 : 
-                                               level === 6 ? 28 : 
-                                               level === 7 ? 30 : 
-                                               level === 8 ? 32 : 
-                                               level === 9 ? 35 : 40;
+                            const defaultPct = level === 1 ? 25 : 
+                                               level === 2 ? 27 : 
+                                               level === 3 ? 30 : 
+                                               level === 4 ? 32 : 
+                                               level === 5 ? 35 : 
+                                               level === 6 ? 38 : 
+                                               level === 7 ? 40 : 
+                                               level === 8 ? 42 : 
+                                               level === 9 ? 45 : 
+                                               level === 10 ? 48 : 
+                                               level === 11 ? 50 : 
+                                               level === 12 ? 55 : 
+                                               level === 13 ? 58 : 
+                                               level === 14 ? 60 : 65;
                             newCosts.push({
                               id: level,
                               baseCost: cost,
@@ -631,7 +715,7 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
                             });
                           }
                           updateAllProductCosts(newCosts);
-                          alert("All 10 product level costs and commissions have been auto-scaled successfully with progressive constraints!");
+                          alert("All 15 product level costs and commissions have been auto-scaled successfully with progressive constraints!");
                         }
                       }}
                       className="bg-bronze hover:bg-bronze-hover text-white text-[9px] uppercase tracking-wider px-2.5 py-1 rounded-lg transition-colors cursor-pointer font-extrabold ml-2"
@@ -654,7 +738,7 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
             {/* Individual base costs update */}
             <div className="space-y-2.5">
               <span className="block text-xs font-extrabold text-slate-400 uppercase tracking-wider">Configure Base Level & Rewards</span>
-              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((level) => {
+              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15].map((level) => {
                 const currentProd = productCosts.find(p => p.id === level);
                 const currentCost = currentProd?.baseCost || 975;
                 const currentRewardPercent = Math.round((currentProd?.rewardMultiplier || 0.15) * 100);
@@ -761,7 +845,7 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
                   <div className="flex justify-between items-start">
                     <div>
                       <span className="block text-xs font-black text-slate-800">{ticket.subject}</span>
-                      <span className="block text-[10px] text-slate-400 font-bold mt-0.5">From User: {ticket.userPhone} (ID: {ticket.userId})</span>
+                      <span className="block text-[10px] text-slate-400 font-bold mt-0.5">From User: {formatUserPhoneId(ticket.userPhone)}</span>
                     </div>
                     <span className="text-[9px] bg-amber-100 text-amber-700 font-black px-2 py-0.5 rounded-full uppercase">
                       Open
@@ -834,7 +918,7 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
                       <span>{log.id}</span>
                     </div>
                     <div className="font-extrabold text-slate-300">
-                      ACTION: {log.action} | PHONE: {log.userPhone}
+                      ACTION: {log.action} | PHONE: {formatUserPhoneId(log.userPhone)}
                     </div>
                     <p className="text-emerald-300/85">{log.details}</p>
                   </div>
@@ -844,7 +928,238 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
           </div>
         )}
 
+        {/* CUSTOMIZE LOGOS SUB-VIEW */}
+        {activeAdminSubTab === 'logos' && (
+          <div className="space-y-6">
+            <div>
+              <h3 className="text-sm font-extrabold text-slate-700 flex items-center gap-1.5">
+                🖼️ Customize Bank & Marketplace Logos
+              </h3>
+              <p className="text-[11px] text-slate-500 mt-1 leading-normal">
+                Upload custom local image files or enter image URLs to dynamically change bank logos and homepage marketplace banners in real-time.
+              </p>
+            </div>
+
+            {/* Marketplace Logos Sections */}
+            <div className="space-y-4">
+              <h4 className="text-xs font-black text-slate-400 uppercase tracking-wider">Marketplace Platforms Banners (Homepage)</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {Object.keys(marketplaceLogos || {}).map((marketKey) => {
+                  const currentLogo = marketplaceLogos[marketKey];
+                  const marketLabel = marketKey.toUpperCase();
+                  
+                  return (
+                    <div key={marketKey} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-3 flex flex-col justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-14 h-14 bg-slate-50 rounded-xl border border-slate-200/60 p-2 flex items-center justify-center shrink-0">
+                          <img 
+                            src={currentLogo} 
+                            alt={marketLabel} 
+                            className="max-w-full max-h-full object-contain"
+                            referrerPolicy="no-referrer"
+                          />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <span className="text-xs font-extrabold text-slate-700 block capitalize">{marketLabel} Banner</span>
+                          <span className="text-[10px] text-slate-400">Appears in integrated global marketplaces grid</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => deleteMarketplaceLogo(marketKey)}
+                          title="Reset to default logo"
+                          className="p-2 rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition-all cursor-pointer flex items-center justify-center border border-slate-200 hover:border-rose-200 shrink-0"
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
+
+                      <div className="space-y-2">
+                        {/* URL input */}
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-slate-400 block">Image URL</label>
+                          <input 
+                            type="text" 
+                            defaultValue={currentLogo.startsWith('data:') ? '' : currentLogo}
+                            placeholder={currentLogo.startsWith('data:') ? 'Base64 Encoded (File Uploaded)' : 'Enter image HTTP/HTTPS URL...'}
+                            onChange={(e) => {
+                              if (e.target.value.trim()) {
+                                updateMarketplaceLogo(marketKey, e.target.value.trim());
+                              }
+                            }}
+                            className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-600 focus:outline-none focus:ring-1 focus:ring-bronze"
+                          />
+                        </div>
+
+                        {/* File upload */}
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-slate-400 block">Or Upload Local Image File</label>
+                          <div className="relative">
+                            <input 
+                              type="file" 
+                              accept="image/*"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  const reader = new FileReader();
+                                  reader.onloadend = async () => {
+                                    if (typeof reader.result === 'string') {
+                                      const resized = await resizeImageBase64(reader.result);
+                                      updateMarketplaceLogo(marketKey, resized);
+                                    }
+                                  };
+                                  reader.readAsDataURL(file);
+                                }
+                              }}
+                              className="w-full text-slate-500 text-[10px] file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-[10px] file:font-black file:bg-slate-100 file:text-slate-600 hover:file:bg-slate-200 cursor-pointer"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Bank Logos Sections */}
+            <div className="space-y-4">
+              <h4 className="text-xs font-black text-slate-400 uppercase tracking-wider">Dynamic Bank Partners Logos</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {[
+                  { key: 'cbe', label: 'Commercial Bank of Ethiopia (CBE)' },
+                  { key: 'dashen', label: 'Dashen Bank' },
+                  { key: 'abyssinia', label: 'Bank of Abyssinia (BoA)' },
+                  { key: 'awash', label: 'Awash Bank' },
+                  { key: 'telebirr', label: 'Telebirr Mobile Money' },
+                  { key: 'hibret', label: 'Hibret Bank' },
+                  { key: 'wegagen', label: 'Wegagen Bank' },
+                  { key: 'oromia', label: 'Cooperative Bank of Oromia' }
+                ].map((bankInfo) => {
+                  const currentLogo = bankLogos[bankInfo.key] || '';
+                  
+                  return (
+                    <div key={bankInfo.key} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-3 flex flex-col justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-14 h-14 bg-slate-50 rounded-xl border border-slate-200/60 p-1 flex items-center justify-center shrink-0 overflow-hidden">
+                          {currentLogo ? (
+                            <img 
+                              src={currentLogo} 
+                              alt={bankInfo.label} 
+                              className="max-w-full max-h-full object-contain"
+                              referrerPolicy="no-referrer"
+                            />
+                          ) : (
+                            <span className="text-[10px] text-slate-400 font-extrabold">No Logo</span>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <span className="text-xs font-extrabold text-slate-700 block">{bankInfo.label}</span>
+                          <span className="text-[10px] text-slate-400">Used across recharges and withdrawals</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => deleteBankLogo(bankInfo.key)}
+                          title="Reset to default logo"
+                          className="p-2 rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition-all cursor-pointer flex items-center justify-center border border-slate-200 hover:border-rose-200 shrink-0"
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
+
+                      <div className="space-y-2">
+                        {/* URL input */}
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-slate-400 block">Image URL</label>
+                          <input 
+                            type="text" 
+                            defaultValue={currentLogo.startsWith('data:') ? '' : currentLogo}
+                            placeholder={currentLogo.startsWith('data:') ? 'Base64 Encoded (File Uploaded)' : 'Enter image HTTP/HTTPS URL...'}
+                            onChange={(e) => {
+                              if (e.target.value.trim()) {
+                                updateBankLogo(bankInfo.key, e.target.value.trim());
+                              }
+                            }}
+                            className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-600 focus:outline-none focus:ring-1 focus:ring-bronze"
+                          />
+                        </div>
+
+                        {/* File upload */}
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-slate-400 block">Or Upload Local Image File</label>
+                          <div className="relative">
+                            <input 
+                              type="file" 
+                              accept="image/*"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  const reader = new FileReader();
+                                  reader.onloadend = async () => {
+                                    if (typeof reader.result === 'string') {
+                                      const resized = await resizeImageBase64(reader.result);
+                                      updateBankLogo(bankInfo.key, resized);
+                                    }
+                                  };
+                                  reader.readAsDataURL(file);
+                                }
+                              }}
+                              className="w-full text-slate-500 text-[10px] file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-[10px] file:font-black file:bg-slate-100 file:text-slate-600 hover:file:bg-slate-200 cursor-pointer"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+
       </div>
+
+      {/* SCREENSHOT LIGHTBOX MODAL */}
+      <AnimatePresence>
+        {activeScreenshot && (
+          <div className="fixed inset-0 bg-slate-950/80 flex items-center justify-center p-4 z-50 backdrop-blur-md">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white rounded-3xl p-5 max-w-lg w-full flex flex-col space-y-4 border border-slate-100 shadow-2xl relative"
+            >
+              <div className="flex justify-between items-center border-b border-slate-100 pb-2">
+                <span className="text-xs font-black uppercase tracking-widest text-bronze">Payment Receipt Proof</span>
+                <button
+                  type="button"
+                  onClick={() => setActiveScreenshot(null)}
+                  className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 hover:text-slate-800 transition-all cursor-pointer"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+              <div className="flex-1 overflow-auto max-h-[65vh] flex items-center justify-center bg-slate-50 rounded-2xl p-2 border border-slate-200">
+                <img
+                  src={activeScreenshot}
+                  alt="Receipt Fullscreen"
+                  className="max-h-[60vh] object-contain rounded-xl shadow-lg border border-slate-200/50"
+                  referrerPolicy="no-referrer"
+                />
+              </div>
+              <div className="flex justify-end pt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setActiveScreenshot(null)}
+                  className="bg-bronze hover:bg-bronze-hover text-white font-extrabold text-xs px-4 py-2 rounded-xl shadow-sm transition-all cursor-pointer"
+                >
+                  Close Preview
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
     </div>
   );
 };

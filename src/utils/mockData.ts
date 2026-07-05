@@ -10,71 +10,106 @@ export const INITIAL_PRODUCTS_RAW = [
     id: 1,
     productName: "Premium Leather Messenger Bag",
     productImage: "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=400&auto=format&fit=crop&q=60",
-    baseCost: 975,
-    rewardMultiplier: 0.15, // 15% reward
+    baseCost: 800,
+    rewardMultiplier: 0.25, // 25% reward
   },
   {
     id: 2,
     productName: "Pro Noise-Cancelling Wireless Headphones",
     productImage: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400&auto=format&fit=crop&q=60",
-    baseCost: 1450,
-    rewardMultiplier: 0.18, // 18% reward
+    baseCost: 995,
+    rewardMultiplier: 0.27, // 27% reward
   },
   {
     id: 3,
     productName: "Minimalist Automatic Mechanical Watch",
     productImage: "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&auto=format&fit=crop&q=60",
-    baseCost: 2180,
-    rewardMultiplier: 0.20, // 20% reward
+    baseCost: 1264,
+    rewardMultiplier: 0.30, // 30% reward
   },
   {
     id: 4,
     productName: "Ergonomic Orthopedic Workspace Chair",
     productImage: "https://images.unsplash.com/photo-1580481072645-022f9a6dbf27?w=400&auto=format&fit=crop&q=60",
-    baseCost: 3270,
-    rewardMultiplier: 0.22, // 22% reward
+    baseCost: 2098,
+    rewardMultiplier: 0.32, // 32% reward
   },
   {
     id: 5,
     productName: "Ultra-Light Carbon Fiber Executive Smartpad",
     productImage: "https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?w=400&auto=format&fit=crop&q=60",
-    baseCost: 4900,
-    rewardMultiplier: 0.25, // 25% reward
+    baseCost: 3200,
+    rewardMultiplier: 0.35, // 35% reward
   },
   {
     id: 6,
     productName: "4K HDR Professional Design Monitor",
     productImage: "https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?w=400&auto=format&fit=crop&q=60",
-    baseCost: 7350,
-    rewardMultiplier: 0.28, // 28% reward
+    baseCost: 4900,
+    rewardMultiplier: 0.38, // 38% reward
   },
   {
     id: 7,
     productName: "Premium Handcrafted Walnut Desktop Console",
     productImage: "https://images.unsplash.com/photo-1585776245991-cf89dd7fc73a?w=400&auto=format&fit=crop&q=60",
-    baseCost: 11000,
-    rewardMultiplier: 0.30, // 30% reward
+    baseCost: 7350,
+    rewardMultiplier: 0.40, // 40% reward
   },
   {
     id: 8,
     productName: "Hi-Fi Studio Reference Soundbar System",
     productImage: "https://images.unsplash.com/photo-1545454675-3531b543be5d?w=400&auto=format&fit=crop&q=60",
-    baseCost: 16500,
-    rewardMultiplier: 0.32, // 32% reward
+    baseCost: 11000,
+    rewardMultiplier: 0.38, // 38% reward
   },
   {
     id: 9,
     productName: "Vanguard Titanium Expedition Camera Rig",
     productImage: "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=400&auto=format&fit=crop&q=60",
-    baseCost: 24700,
-    rewardMultiplier: 0.35, // 35% reward
+    baseCost: 16500,
+    rewardMultiplier: 0.45, // 45% reward
   },
   {
     id: 10,
     productName: "Hyperion Quantum Elite Workspace Station",
     productImage: "https://images.unsplash.com/photo-1593642632823-8f785ba67e45?w=400&auto=format&fit=crop&q=60",
+    baseCost: 24700,
+    rewardMultiplier: 0.48, // 48% reward
+  },
+  {
+    id: 11,
+    productName: "Enterprise Quantum Core Server Rack",
+    productImage: "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=400&auto=format&fit=crop&q=60",
     baseCost: 37000,
-    rewardMultiplier: 0.40, // 40% reward
+    rewardMultiplier: 0.30, // 30% reward
+  },
+  {
+    id: 12,
+    productName: "Ultimate Pro Holographic AI Studio",
+    productImage: "https://images.unsplash.com/photo-1600132806370-bf17e65e942f?w=400&auto=format&fit=crop&q=60",
+    baseCost: 55000,
+    rewardMultiplier: 0.55, // 55% reward
+  },
+  {
+    id: 13,
+    productName: "Quantum Neural Supercomputer Unit",
+    productImage: "https://images.unsplash.com/photo-1518770660439-4636190af475?w=400&auto=format&fit=crop&q=60",
+    baseCost: 82000,
+    rewardMultiplier: 0.58, // 58% reward
+  },
+  {
+    id: 14,
+    productName: "Industrial Silicon Processing Cluster",
+    productImage: "https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=400&auto=format&fit=crop&q=60",
+    baseCost: 125000,
+    rewardMultiplier: 0.60, // 60% reward
+  },
+  {
+    id: 15,
+    productName: "Global Satellite Uplink Mainframe",
+    productImage: "https://images.unsplash.com/photo-1541185933-ef5d8ed016c2?w=400&auto=format&fit=crop&q=60",
+    baseCost: 190000,
+    rewardMultiplier: 0.13, // 13% reward
   }
 ];
 
@@ -128,6 +163,26 @@ export const ALTERNATIVE_PRODUCTS_POOLS: { [key: number]: { productName: string;
     { productName: "Hyperion Quantum Elite Workspace Station", productImage: "https://images.unsplash.com/photo-1593642632823-8f785ba67e45?w=400&auto=format&fit=crop&q=60" },
     { productName: "Apex Liquid-Cooled AI Rendering Rig", productImage: "https://images.unsplash.com/photo-1587202372775-e229f172b9d7?w=400&auto=format&fit=crop&q=60" },
     { productName: "Galactic Ultimate Multi-Display Holo-Desk", productImage: "https://images.unsplash.com/photo-1531403009284-440f080d1e12?w=400&auto=format&fit=crop&q=60" }
+  ],
+  11: [
+    { productName: "Enterprise Quantum Core Server Rack", productImage: "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=400&auto=format&fit=crop&q=60" },
+    { productName: "Modular Hybrid Cloud Cluster Frame", productImage: "https://images.unsplash.com/photo-1563770660941-20978e870e26?w=400&auto=format&fit=crop&q=60" }
+  ],
+  12: [
+    { productName: "Ultimate Pro Holographic AI Studio", productImage: "https://images.unsplash.com/photo-1600132806370-bf17e65e942f?w=400&auto=format&fit=crop&q=60" },
+    { productName: "Deep Learning Neural Synaptic Gateway", productImage: "https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=400&auto=format&fit=crop&q=60" }
+  ],
+  13: [
+    { productName: "Quantum Neural Supercomputer Unit", productImage: "https://images.unsplash.com/photo-1518770660439-4636190af475?w=400&auto=format&fit=crop&q=60" },
+    { productName: "Synaptic Array Grid Core", productImage: "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=400&auto=format&fit=crop&q=60" }
+  ],
+  14: [
+    { productName: "Industrial Silicon Processing Cluster", productImage: "https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=400&auto=format&fit=crop&q=60" },
+    { productName: "Robotic Assembly Cleanroom Line", productImage: "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=400&auto=format&fit=crop&q=60" }
+  ],
+  15: [
+    { productName: "Global Satellite Uplink Mainframe", productImage: "https://images.unsplash.com/photo-1541185933-ef5d8ed016c2?w=400&auto=format&fit=crop&q=60" },
+    { productName: "Planetary Transceiver Orbital Array", productImage: "https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=400&auto=format&fit=crop&q=60" }
   ]
 };
 
@@ -135,7 +190,7 @@ export const INITIAL_ANNOUNCEMENTS: Announcement[] = [
   {
     id: "ann-1",
     title: "✨ Welcome to GOM!",
-    content: "We are thrilled to launch our advanced order matching and scaling system. Register today to receive an instant 500 ETB Welcome Bonus! Complete 10 daily tasks to maximize your commissions.",
+    content: "We are thrilled to launch our advanced order matching and scaling system. Register today to receive an instant 500 ETB Welcome Bonus! Complete 15 daily tasks to maximize your commissions.",
     createdAt: new Date().toISOString()
   },
   {

@@ -32,6 +32,39 @@ import {
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 
+const DEFAULT_BANK_LOGOS: { [key: string]: string } = {
+  cbe: 'https://upload.wikimedia.org/wikipedia/commons/2/23/Commercial_Bank_of_Ethiopia_Logo.svg',
+  dashen: 'https://upload.wikimedia.org/wikipedia/commons/2/22/Dashen_Bank_logo.png',
+  abyssinia: 'https://upload.wikimedia.org/wikipedia/commons/e/ea/Bank_of_Abyssinia_logo.png',
+  awash: 'https://upload.wikimedia.org/wikipedia/commons/2/2a/Awash_Bank_Logo.png',
+  telebirr: 'https://upload.wikimedia.org/wikipedia/commons/e/ea/Telebirr_logo.png',
+  hibret: 'https://www.hibretbank.com.et/wp-content/uploads/2020/09/cropped-H-32x32.png',
+  wegagen: 'https://upload.wikimedia.org/wikipedia/commons/3/30/Wegagen_Bank_logo.png',
+  oromia: 'https://upload.wikimedia.org/wikipedia/commons/2/20/Cooperative_Bank_of_Oromia_logo.png'
+};
+
+const DEFAULT_MARKETPLACE_LOGOS: { [key: string]: string } = {
+  amazon: 'https://www.vectorlogo.zone/logos/amazon/amazon-ar21.svg',
+  walmart: 'https://www.vectorlogo.zone/logos/walmart/walmart-ar21.svg',
+  alibaba: 'https://www.vectorlogo.zone/logos/alibaba/alibaba-ar21.svg',
+  shopify: 'https://www.vectorlogo.zone/logos/shopify/shopify-ar21.svg',
+  airbnb: 'https://www.vectorlogo.zone/logos/airbnb/airbnb-ar21.svg'
+};
+
+const cleanFirestoreData = (obj: any): any => {
+  if (obj === null || typeof obj !== 'object') {
+    return obj;
+  }
+  const cleaned: any = Array.isArray(obj) ? [] : {};
+  for (const key of Object.keys(obj)) {
+    const val = obj[key];
+    if (val !== undefined) {
+      cleaned[key] = cleanFirestoreData(val);
+    }
+  }
+  return cleaned;
+};
+
 enum OperationType {
   CREATE = 'create',
   UPDATE = 'update',
@@ -53,14 +86,28 @@ interface FirestoreErrorInfo {
 }
 
 function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+  const errorMessage = error instanceof Error ? error.message : String(error);
+  const errorCode = (error && typeof error === 'object' && 'code' in error) ? (error as any).code : '';
+  
+  const isPermissionError = 
+    errorCode === 'permission-denied' || 
+    errorMessage.toLowerCase().includes('permission') || 
+    errorMessage.toLowerCase().includes('insufficient');
+
   const errInfo: FirestoreErrorInfo = {
-    error: error instanceof Error ? error.message : String(error),
+    error: errorMessage,
     authInfo: {},
     operationType,
     path
   };
-  console.error('Firestore Error: ', JSON.stringify(errInfo));
-  throw new Error(JSON.stringify(errInfo));
+
+  if (isPermissionError) {
+    console.error('Firestore Security/Permission Error: ', JSON.stringify(errInfo));
+    throw new Error(JSON.stringify(errInfo));
+  } else {
+    // Log connection or transient errors as warnings rather than crashing the React application
+    console.warn(`Firestore Transient Error (${operationType} on ${path}): ${errorMessage}`);
+  }
 }
 
 export const sanitizeProductCosts = (costs: { id: number; baseCost: number; rewardMultiplier: number }[]) => {
@@ -103,6 +150,18 @@ interface AppContextProps {
   systemReports: SystemReport;
   rechargeAccounts: RechargeAccount[];
   
+  // Custom Dynamic Logos
+  bankLogos: { [key: string]: string };
+  marketplaceLogos: { [key: string]: string };
+  updateBankLogo: (bankKey: string, logoUrl: string) => Promise<void>;
+  updateMarketplaceLogo: (marketKey: string, logoUrl: string) => Promise<void>;
+  deleteBankLogo: (bankKey: string) => Promise<void>;
+  deleteMarketplaceLogo: (marketKey: string) => Promise<void>;
+  
+  // Language Support
+  language: 'en' | 'am';
+  setLanguage: (lang: 'en' | 'am') => void;
+  
   // Auth actions
   register: (phoneNumber: string, passwordPlain: string, referralCode?: string) => Promise<{ success: boolean; message: string }>;
   login: (phoneNumber: string, passwordPlain: string) => Promise<{ success: boolean; message: string }>;
@@ -110,7 +169,7 @@ interface AppContextProps {
   resetPassword: (phoneNumber: string, passwordPlain: string) => Promise<{ success: boolean; message: string }>;
 
   // Wallet actions
-  deposit: (amount: number, bankName: string, refCode: string) => void;
+  deposit: (amount: number, bankName: string, refCode: string, screenshot?: string) => void;
   withdraw: (amount: number, bankName: string, accNo: string) => { success: boolean; message: string };
   
   // Admin approvals
@@ -119,8 +178,8 @@ interface AppContextProps {
 
   // Order logic
   addToCart: (id: number) => void;
-  submitOrder: (id: number) => { success: boolean; message: string };
-  resetOrderCycle: () => { success: boolean; message: string }; // Reset all 10 tasks for testing
+  submitOrder: (id: number) => Promise<{ success: boolean; message: string }>;
+  resetOrderCycle: () => Promise<{ success: boolean; message: string }>; // Reset all 15 tasks for testing
 
   // Admin Config
   updateScalingMultiplier: (multiplier: number) => void;
@@ -189,7 +248,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
       if (!updated.cycleProductOverrides || updated.cycleProductOverrides.length === 0) {
         const overrides: { id: number; productName: string; productImage: string }[] = [];
-        for (let id = 1; id <= 10; id++) {
+        for (let id = 1; id <= 15; id++) {
           const pool = ALTERNATIVE_PRODUCTS_POOLS[id];
           if (pool && pool.length > 0) {
             const randomIndex = Math.floor(Math.random() * pool.length);
@@ -225,7 +284,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
       if (!parsed.cycleProductOverrides || parsed.cycleProductOverrides.length === 0) {
         const overrides: { id: number; productName: string; productImage: string }[] = [];
-        for (let id = 1; id <= 10; id++) {
+        for (let id = 1; id <= 15; id++) {
           const pool = ALTERNATIVE_PRODUCTS_POOLS[id];
           if (pool && pool.length > 0) {
             const randomIndex = Math.floor(Math.random() * pool.length);
@@ -244,6 +303,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return null;
     }
   });
+
+  const [language, setLanguageState] = useState<'en' | 'am'>(() => {
+    const saved = localStorage.getItem('gom_lang');
+    return (saved === 'am' || saved === 'en') ? saved : 'en';
+  });
+
+  const setLanguage = (lang: 'en' | 'am') => {
+    setLanguageState(lang);
+    localStorage.setItem('gom_lang', lang);
+  };
 
   const [cartTrigger, setCartTrigger] = useState(0);
 
@@ -298,6 +367,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     ];
   });
 
+  const [bankLogos, setBankLogos] = useState<{ [key: string]: string }>(() => {
+    const saved = localStorage.getItem('gom_bank_logos');
+    return saved ? JSON.parse(saved) : DEFAULT_BANK_LOGOS;
+  });
+
+  const [marketplaceLogos, setMarketplaceLogos] = useState<{ [key: string]: string }>(() => {
+    const saved = localStorage.getItem('gom_marketplace_logos');
+    return saved ? JSON.parse(saved) : DEFAULT_MARKETPLACE_LOGOS;
+  });
+
   // Custom products costs managed by admin
   const [productCosts, setProductCosts] = useState<{ id: number; baseCost: number; rewardMultiplier: number }[]>(() => {
     const saved = localStorage.getItem('gom_product_costs');
@@ -318,7 +397,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // Generate dynamic starting cost for Level 1 between 750 and 1000 ETB
     const dynamicLevel1Base = Math.floor(Math.random() * (1000 - 750 + 1)) + 750;
 
-    // Always map over all 10 initial products to guarantee all 10 exist
+    // Always map over all 12 initial products to guarantee all 12 exist
     const rawCosts = INITIAL_PRODUCTS_RAW.map((p, idx) => {
       const existing = loaded.find((item: any) => item.id === p.id);
       if (existing && typeof existing.baseCost === 'number' && existing.baseCost > 0) {
@@ -362,7 +441,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (!updated.completedOrderIds) updated.completedOrderIds = [];
         if (!updated.cycleProductOverrides || updated.cycleProductOverrides.length === 0) {
           const overrides: { id: number; productName: string; productImage: string }[] = [];
-          for (let id = 1; id <= 10; id++) {
+          for (let id = 1; id <= 15; id++) {
             const pool = ALTERNATIVE_PRODUCTS_POOLS[id];
             if (pool && pool.length > 0) {
               const randomIndex = Math.floor(Math.random() * pool.length);
@@ -402,7 +481,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const configRef = doc(db, 'systemConfig', 'global');
       batch.set(configRef, {
         scalingMultiplier: 1.5,
-        productCosts: productCosts
+        productCosts: productCosts,
+        bankLogos: {
+          cbe: 'https://upload.wikimedia.org/wikipedia/commons/2/23/Commercial_Bank_of_Ethiopia_Logo.svg',
+          dashen: 'https://upload.wikimedia.org/wikipedia/commons/2/22/Dashen_Bank_logo.png',
+          abyssinia: 'https://upload.wikimedia.org/wikipedia/commons/e/ea/Bank_of_Abyssinia_logo.png',
+          awash: 'https://upload.wikimedia.org/wikipedia/commons/2/2a/Awash_Bank_Logo.png',
+          telebirr: 'https://upload.wikimedia.org/wikipedia/commons/e/ea/Telebirr_logo.png',
+          hibret: 'https://www.hibretbank.com.et/wp-content/uploads/2020/09/cropped-H-32x32.png',
+          wegagen: 'https://upload.wikimedia.org/wikipedia/commons/3/30/Wegagen_Bank_logo.png',
+          oromia: 'https://upload.wikimedia.org/wikipedia/commons/2/20/Cooperative_Bank_of_Oromia_logo.png'
+        },
+        marketplaceLogos: {
+          amazon: 'https://www.vectorlogo.zone/logos/amazon/amazon-ar21.svg',
+          walmart: 'https://www.vectorlogo.zone/logos/walmart/walmart-ar21.svg',
+          alibaba: 'https://www.vectorlogo.zone/logos/alibaba/alibaba-ar21.svg',
+          shopify: 'https://www.vectorlogo.zone/logos/shopify/shopify-ar21.svg',
+          airbnb: 'https://www.vectorlogo.zone/logos/airbnb/airbnb-ar21.svg'
+        }
       });
       
       // 5. Seed audit logs
@@ -517,8 +613,35 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           localStorage.setItem('gom_scaling_multiplier', data.scalingMultiplier.toString());
         }
         if (Array.isArray(data.productCosts)) {
-          setProductCosts(data.productCosts);
-          localStorage.setItem('gom_product_costs', JSON.stringify(data.productCosts));
+          let costs = [...data.productCosts];
+          if (costs.length < 15) {
+            const scaling = typeof data.scalingMultiplier === 'number' ? data.scalingMultiplier : 1.5;
+            for (let i = costs.length; i < 15; i++) {
+              const p = INITIAL_PRODUCTS_RAW[i];
+              const lastCost = costs.length > 0 ? costs[costs.length - 1].baseCost : 750;
+              const calculatedCost = Math.round(lastCost * scaling);
+              costs.push({
+                id: p.id,
+                baseCost: calculatedCost,
+                rewardMultiplier: p.rewardMultiplier
+              });
+            }
+            costs = sanitizeProductCosts(costs);
+            setDoc(doc(db, 'systemConfig', 'global'), {
+              scalingMultiplier: typeof data.scalingMultiplier === 'number' ? data.scalingMultiplier : 1.5,
+              productCosts: costs
+            }).catch(e => console.error("Error writing expanded systemConfig back:", e));
+          }
+          setProductCosts(costs);
+          localStorage.setItem('gom_product_costs', JSON.stringify(costs));
+        }
+        if (data.bankLogos) {
+          setBankLogos(data.bankLogos);
+          localStorage.setItem('gom_bank_logos', JSON.stringify(data.bankLogos));
+        }
+        if (data.marketplaceLogos) {
+          setMarketplaceLogos(data.marketplaceLogos);
+          localStorage.setItem('gom_marketplace_logos', JSON.stringify(data.marketplaceLogos));
         }
       }
     }, (error) => {
@@ -563,8 +686,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const calculated: Order[] = productCosts.map((rawProd, idx) => {
       // Order status logic:
-      // Index 0 represents Order 1, index 9 represents Order 10.
-      // All 10 orders are visible, but sequentially locked until the first uncompleted one is finished.
+      // Index 0 represents Order 1, index 11 represents Order 12.
+      // All 12 orders are visible, but sequentially locked until the first uncompleted one is finished.
       // - If they completed it already: status is 'completed'
       // - Else, if it is the first uncompleted order:
       //    - If already added to cart in state: status is 'in_cart'
@@ -587,14 +710,108 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         status = 'locked';
       }
 
-      // Cost calculation
-      // Use the actual configured base cost directly so the material prices are real.
-      const cost = rawProd.baseCost;
-
       // Ensure the reward commission percentage is valid (never 0, fallback to default if corrupt or undefined)
       const pct = (typeof rawProd.rewardMultiplier === 'number' && rawProd.rewardMultiplier > 0)
         ? rawProd.rewardMultiplier
         : (INITIAL_PRODUCTS_RAW.find(p => p.id === rawProd.id)?.rewardMultiplier || 0.15);
+
+      // Cost calculation
+      // Implement specific rule requested by the user:
+      // - Order 1: material cost between 701 and 1000 ETB (starts from base welcome bonus 500)
+      // - Order 2, 3: less than balance by 5 ETB (affordable)
+      // - Order 4: greater than balance (requires recharge - 30% of previous balance)
+      // - Order 5, 6, 7: less than balance by 5 ETB (affordable)
+      // - Order 8: greater than balance (requires recharge - 38% of previous balance)
+      // - Order 9, 10: less than balance by 5 ETB (affordable)
+      // - Order 11: greater than balance (requires recharge - 30% of previous balance)
+      // - Order 12, 13, 14: less than balance by 5 ETB (affordable)
+      // - Order 15: greater than balance (requires recharge - 13% of previous balance)
+      const simulatedCosts: { [key: number]: number } = {};
+      const simulatedBalances: { [key: number]: number } = {};
+      const calculatedPcts: { [key: number]: number } = {};
+
+      for (let i = 1; i <= 15; i++) {
+        const prodConf = productCosts.find(p => p.id === i);
+        const defaultPct = i === 1 ? 0.25 : 
+                           i === 2 ? 0.27 : 
+                           i === 3 ? 0.30 : 
+                           i === 4 ? 0.32 : 
+                           i === 5 ? 0.35 : 
+                           i === 6 ? 0.38 : 
+                           i === 7 ? 0.40 : 
+                           i === 8 ? 0.42 : 
+                           i === 9 ? 0.45 : 
+                           i === 10 ? 0.48 : 
+                           i === 11 ? 0.50 : 
+                           i === 12 ? 0.55 : 
+                           i === 13 ? 0.58 : 
+                           i === 14 ? 0.60 : 0.65;
+        calculatedPcts[i] = (typeof prodConf?.rewardMultiplier === 'number' && prodConf.rewardMultiplier > 0)
+          ? prodConf.rewardMultiplier
+          : defaultPct;
+      }
+
+      // Order 1: cost is between 701 and 1000 ETB (e.g. 800)
+      simulatedCosts[1] = 800;
+      simulatedBalances[1] = simulatedCosts[1] + Math.round(simulatedCosts[1] * calculatedPcts[1]);
+
+      // Order 2: less than balance by 5 ETB
+      simulatedCosts[2] = simulatedBalances[1] - 5;
+      simulatedBalances[2] = simulatedBalances[1] + Math.round(simulatedCosts[2] * calculatedPcts[2]);
+
+      // Order 3: less than balance by 5 ETB
+      simulatedCosts[3] = simulatedBalances[2] - 5;
+      simulatedBalances[3] = simulatedBalances[2] + Math.round(simulatedCosts[3] * calculatedPcts[3]);
+
+      // Order 4: greater than balance (requires recharge), recharge required is exactly 30% of previous balance
+      simulatedCosts[4] = simulatedBalances[3] + Math.round(simulatedBalances[3] * 0.30);
+      simulatedBalances[4] = simulatedCosts[4] + Math.round(simulatedCosts[4] * calculatedPcts[4]);
+
+      // Order 5: less than balance by 5 ETB
+      simulatedCosts[5] = simulatedBalances[4] - 5;
+      simulatedBalances[5] = simulatedBalances[4] + Math.round(simulatedCosts[5] * calculatedPcts[5]);
+
+      // Order 6: less than balance by 5 ETB
+      simulatedCosts[6] = simulatedBalances[5] - 5;
+      simulatedBalances[6] = simulatedBalances[5] + Math.round(simulatedCosts[6] * calculatedPcts[6]);
+
+      // Order 7: less than balance by 5 ETB
+      simulatedCosts[7] = simulatedBalances[6] - 5;
+      simulatedBalances[7] = simulatedBalances[6] + Math.round(simulatedCosts[7] * calculatedPcts[7]);
+
+      // Order 8: greater than balance (requires recharge), recharge required is exactly 38% of previous balance
+      simulatedCosts[8] = simulatedBalances[7] + Math.round(simulatedBalances[7] * 0.38);
+      simulatedBalances[8] = simulatedCosts[8] + Math.round(simulatedCosts[8] * calculatedPcts[8]);
+
+      // Order 9: less than balance by 5 ETB
+      simulatedCosts[9] = simulatedBalances[8] - 5;
+      simulatedBalances[9] = simulatedBalances[8] + Math.round(simulatedCosts[9] * calculatedPcts[9]);
+
+      // Order 10: less than balance by 5 ETB
+      simulatedCosts[10] = simulatedBalances[9] - 5;
+      simulatedBalances[10] = simulatedBalances[9] + Math.round(simulatedCosts[10] * calculatedPcts[10]);
+
+      // Order 11: greater than balance (requires recharge), recharge required is exactly 30% of previous balance
+      simulatedCosts[11] = simulatedBalances[10] + Math.round(simulatedBalances[10] * 0.30);
+      simulatedBalances[11] = simulatedCosts[11] + Math.round(simulatedCosts[11] * calculatedPcts[11]);
+
+      // Order 12: less than balance by 5 ETB
+      simulatedCosts[12] = simulatedBalances[11] - 5;
+      simulatedBalances[12] = simulatedBalances[11] + Math.round(simulatedCosts[12] * calculatedPcts[12]);
+
+      // Order 13: less than balance by 5 ETB
+      simulatedCosts[13] = simulatedBalances[12] - 5;
+      simulatedBalances[13] = simulatedBalances[12] + Math.round(simulatedCosts[13] * calculatedPcts[13]);
+
+      // Order 14: less than balance by 5 ETB
+      simulatedCosts[14] = simulatedBalances[13] - 5;
+      simulatedBalances[14] = simulatedBalances[13] + Math.round(simulatedCosts[14] * calculatedPcts[14]);
+
+      // Order 15: greater than balance (requires recharge), recharge required is exactly 13% of previous balance
+      simulatedCosts[15] = simulatedBalances[14] + Math.round(simulatedBalances[14] * 0.13);
+      simulatedBalances[15] = simulatedCosts[15] + Math.round(simulatedCosts[15] * calculatedPcts[15]);
+
+      const cost = simulatedCosts[rawProd.id] || rawProd.baseCost;
 
       const reward = Math.round(cost * pct);
 
@@ -720,15 +937,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         userId: referrer.id,
         userPhone: referrer.phoneNumber,
         type: 'referral_bonus',
-        amount: 200,
+        amount: 100,
         status: 'completed',
         createdAt: new Date().toISOString(),
-        description: `Referral Reward of 200 ETB credited for inviting ${trimmedPhone}.`
+        description: `Referral Reward of 100 ETB credited for inviting ${trimmedPhone}.`
       });
     }
 
     const overrides: { id: number; productName: string; productImage: string }[] = [];
-    for (let id = 1; id <= 10; id++) {
+    for (let id = 1; id <= 15; id++) {
       const pool = ALTERNATIVE_PRODUCTS_POOLS[id];
       if (pool && pool.length > 0) {
         const randomIndex = Math.floor(Math.random() * pool.length);
@@ -753,7 +970,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       currentOrderIndex: 0,
       completedOrderIds: [],
       inviteCode: userInviteCode,
-      referredBy,
+      referredBy: referredBy || '',
       referralCount: 0,
       referralEarnings: 0,
       cycleProductOverrides: overrides
@@ -774,12 +991,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const batch = writeBatch(db);
 
       // Write user and welcome bonus
-      batch.set(doc(db, 'users', userId), newUser);
-      batch.set(doc(db, 'transactions', welcomeBonusTransaction.id), welcomeBonusTransaction);
+      batch.set(doc(db, 'users', userId), cleanFirestoreData(newUser));
+      batch.set(doc(db, 'transactions', welcomeBonusTransaction.id), cleanFirestoreData(welcomeBonusTransaction));
 
       // Add referral transactions
       additionalTxs.forEach((tx) => {
-        batch.set(doc(db, 'transactions', tx.id), tx);
+        batch.set(doc(db, 'transactions', tx.id), cleanFirestoreData(tx));
       });
 
       // Update referrer user in Firestore
@@ -788,11 +1005,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (referrerToUpdate) {
           const updatedReferrer = {
             ...referrerToUpdate,
-            walletBalance: referrerToUpdate.walletBalance + 200,
-            referralEarnings: (referrerToUpdate.referralEarnings || 0) + 200,
+            walletBalance: referrerToUpdate.walletBalance + 100,
+            referralEarnings: (referrerToUpdate.referralEarnings || 0) + 100,
             referralCount: (referrerToUpdate.referralCount || 0) + 1
           };
-          batch.set(doc(db, 'users', referredBy), updatedReferrer);
+          batch.set(doc(db, 'users', referredBy), cleanFirestoreData(updatedReferrer));
         }
       }
 
@@ -805,7 +1022,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (referredBy) {
         const referrerToUpdate = users.find(u => u.id === referredBy);
         if (referrerToUpdate) {
-          await logAudit(referrerToUpdate.id, referrerToUpdate.phoneNumber, 'REFERRAL_BONUS', `Referred ${trimmedPhone}. Credited +200 ETB.`);
+          await logAudit(referrerToUpdate.id, referrerToUpdate.phoneNumber, 'REFERRAL_BONUS', `Referred ${trimmedPhone}. Credited +100 ETB.`);
         }
       }
 
@@ -856,7 +1073,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
 
     try {
-      await setDoc(doc(db, 'users', matchedUser.id), updatedUser);
+      await setDoc(doc(db, 'users', matchedUser.id), cleanFirestoreData(updatedUser));
       await logAudit(matchedUser.id, trimmedPhone, 'RESET_PASSWORD', 'Password reset successfully.');
       return { success: true, message: 'Password reset successfully.' };
     } catch (e) {
@@ -866,7 +1083,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   // WALLET ACTIONS
-  const deposit = async (amount: number, bankName: string, refCode: string) => {
+  const deposit = async (amount: number, bankName: string, refCode: string, screenshot?: string) => {
     if (!currentUser) return;
 
     const depositTx: Transaction = {
@@ -879,11 +1096,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       accountNumberOrRef: refCode.trim().toUpperCase(),
       status: 'pending',
       createdAt: new Date().toISOString(),
-      description: `Pending recharge of ${amount} ETB via ${bankName}. Reference: ${refCode}`
+      description: `Pending recharge of ${amount} ETB via ${bankName}. Reference: ${refCode}`,
+      screenshot: screenshot || undefined
     };
 
     try {
-      await setDoc(doc(db, 'transactions', depositTx.id), depositTx);
+      await setDoc(doc(db, 'transactions', depositTx.id), cleanFirestoreData(depositTx));
       await logAudit(currentUser.id, currentUser.phoneNumber, 'DEPOSIT_REQUEST', `Requested deposit of ${amount} ETB via ${bankName}`);
     } catch (e) {
       console.error("Error requesting deposit:", e);
@@ -894,10 +1112,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (!currentUser) return { success: false, message: 'Not logged in.' };
 
     const completedCount = currentUser.completedOrderIds ? currentUser.completedOrderIds.length : 0;
-    if (completedCount < 10) {
+    if (completedCount < 15) {
       return { 
         success: false, 
-        message: `You must complete all 10 order tasks in your active cycle before you can withdraw your balance. Currently completed: ${completedCount}/10 tasks.` 
+        message: `You must complete all 15 order tasks in your active cycle before you can withdraw your balance. Currently completed: ${completedCount}/15 tasks.` 
       };
     }
 
@@ -925,8 +1143,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     try {
       const batch = writeBatch(db);
-      batch.set(doc(db, 'users', currentUser.id), updatedUser);
-      batch.set(doc(db, 'transactions', withdrawTx.id), withdrawTx);
+      batch.set(doc(db, 'users', currentUser.id), cleanFirestoreData(updatedUser));
+      batch.set(doc(db, 'transactions', withdrawTx.id), cleanFirestoreData(withdrawTx));
       await batch.commit();
 
       await logAudit(currentUser.id, currentUser.phoneNumber, 'WITHDRAW_REQUEST', `Requested withdrawal of ${amount} ETB to ${bankName}. Account: ${accNo}`);
@@ -944,7 +1162,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     try {
       const batch = writeBatch(db);
-      batch.set(doc(db, 'transactions', txId), { ...tx, status: 'approved' });
+      batch.set(doc(db, 'transactions', txId), cleanFirestoreData({ ...tx, status: 'approved' }));
 
       if (tx.type === 'recharge') {
         const userDocRef = doc(db, 'users', tx.userId);
@@ -954,7 +1172,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             ...userToUpdate,
             walletBalance: userToUpdate.walletBalance + tx.amount
           };
-          batch.set(userDocRef, updatedUser);
+          batch.set(userDocRef, cleanFirestoreData(updatedUser));
         }
       }
 
@@ -971,7 +1189,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     try {
       const batch = writeBatch(db);
-      batch.set(doc(db, 'transactions', txId), { ...tx, status: 'rejected' });
+      batch.set(doc(db, 'transactions', txId), cleanFirestoreData({ ...tx, status: 'rejected' }));
 
       if (tx.type === 'withdraw') {
         const userDocRef = doc(db, 'users', tx.userId);
@@ -981,7 +1199,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             ...userToUpdate,
             walletBalance: userToUpdate.walletBalance + tx.amount
           };
-          batch.set(userDocRef, updatedUser);
+          batch.set(userDocRef, cleanFirestoreData(updatedUser));
         }
       }
 
@@ -1006,6 +1224,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const order = orders.find(o => o.id === orderId);
     if (!order) return { success: false, message: 'Order not found.' };
 
+    // Enforce 10 minutes gap between order task completions
+    if (currentUser.lastOrderCompletedAt) {
+      const lastCompleted = new Date(currentUser.lastOrderCompletedAt).getTime();
+      const now = Date.now();
+      const tenMinutesInMs = 10 * 60 * 1000;
+      const timePassed = now - lastCompleted;
+      if (timePassed < tenMinutesInMs) {
+        const remainingSeconds = Math.ceil((tenMinutesInMs - timePassed) / 1000);
+        const minutes = Math.floor(remainingSeconds / 60);
+        const seconds = remainingSeconds % 60;
+        return { 
+          success: false, 
+          message: `You must wait at least 10 minutes between completing order tasks. Please wait ${minutes}m ${seconds}s before completing this task.` 
+        };
+      }
+    }
+
     if (currentUser.walletBalance < order.materialCost) {
       return { success: false, message: `Insufficient balance. Minimum recharge of ${order.minRechargeRequired} ETB required.` };
     }
@@ -1021,7 +1256,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       walletBalance: newBalance,
       totalEarnings: newTotalEarnings,
       currentOrderIndex: nextOrderIndex,
-      completedOrderIds: [...currentUser.completedOrderIds, orderId]
+      completedOrderIds: [...currentUser.completedOrderIds, orderId],
+      lastOrderCompletedAt: new Date().toISOString()
     };
 
     const orderTx: Transaction = {
@@ -1039,8 +1275,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     try {
       const batch = writeBatch(db);
-      batch.set(doc(db, 'users', currentUser.id), updatedUser);
-      batch.set(doc(db, 'transactions', orderTx.id), orderTx);
+      batch.set(doc(db, 'users', currentUser.id), cleanFirestoreData(updatedUser));
+      batch.set(doc(db, 'transactions', orderTx.id), cleanFirestoreData(orderTx));
       await batch.commit();
 
       await logAudit(currentUser.id, currentUser.phoneNumber, 'COMPLETE_ORDER', `Completed Order ${orderId}. Commission: ${reward} ETB.`);
@@ -1054,17 +1290,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const resetOrderCycle = async () => {
     if (!currentUser) return { success: false, message: 'No user is currently logged in.' };
     
-    // Check if they completed all 10 orders
-    if (currentUser.completedOrderIds.length < 10) {
+    // Check if they completed all 15 orders
+    if (currentUser.completedOrderIds.length < 15) {
       return { 
         success: false, 
-        message: 'You can only reset the cycle after completing all 10 tasks successfully!' 
+        message: 'You can only reset the cycle after completing all 15 tasks successfully!' 
       };
     }
 
     // Pick brand new materials/equipment overrides from ALTERNATIVE_PRODUCTS_POOLS
     const overrides: { id: number; productName: string; productImage: string }[] = [];
-    for (let id = 1; id <= 10; id++) {
+    for (let id = 1; id <= 15; id++) {
       const pool = ALTERNATIVE_PRODUCTS_POOLS[id];
       if (pool && pool.length > 0) {
         // Find the previous productName to make sure we select a different one
@@ -1090,7 +1326,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // Generate a new dynamic Level 1 base cost between 750 and 1000 ETB
     const newLevel1Base = Math.floor(Math.random() * (1000 - 750 + 1)) + 750;
 
-    // Dynamically adjust/arrange all 10 product level costs based on this starting cost
+    // Dynamically adjust/arrange all 12 product level costs based on this starting cost
     const rawScaledCosts = productCosts.map((p, idx) => {
       const calculatedCost = Math.round(newLevel1Base * Math.pow(scalingMultiplier, idx));
       return {
@@ -1106,6 +1342,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       completedOrderIds: [],
       cycleProductOverrides: overrides
     };
+    delete updatedUser.lastOrderCompletedAt;
     
     // Clear any cart state
     productCosts.forEach(p => {
@@ -1114,7 +1351,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     try {
       const batch = writeBatch(db);
-      batch.set(doc(db, 'users', currentUser.id), updatedUser);
+      batch.set(doc(db, 'users', currentUser.id), cleanFirestoreData(updatedUser));
       batch.set(doc(db, 'systemConfig', 'global'), {
         scalingMultiplier,
         productCosts: updatedCosts
@@ -1171,7 +1408,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         scalingMultiplier,
         productCosts: sanitized
       });
-      await logAudit('ADMIN', 'ADMIN', 'CONFIG_ALL_PRODUCTS', `Updated and progressively auto-scaled all 10 product levels according to progressive greater-than cost constraints.`);
+      await logAudit('ADMIN', 'ADMIN', 'CONFIG_ALL_PRODUCTS', `Updated and progressively auto-scaled all 15 product levels according to progressive greater-than cost constraints.`);
     } catch (e) {
       console.error("Error updating all product costs:", e);
     }
@@ -1264,8 +1501,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     try {
       const batch = writeBatch(db);
-      batch.set(doc(db, 'users', userId), updatedUser);
-      batch.set(doc(db, 'transactions', manualTx.id), manualTx);
+      batch.set(doc(db, 'users', userId), cleanFirestoreData(updatedUser));
+      batch.set(doc(db, 'transactions', manualTx.id), cleanFirestoreData(manualTx));
       await batch.commit();
 
       const logMsg = amount >= 0 
@@ -1312,6 +1549,64 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       await logAudit('ADMIN', 'ADMIN', 'DELETE_RECHARGE_ACCOUNT', `Deleted recharge bank account: ${acc.bank} - ${acc.accNo}`);
     } catch (e) {
       console.error("Error deleting recharge account:", e);
+    }
+  };
+
+  const updateBankLogo = async (bankKey: string, logoUrl: string) => {
+    try {
+      const updatedLogos = { ...bankLogos, [bankKey]: logoUrl };
+      setBankLogos(updatedLogos);
+      localStorage.setItem('gom_bank_logos', JSON.stringify(updatedLogos));
+      
+      const configRef = doc(db, 'systemConfig', 'global');
+      await setDoc(configRef, { bankLogos: updatedLogos }, { merge: true });
+      await logAudit('ADMIN', 'ADMIN', 'UPDATE_BANK_LOGO', `Updated bank logo for key ${bankKey}`);
+    } catch (e) {
+      console.error("Error updating bank logo in Firestore:", e);
+    }
+  };
+
+  const updateMarketplaceLogo = async (marketKey: string, logoUrl: string) => {
+    try {
+      const updatedLogos = { ...marketplaceLogos, [marketKey]: logoUrl };
+      setMarketplaceLogos(updatedLogos);
+      localStorage.setItem('gom_marketplace_logos', JSON.stringify(updatedLogos));
+      
+      const configRef = doc(db, 'systemConfig', 'global');
+      await setDoc(configRef, { marketplaceLogos: updatedLogos }, { merge: true });
+      await logAudit('ADMIN', 'ADMIN', 'UPDATE_MARKET_LOGO', `Updated marketplace logo for key ${marketKey}`);
+    } catch (e) {
+      console.error("Error updating marketplace logo in Firestore:", e);
+    }
+  };
+
+  const deleteBankLogo = async (bankKey: string) => {
+    try {
+      const defaultUrl = DEFAULT_BANK_LOGOS[bankKey] || '';
+      const updatedLogos = { ...bankLogos, [bankKey]: defaultUrl };
+      setBankLogos(updatedLogos);
+      localStorage.setItem('gom_bank_logos', JSON.stringify(updatedLogos));
+      
+      const configRef = doc(db, 'systemConfig', 'global');
+      await setDoc(configRef, { bankLogos: updatedLogos }, { merge: true });
+      await logAudit('ADMIN', 'ADMIN', 'DELETE_BANK_LOGO', `Reset bank logo for key ${bankKey} to default`);
+    } catch (e) {
+      console.error("Error resetting bank logo in Firestore:", e);
+    }
+  };
+
+  const deleteMarketplaceLogo = async (marketKey: string) => {
+    try {
+      const defaultUrl = DEFAULT_MARKETPLACE_LOGOS[marketKey] || '';
+      const updatedLogos = { ...marketplaceLogos, [marketKey]: defaultUrl };
+      setMarketplaceLogos(updatedLogos);
+      localStorage.setItem('gom_marketplace_logos', JSON.stringify(updatedLogos));
+      
+      const configRef = doc(db, 'systemConfig', 'global');
+      await setDoc(configRef, { marketplaceLogos: updatedLogos }, { merge: true });
+      await logAudit('ADMIN', 'ADMIN', 'DELETE_MARKET_LOGO', `Reset marketplace logo for key ${marketKey} to default`);
+    } catch (e) {
+      console.error("Error resetting marketplace logo in Firestore:", e);
     }
   };
 
@@ -1391,7 +1686,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       updateRechargeAccount,
       deleteRechargeAccount,
       factoryReset,
-      rechargeAccounts
+      rechargeAccounts,
+      language,
+      setLanguage,
+      bankLogos,
+      marketplaceLogos,
+      updateBankLogo,
+      updateMarketplaceLogo,
+      deleteBankLogo,
+      deleteMarketplaceLogo
     }}>
       {children}
     </AppContext.Provider>
