@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { 
   User, 
   Transaction, 
@@ -277,7 +277,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
   });
 
-  const [currentUser, setCurrentUser] = useState<User | null>(() => {
+  const [rawCurrentUser, setRawCurrentUser] = useState<User | null>(() => {
     // If we cleared localStorage above, gom_current_user won't exist, which is correct
     const saved = localStorage.getItem('gom_current_user');
     if (!saved) return null;
@@ -314,6 +314,31 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return null;
     }
   });
+
+  const currentUser = useMemo(() => {
+    if (!rawCurrentUser) return null;
+
+    const referredUsers = users.filter(u => u.referredBy === rawCurrentUser.id || u.referredBy === rawCurrentUser.phoneNumber);
+    const referredCount = referredUsers.length;
+    const calculatedReferralEarnings = referredCount * 100;
+    const storedReferralEarnings = rawCurrentUser.referralEarnings || 0;
+    const missingReferralRewards = Math.max(0, calculatedReferralEarnings - storedReferralEarnings);
+
+    if (missingReferralRewards > 0 || (rawCurrentUser.referralCount || 0) !== referredCount || storedReferralEarnings !== calculatedReferralEarnings) {
+      return {
+        ...rawCurrentUser,
+        referralCount: referredCount,
+        referralEarnings: calculatedReferralEarnings,
+        walletBalance: rawCurrentUser.walletBalance + missingReferralRewards,
+      };
+    }
+
+    return rawCurrentUser;
+  }, [rawCurrentUser, users]);
+
+  const setCurrentUser = (user: User | null | ((prev: User | null) => User | null)) => {
+    setRawCurrentUser(user);
+  };
 
   const [language, setLanguageState] = useState<'en' | 'am'>(() => {
     const saved = localStorage.getItem('gom_lang');
@@ -670,23 +695,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
   }, []);
 
-  // Sync currentUser update when users array is modified in Firestore
+  // Sync rawCurrentUser update when users array is modified in Firestore
   useEffect(() => {
-    if (currentUser) {
-      const updated = users.find(u => u.id === currentUser.id);
+    if (rawCurrentUser) {
+      const updated = users.find(u => u.id === rawCurrentUser.id);
       if (updated) {
-        if (JSON.stringify(updated) !== JSON.stringify(currentUser)) {
-          setCurrentUser(updated);
+        if (JSON.stringify(updated) !== JSON.stringify(rawCurrentUser)) {
+          setRawCurrentUser(updated);
           localStorage.setItem('gom_current_user', JSON.stringify(updated));
         }
       }
     }
-  }, [users, currentUser]);
+  }, [users, rawCurrentUser]);
 
   // Keep localStorage session synced
   useEffect(() => {
-    localStorage.setItem('gom_current_user', JSON.stringify(currentUser));
-  }, [currentUser]);
+    localStorage.setItem('gom_current_user', JSON.stringify(rawCurrentUser));
+  }, [rawCurrentUser]);
 
   // Recalculate dynamic orders list whenever user changes, productCosts scale, or balance shifts
   useEffect(() => {
