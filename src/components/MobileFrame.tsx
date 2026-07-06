@@ -22,7 +22,7 @@ export const MobileFrame: React.FC<MobileFrameProps> = ({ children }) => {
         className="relative w-full max-w-lg h-screen md:h-[860px] bg-white md:rounded-3xl md:shadow-2xl md:border md:border-slate-200/50 overflow-hidden flex flex-col transition-all duration-300"
       >
         {/* Dynamic Content Frame */}
-        <div id="app_content_area" className="flex-1 overflow-y-auto flex flex-col bg-alabaster relative">
+        <div id="app_content_area" className="flex-1 overflow-hidden flex flex-col bg-alabaster relative">
           {children}
         </div>
       </div>

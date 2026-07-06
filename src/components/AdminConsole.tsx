@@ -107,6 +107,10 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
   const [activeAdminSubTab, setActiveAdminSubTab] = useState<'users' | 'recharges' | 'withdrawals' | 'orders' | 'announcements' | 'support' | 'reports' | 'logos'>('recharges');
   const [activeScreenshot, setActiveScreenshot] = useState<string | null>(null);
   
+  // Status filters for recharges and withdrawals
+  const [rechargeStatusFilter, setRechargeStatusFilter] = useState<'pending' | 'approved' | 'rejected'>('pending');
+  const [withdrawStatusFilter, setWithdrawStatusFilter] = useState<'pending' | 'approved' | 'rejected'>('pending');
+  
   // States
   const [searchQuery, setSearchQuery] = useState('');
   const [newAnnTitle, setNewAnnTitle] = useState('');
@@ -154,7 +158,12 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
   };
 
   const pendingRecharges = transactions.filter(t => t.type === 'recharge' && t.status === 'pending');
+  const approvedRecharges = transactions.filter(t => t.type === 'recharge' && t.status === 'approved');
+  const rejectedRecharges = transactions.filter(t => t.type === 'recharge' && t.status === 'rejected');
+
   const pendingWithdrawals = transactions.filter(t => t.type === 'withdraw' && t.status === 'pending');
+  const approvedWithdrawals = transactions.filter(t => t.type === 'withdraw' && t.status === 'approved');
+  const rejectedWithdrawals = transactions.filter(t => t.type === 'withdraw' && t.status === 'rejected');
   
   const filteredUsers = users.filter(u => 
     u.phoneNumber.includes(searchQuery) || 
@@ -343,25 +352,83 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
         {/* RECHARGE VERIFICATION QUEUE */}
         {activeAdminSubTab === 'recharges' && (
           <div className="space-y-4">
-            <h3 className="text-sm font-extrabold text-slate-700 flex items-center gap-1.5">
-              📥 Pending Deposits Verification Queue ({pendingRecharges.length})
-            </h3>
-            <p className="text-[11px] text-slate-500 mt-1 leading-normal">
-              Review and verify the CBE, Dashen, Awash, or Abyssinia manual receipts transfer references below to credit users.
-            </p>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h3 className="text-sm font-extrabold text-slate-700 flex items-center gap-1.5">
+                  📥 Deposits Operations Desk
+                </h3>
+                <p className="text-[11px] text-slate-500 mt-1 leading-normal">
+                  Review, verify, and track the CBE, Dashen, Awash, or Abyssinia manual deposits.
+                </p>
+              </div>
 
-            {pendingRecharges.length === 0 ? (
+              {/* Status filter segmented control */}
+              <div className="flex bg-slate-200/60 p-1 rounded-xl shrink-0">
+                <button
+                  onClick={() => setRechargeStatusFilter('pending')}
+                  className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                    rechargeStatusFilter === 'pending'
+                      ? 'bg-white text-slate-800 shadow-sm'
+                      : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  Pending ({pendingRecharges.length})
+                </button>
+                <button
+                  onClick={() => setRechargeStatusFilter('approved')}
+                  className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                    rechargeStatusFilter === 'approved'
+                      ? 'bg-white text-slate-800 shadow-sm'
+                      : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  Approved ({approvedRecharges.length})
+                </button>
+                <button
+                  onClick={() => setRechargeStatusFilter('rejected')}
+                  className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                    rechargeStatusFilter === 'rejected'
+                      ? 'bg-white text-slate-800 shadow-sm'
+                      : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  Rejected ({rejectedRecharges.length})
+                </button>
+              </div>
+            </div>
+
+            {(rechargeStatusFilter === 'pending' ? pendingRecharges :
+              rechargeStatusFilter === 'approved' ? approvedRecharges :
+              rejectedRecharges).length === 0 ? (
               <div className="bg-white border border-slate-200 rounded-2xl p-8 text-center text-xs text-slate-400 font-bold">
-                No pending bank recharges currently awaiting verification.
+                No {rechargeStatusFilter} recharges found.
               </div>
             ) : (
-              pendingRecharges.map(tx => (
+              (rechargeStatusFilter === 'pending' ? pendingRecharges :
+               rechargeStatusFilter === 'approved' ? approvedRecharges :
+               rejectedRecharges).map(tx => (
                 <div key={tx.id} className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm space-y-3.5">
                   <div className="flex justify-between items-start">
                     <div>
-                      <span className="block text-xs font-black text-slate-800">{tx.bankName}</span>
-                      <span className="block text-[10px] text-slate-400 font-bold mt-0.5">Phone: {formatUserPhoneId(tx.userPhone)}</span>
-                      <span className="block text-[10px] text-amber-900 font-black mt-0.5">TXID / Reference: {tx.accountNumberOrRef}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-black text-slate-800">{tx.bankName}</span>
+                        {tx.status === 'approved' && (
+                          <span className="text-[9px] font-black bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full uppercase">Approved</span>
+                        )}
+                        {tx.status === 'rejected' && (
+                          <span className="text-[9px] font-black bg-rose-100 text-rose-800 px-2 py-0.5 rounded-full uppercase">Rejected</span>
+                        )}
+                        {tx.status === 'pending' && (
+                          <span className="text-[9px] font-black bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full uppercase">Pending</span>
+                        )}
+                      </div>
+                      <div className="mt-1 space-y-0.5">
+                        <span className="block text-[10px] text-slate-500">User ID: <span className="font-mono text-slate-700 font-bold">{tx.userId}</span></span>
+                        <span className="block text-[10px] text-slate-500">Phone (Raw): <span className="font-bold text-slate-700">{tx.userPhone}</span></span>
+                        <span className="block text-[10px] text-slate-500">Phone (Hidden): <span className="font-bold text-slate-700">{formatUserPhoneId(tx.userPhone)}</span></span>
+                        <span className="block text-[10px] text-amber-900 font-black mt-0.5">TXID / Reference: {tx.accountNumberOrRef}</span>
+                        <span className="block text-[9px] text-slate-400 font-bold">Created: {new Date(tx.createdAt).toLocaleString()}</span>
+                      </div>
                       {tx.screenshot && (
                         <div className="mt-2.5 p-2 bg-slate-50 rounded-xl border border-slate-200 inline-block">
                           <span className="block text-[9px] text-slate-500 font-extrabold mb-1 uppercase tracking-wider">Uploaded Screenshot:</span>
@@ -383,25 +450,27 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
                         </div>
                       )}
                     </div>
-                    <span className="text-base font-black text-bronze">
-                      {tx.amount.toLocaleString()} ETB
+                    <span className="text-base font-black text-emerald-600">
+                      +{tx.amount.toLocaleString()} ETB
                     </span>
                   </div>
 
-                  <div className="flex gap-2 pt-2 border-t border-slate-100 justify-end">
-                    <button
-                      onClick={() => rejectTransaction(tx.id)}
-                      className="bg-red-50 hover:bg-red-100 text-red-700 font-bold text-xs px-3 py-2 rounded-xl flex items-center gap-1 border border-red-200/50 cursor-pointer"
-                    >
-                      <X size={14} /> Reject Payment
-                    </button>
-                    <button
-                      onClick={() => approveTransaction(tx.id)}
-                      className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-4 py-2 rounded-xl flex items-center gap-1 shadow cursor-pointer"
-                    >
-                      <Check size={14} /> Approve CBE / Bank Transfer
-                    </button>
-                  </div>
+                  {tx.status === 'pending' && (
+                    <div className="flex gap-2 pt-2 border-t border-slate-100 justify-end">
+                      <button
+                        onClick={() => rejectTransaction(tx.id)}
+                        className="bg-red-50 hover:bg-red-100 text-red-700 font-bold text-xs px-3 py-2 rounded-xl flex items-center gap-1 border border-red-200/50 cursor-pointer"
+                      >
+                        <X size={14} /> Reject Payment
+                      </button>
+                      <button
+                        onClick={() => approveTransaction(tx.id)}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-4 py-2 rounded-xl flex items-center gap-1 shadow cursor-pointer"
+                      >
+                        <Check size={14} /> Approve CBE / Bank Transfer
+                      </button>
+                    </div>
+                  )}
                 </div>
               ))
             )}
@@ -527,45 +596,130 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
         {/* WITHDRAWAL APPROVAL QUEUE */}
         {activeAdminSubTab === 'withdrawals' && (
           <div className="space-y-4">
-            <h3 className="text-sm font-extrabold text-slate-700 flex items-center gap-1.5">
-              📤 Pending Withdrawal Approvals Queue ({pendingWithdrawals.length})
-            </h3>
-            <p className="text-[11px] text-slate-500 mt-1 leading-normal">
-              Authorize user payout requests. Deducted assets will be permanently verified.
-            </p>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h3 className="text-sm font-extrabold text-slate-700 flex items-center gap-1.5">
+                  📤 Withdrawals Operations Desk
+                </h3>
+                <p className="text-[11px] text-slate-500 mt-1 leading-normal">
+                  Review, approve, and track user withdrawal payout requests.
+                </p>
+              </div>
 
-            {pendingWithdrawals.length === 0 ? (
+              {/* Status filter segmented control */}
+              <div className="flex bg-slate-200/60 p-1 rounded-xl shrink-0">
+                <button
+                  onClick={() => setWithdrawStatusFilter('pending')}
+                  className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                    withdrawStatusFilter === 'pending'
+                      ? 'bg-white text-slate-800 shadow-sm'
+                      : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  Pending ({pendingWithdrawals.length})
+                </button>
+                <button
+                  onClick={() => setWithdrawStatusFilter('approved')}
+                  className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                    withdrawStatusFilter === 'approved'
+                      ? 'bg-white text-slate-800 shadow-sm'
+                      : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  Approved ({approvedWithdrawals.length})
+                </button>
+                <button
+                  onClick={() => setWithdrawStatusFilter('rejected')}
+                  className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                    withdrawStatusFilter === 'rejected'
+                      ? 'bg-white text-slate-800 shadow-sm'
+                      : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  Rejected ({rejectedWithdrawals.length})
+                </button>
+              </div>
+            </div>
+
+            {(withdrawStatusFilter === 'pending' ? pendingWithdrawals :
+              withdrawStatusFilter === 'approved' ? approvedWithdrawals :
+              rejectedWithdrawals).length === 0 ? (
               <div className="bg-white border border-slate-200 rounded-2xl p-8 text-center text-xs text-slate-400 font-bold">
-                No pending withdrawals currently awaiting payout approval.
+                No {withdrawStatusFilter} withdrawals found.
               </div>
             ) : (
-              pendingWithdrawals.map(tx => (
+              (withdrawStatusFilter === 'pending' ? pendingWithdrawals :
+               withdrawStatusFilter === 'approved' ? approvedWithdrawals :
+               rejectedWithdrawals).map(tx => (
                 <div key={tx.id} className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm space-y-3.5">
                   <div className="flex justify-between items-start">
                     <div>
-                      <span className="block text-xs font-black text-deep-forest">{tx.bankName}</span>
-                      <span className="block text-[10px] text-slate-400 font-bold mt-0.5">Account Number: {tx.accountNumberOrRef}</span>
-                      <span className="block text-[10px] text-slate-500 font-medium mt-0.5">Phone: {formatUserPhoneId(tx.userPhone)}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-black text-deep-forest">{tx.bankName}</span>
+                        {tx.status === 'approved' && (
+                          <span className="text-[9px] font-black bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full uppercase">Approved</span>
+                        )}
+                        {tx.status === 'rejected' && (
+                          <span className="text-[9px] font-black bg-rose-100 text-rose-800 px-2 py-0.5 rounded-full uppercase">Rejected</span>
+                        )}
+                        {tx.status === 'pending' && (
+                          <span className="text-[9px] font-black bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full uppercase">Pending</span>
+                        )}
+                      </div>
+                      
+                      <div className="mt-2 space-y-1.5 bg-slate-50 p-3 rounded-xl border border-slate-100 text-xs">
+                        <div>
+                          <span className="text-slate-400 font-medium mr-1">Withdrawal Bank:</span>
+                          <span className="font-black text-slate-800">{tx.bankName}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 font-medium mr-1">Withdrawal Account Number:</span>
+                          <span className="font-black text-amber-900 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200/50">{tx.accountNumberOrRef}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 font-medium mr-1">User Phone (Raw):</span>
+                          <span className="font-bold text-slate-800">{tx.userPhone}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 font-medium mr-1">User Phone (Hidden):</span>
+                          <span className="font-bold text-slate-800">{formatUserPhoneId(tx.userPhone)}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 font-medium mr-1">User ID:</span>
+                          <span className="font-mono text-slate-800 font-bold">{tx.userId}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 font-medium mr-1">Created:</span>
+                          <span className="text-slate-600 font-medium">{new Date(tx.createdAt).toLocaleString()}</span>
+                        </div>
+                        {tx.description && (
+                          <div className="text-[11px] text-slate-500 italic mt-1 border-t border-slate-200/60 pt-1">
+                            "{tx.description}"
+                          </div>
+                        )}
+                      </div>
                     </div>
-                    <span className="text-base font-black text-red-600">
-                      {tx.amount.toLocaleString()} ETB
+                    <span className="text-base font-black text-red-600 shrink-0">
+                      -{tx.amount.toLocaleString()} ETB
                     </span>
                   </div>
 
-                  <div className="flex gap-2 pt-2 border-t border-slate-100 justify-end">
-                    <button
-                      onClick={() => rejectTransaction(tx.id)}
-                      className="bg-red-50 hover:bg-red-100 text-red-700 font-bold text-xs px-3 py-2 rounded-xl flex items-center gap-1 border border-red-200/50 cursor-pointer"
-                    >
-                      <X size={14} /> Reject & Refund Payout
-                    </button>
-                    <button
-                      onClick={() => approveTransaction(tx.id)}
-                      className="bg-bronze hover:bg-bronze-hover text-white font-bold text-xs px-4 py-2 rounded-xl flex items-center gap-1 shadow cursor-pointer"
-                    >
-                      <Check size={14} /> Mark Payout Complete
-                    </button>
-                  </div>
+                  {tx.status === 'pending' && (
+                    <div className="flex gap-2 pt-2 border-t border-slate-100 justify-end">
+                      <button
+                        onClick={() => rejectTransaction(tx.id)}
+                        className="bg-red-50 hover:bg-red-100 text-red-700 font-bold text-xs px-3 py-2 rounded-xl flex items-center gap-1 border border-red-200/50 cursor-pointer"
+                      >
+                        <X size={14} /> Reject & Refund Payout
+                      </button>
+                      <button
+                        onClick={() => approveTransaction(tx.id)}
+                        className="bg-bronze hover:bg-bronze-hover text-white font-bold text-xs px-4 py-2 rounded-xl flex items-center gap-1 shadow cursor-pointer"
+                      >
+                        <Check size={14} /> Mark Payout Complete
+                      </button>
+                    </div>
+                  )}
                 </div>
               ))
             )}
