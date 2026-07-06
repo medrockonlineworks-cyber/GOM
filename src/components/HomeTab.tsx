@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { useTranslation, formatUserPhoneId } from '../utils/translations';
 import { motion, AnimatePresence } from 'motion/react';
@@ -93,6 +93,25 @@ const MarketplaceLogoCell: React.FC<{ src: string; alt: string; brandKey: string
   );
 };
 
+const generateRandomWithdrawal = () => {
+  const prefixes = [
+    '0901', '0910', '0911', '0912', '0913', '0914', '0915', '0916', '0918', '0920', '0921', '0922', '0924', '0925', '0926', '0930', '0935', '0940', '0945', '0960', '0970', '0980',
+    '0707', '0708', '0710', '0711', '0712', '0713', '0714', '0715', '0716', '0720', '0721', '0722', '0790', '0799'
+  ];
+  const randomPrefix = prefixes[Math.floor(Math.random() * prefixes.length)];
+  const randomSuffix = Math.floor(10 + Math.random() * 90); // 2 digits
+  const phone = `${randomPrefix}****${randomSuffix}`;
+  
+  const amounts = [
+    20000, 22500, 25000, 28400, 32000, 35000, 42000, 48500, 55000, 68000, 75000,
+    82000, 95000, 112000, 125000, 138400, 150000, 168000, 185000, 210000, 225000,
+    245000, 268000, 285000, 312000, 335000, 350000, 378000, 410000, 435000, 460000,
+    485000, 500000
+  ];
+  const amount = amounts[Math.floor(Math.random() * amounts.length)];
+  return { phone, amount };
+};
+
 interface HomeTabProps {
   onNavigateToOrders: () => void;
   onOpenRechargeModal: () => void;
@@ -109,6 +128,14 @@ export const HomeTab: React.FC<HomeTabProps> = ({
   const { currentUser, announcements, orders, language, users, marketplaceLogos } = useApp();
   const { t } = useTranslation(language);
   const [announcementIndex, setAnnouncementIndex] = useState(0);
+  const [ticker, setTicker] = useState(() => generateRandomWithdrawal());
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTicker(generateRandomWithdrawal());
+    }, 3000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Local modals state
   const [isAboutOpen, setIsAboutOpen] = useState(false);
@@ -184,6 +211,45 @@ export const HomeTab: React.FC<HomeTabProps> = ({
         </div>
       </motion.div>
 
+      {/* LIVE WITHDRAWAL TICKER */}
+      <div className="bg-emerald-50/60 border border-emerald-100 rounded-2xl p-3 flex items-center gap-3 overflow-hidden shadow-2xs h-16">
+        <div className="w-9 h-9 rounded-xl bg-emerald-500/10 flex items-center justify-center shrink-0">
+          <Volume2 className="text-emerald-600 animate-pulse" size={16} />
+        </div>
+        <div className="flex-1 relative h-full flex items-center overflow-hidden">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={`${ticker.phone}-${ticker.amount}`}
+              initial={{ y: 15, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: -15, opacity: 0 }}
+              transition={{ duration: 0.25, ease: 'easeOut' }}
+              className="absolute left-0 right-0 flex flex-col justify-center"
+            >
+              {language === 'am' ? (
+                <>
+                  <div className="text-[9px] font-black uppercase tracking-wider text-emerald-800">
+                    እንኳን ደስ አላችሁ! 🎉
+                  </div>
+                  <div className="text-[11px] font-extrabold text-slate-700 leading-tight mt-0.5">
+                    ተጠቃሚ <span className="text-emerald-700 font-mono font-black">{ticker.phone}</span> በስኬት <span className="text-emerald-700 font-mono font-black">{ticker.amount.toLocaleString()}</span> ETB አውጥተዋል።
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="text-[9px] font-black uppercase tracking-wider text-emerald-800">
+                    Congratulations! 🎉
+                  </div>
+                  <div className="text-[11px] font-extrabold text-slate-700 leading-tight mt-0.5">
+                    User <span className="text-emerald-700 font-mono font-black">{ticker.phone}</span> successfully withdrew <span className="text-emerald-700 font-mono font-black">{ticker.amount.toLocaleString()}.00 ETB</span>.
+                  </div>
+                </>
+              )}
+            </motion.div>
+          </AnimatePresence>
+        </div>
+      </div>
+
       {/* ACTION PANEL */}
       <div className="grid grid-cols-2 gap-4">
         <button
@@ -239,57 +305,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
         </button>
       </div>
 
-      {/* INTEGRATED GLOBAL MARKETPLACES */}
-      <div className="bg-white rounded-3xl p-5 shadow-xl border border-slate-200/80">
-        {/* Exact 6-Logo Grid Layout with Clean Outlines matching Reference (Logo Only) */}
-        <div className="border border-slate-200 rounded-2xl overflow-hidden bg-white shadow-sm grid grid-cols-3">
-          {/* Amazon */}
-          <div className="p-2.5 flex items-center justify-center border-r border-b border-slate-200 bg-white hover:bg-slate-50/40 transition-colors group h-16">
-            <MarketplaceLogoCell 
-              src={marketplaceLogos?.amazon || "https://www.vectorlogo.zone/logos/amazon/amazon-ar21.svg"} 
-              alt="Amazon" 
-              brandKey="amazon"
-            />
-          </div>
-          {/* Walmart */}
-          <div className="p-2.5 flex items-center justify-center border-r border-b border-slate-200 bg-white hover:bg-slate-50/40 transition-colors group h-16">
-            <MarketplaceLogoCell 
-              src={marketplaceLogos?.walmart || "https://www.vectorlogo.zone/logos/walmart/walmart-ar21.svg"} 
-              alt="Walmart" 
-              brandKey="walmart"
-            />
-          </div>
-          {/* Alibaba.com */}
-          <div className="p-2.5 flex items-center justify-center border-b border-slate-200 bg-white hover:bg-slate-50/40 transition-colors group h-16">
-            <MarketplaceLogoCell 
-              src={marketplaceLogos?.alibaba || "https://www.vectorlogo.zone/logos/alibaba/alibaba-ar21.svg"} 
-              alt="Alibaba.com" 
-              brandKey="alibaba"
-            />
-          </div>
-          {/* Shopify */}
-          <div className="p-2.5 flex items-center justify-center border-r border-slate-200 bg-white hover:bg-slate-50/40 transition-colors group h-16">
-            <MarketplaceLogoCell 
-              src={marketplaceLogos?.shopify || "https://www.vectorlogo.zone/logos/shopify/shopify-ar21.svg"} 
-              alt="Shopify" 
-              brandKey="shopify"
-            />
-          </div>
-          {/* Airbnb */}
-          <div className="p-2.5 flex items-center justify-center border-r border-slate-200 bg-white hover:bg-slate-50/40 transition-colors group h-16">
-            <MarketplaceLogoCell 
-              src={marketplaceLogos?.airbnb || "https://www.vectorlogo.zone/logos/airbnb/airbnb-ar21.svg"} 
-              alt="Airbnb" 
-              brandKey="airbnb"
-            />
-          </div>
-          {/* GOM System */}
-          <div className="p-2.5 flex flex-col items-center justify-center bg-slate-50/40 h-16 select-none">
-            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">GOM</span>
-            <span className="text-[7px] text-slate-400/80 font-bold uppercase tracking-wider mt-0.5">Global Market</span>
-          </div>
-        </div>
-      </div>
+
 
       {/* COMPANY ANNOUNCEMENTS CAROUSEL IN DESIGN THEME */}
       {announcements.length > 0 && (
@@ -368,6 +384,12 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                   <p className="text-xs leading-relaxed font-medium text-slate-200">
                     {t('profilePara2')}
                   </p>
+                  <p className="text-xs leading-relaxed font-medium text-slate-200">
+                    {t('profilePara3')}
+                  </p>
+                  <p className="text-xs leading-relaxed font-medium text-slate-200">
+                    {t('profilePara4')}
+                  </p>
                 </div>
 
                 <div className="space-y-3.5">
@@ -427,9 +449,6 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                   <h3 className="text-sm font-black text-slate-800 uppercase tracking-wide">
                     {t('telegramChannels')}
                   </h3>
-                  <p className="text-[10px] text-slate-400 font-bold mt-0.5">
-                    {t('officialAnnSupportHandles')}
-                  </p>
                 </div>
                 <button
                   onClick={() => setIsTelegramOpen(false)}
@@ -440,24 +459,11 @@ export const HomeTab: React.FC<HomeTabProps> = ({
               </div>
 
               <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-slate-50/50">
-                <div className="bg-sky-50 border border-sky-100 p-4 rounded-2xl flex gap-3 shadow-xs">
-                  <div className="w-9 h-9 bg-sky-500 text-white rounded-xl flex items-center justify-center shrink-0">
-                    <Send size={18} className="-rotate-12 translate-x-[-1px]" />
-                  </div>
-                  <div>
-                    <h4 className="text-xs font-black text-sky-950 uppercase tracking-wider">{t('telegramNetwork')}</h4>
-                    <p className="text-[11px] text-sky-800 font-medium leading-relaxed mt-0.5">
-                      {t('telegramNetworkDesc')}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="space-y-3 pt-2">
+                <div className="space-y-3">
                   <div className="bg-white border border-slate-200 rounded-2xl p-4 space-y-3 shadow-xs">
                     <div>
                       <span className="bg-sky-100 text-sky-950 text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full inline-block">{t('officialChannel')}</span>
                       <h4 className="text-xs font-black text-slate-800 mt-1">{t('gomEthiopiaAnnChannel')}</h4>
-                      <p className="text-[11px] text-slate-500 font-medium mt-0.5">{t('getNewsDailyGiftCodes')}</p>
                     </div>
                     <div className="flex gap-2">
                       <button
@@ -482,7 +488,6 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                     <div>
                       <span className="bg-emerald-100 text-emerald-950 text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full inline-block">{t('supportDesk')}</span>
                       <h4 className="text-xs font-black text-slate-800 mt-1">{t('gomOnlineTelegramAssistant')}</h4>
-                      <p className="text-[11px] text-slate-500 font-medium mt-0.5">{t('talkWithProfessional')}</p>
                     </div>
                     <div className="flex gap-2">
                       <button

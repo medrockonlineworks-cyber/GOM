@@ -453,7 +453,7 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
                       <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">Account Holder Name</label>
                       <input
                         type="text"
-                        placeholder="e.g. Global Online Market PLC"
+                        placeholder="e.g. GOM"
                         value={formAccName}
                         onChange={(e) => setFormAccName(e.target.value)}
                         className="w-full bg-white border border-slate-200 rounded-xl p-2 text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-bronze"

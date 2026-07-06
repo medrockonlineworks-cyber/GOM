@@ -360,10 +360,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
     }
     return [
-      { id: 'acc-1', bank: 'Commercial Bank of Ethiopia (CBE)', accName: 'Global Online Market PLC', accNo: '1000552233445' },
-      { id: 'acc-2', bank: 'Dashen Bank', accName: 'Global Online Market PLC', accNo: '001244558832' },
-      { id: 'acc-3', bank: 'Bank of Abyssinia (BoA)', accName: 'Global Online Market PLC', accNo: '55887744331' },
-      { id: 'acc-4', bank: 'Awash Bank', accName: 'Global Online Market PLC', accNo: '013204938200' }
+      { id: 'acc-1', bank: 'Commercial Bank of Ethiopia (CBE)', accName: 'GOM', accNo: '1000552233445' },
+      { id: 'acc-2', bank: 'Dashen Bank', accName: 'GOM', accNo: '001244558832' },
+      { id: 'acc-3', bank: 'Bank of Abyssinia (BoA)', accName: 'GOM', accNo: '55887744331' },
+      { id: 'acc-4', bank: 'Awash Bank', accName: 'GOM', accNo: '013204938200' }
     ];
   });
 
@@ -467,10 +467,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       
       // 3. Seed bank accounts
       const initialAccounts = [
-        { id: 'acc-1', bank: 'Commercial Bank of Ethiopia (CBE)', accName: 'Global Online Market PLC', accNo: '1000552233445' },
-        { id: 'acc-2', bank: 'Dashen Bank', accName: 'Global Online Market PLC', accNo: '001244558832' },
-        { id: 'acc-3', bank: 'Bank of Abyssinia (BoA)', accName: 'Global Online Market PLC', accNo: '55887744331' },
-        { id: 'acc-4', bank: 'Awash Bank', accName: 'Global Online Market PLC', accNo: '013204938200' }
+        { id: 'acc-1', bank: 'Commercial Bank of Ethiopia (CBE)', accName: 'GOM', accNo: '1000552233445' },
+        { id: 'acc-2', bank: 'Dashen Bank', accName: 'GOM', accNo: '001244558832' },
+        { id: 'acc-3', bank: 'Bank of Abyssinia (BoA)', accName: 'GOM', accNo: '55887744331' },
+        { id: 'acc-4', bank: 'Awash Bank', accName: 'GOM', accNo: '013204938200' }
       ];
       initialAccounts.forEach((acc) => {
         const ref = doc(db, 'rechargeAccounts', acc.id);
@@ -884,8 +884,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const register = async (phoneNumber: string, passwordPlain: string, referralCode?: string) => {
     // Phone validation
     const trimmedPhone = phoneNumber.trim();
-    if (!trimmedPhone.match(/^09\d{8}$/) && !trimmedPhone.match(/^\+2519\d{8}$/)) {
-      return { success: false, message: 'Invalid phone format. Please use standard Ethiopian format (09xxxxxxxx).' };
+    if (!trimmedPhone.match(/^(09|07)\d{8}$/) && !trimmedPhone.match(/^\+251(9|7)\d{8}$/)) {
+      return { success: false, message: 'Invalid phone format. Please use standard Ethiopian format (09xxxxxxxx or 07xxxxxxxx).' };
     }
 
     const exists = users.some(u => u.phoneNumber === trimmedPhone);

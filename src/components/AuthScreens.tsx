@@ -191,7 +191,6 @@ export const AuthScreens: React.FC = () => {
               <div>
                 <div className="mb-6">
                   <h2 className="text-xl font-black tracking-tight text-slate-800">{t('signIn')}</h2>
-                  <p className="text-xs text-slate-500 mt-1">{t('signInSub')}</p>
                 </div>
 
                 <form onSubmit={handleLogin} className="space-y-4">
@@ -215,7 +214,7 @@ export const AuthScreens: React.FC = () => {
                       <input
                         type="text"
                         required
-                        placeholder="e.g. 09xxxxxxxx"
+                        placeholder="e.g. 09xxxxxxxx or 07xxxxxxxx"
                         value={phoneNumber}
                         onChange={(e) => setPhoneNumber(e.target.value)}
                         className="w-full bg-slate-50 text-slate-800 text-sm pl-10 pr-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-bronze/40 focus:border-bronze focus:bg-white transition-all font-medium placeholder-slate-400/80 shadow-xs"
@@ -307,18 +306,6 @@ export const AuthScreens: React.FC = () => {
               <div>
                 <div className="mb-6">
                   <h2 className="text-xl font-black tracking-tight text-slate-800">{t('createNewAccount')}</h2>
-                  <p className="text-xs text-slate-500 mt-1">{t('registerSub')}</p>
-                </div>
-
-                {/* Welcome Bonus Highlight */}
-                <div className="mb-6 bg-gradient-to-r from-emerald-50 to-emerald-50/30 border border-emerald-500/20 p-3.5 rounded-2xl flex items-center gap-3.5 shadow-xs">
-                  <div className="w-10 h-10 bg-emerald-500/10 rounded-xl flex items-center justify-center shrink-0 border border-emerald-500/10">
-                    <Coins size={20} className="text-emerald-600 animate-[bounce_2s_infinite]" />
-                  </div>
-                  <div>
-                    <span className="block text-xs font-extrabold text-emerald-950 tracking-tight">{t('welcomeBonusTitle')}</span>
-                    <span className="block text-[10px] text-emerald-700/90 font-medium leading-relaxed mt-0.5">{t('welcomeBonusSub')}</span>
-                  </div>
                 </div>
 
                 <form onSubmit={handleRegister} className="space-y-4">
@@ -353,7 +340,7 @@ export const AuthScreens: React.FC = () => {
                       <input
                         type="text"
                         required
-                        placeholder="e.g. 09xxxxxxxx"
+                        placeholder="e.g. 09xxxxxxxx or 07xxxxxxxx"
                         value={phoneNumber}
                         onChange={(e) => setPhoneNumber(e.target.value)}
                         className="w-full bg-slate-50 text-slate-800 text-sm pl-10 pr-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-bronze/40 focus:border-bronze focus:bg-white transition-all font-medium placeholder-slate-400/80 shadow-xs"
@@ -495,7 +482,7 @@ export const AuthScreens: React.FC = () => {
                       <input
                         type="text"
                         required
-                        placeholder="e.g. 09xxxxxxxx"
+                        placeholder="e.g. 09xxxxxxxx or 07xxxxxxxx"
                         value={phoneNumber}
                         onChange={(e) => setPhoneNumber(e.target.value)}
                         className="w-full bg-slate-50 text-slate-800 text-sm pl-10 pr-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-bronze/40 focus:border-bronze focus:bg-white transition-all font-medium placeholder-slate-400/80 shadow-xs"

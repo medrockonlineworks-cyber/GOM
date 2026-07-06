@@ -69,6 +69,8 @@ export const MyTab: React.FC<MyTabProps> = ({
 
   const [activeHistoryPanel, setActiveHistoryPanel] = useState<'none' | 'recharges' | 'withdrawals' | 'transactions' | 'orders' | 'referrals'>('none');
   const [copiedLink, setCopiedLink] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [resetConfirmationInput, setResetConfirmationInput] = useState('');
 
   if (!currentUser) return null;
 
@@ -121,9 +123,6 @@ export const MyTab: React.FC<MyTabProps> = ({
             <Wallet size={14} className="text-amber-400" />
             <span className="text-[10px] text-slate-300 font-black tracking-widest uppercase">{t('walletBalance')}</span>
           </div>
-          <span className="text-[8px] font-black text-amber-300 bg-amber-500/10 border border-amber-400/20 px-2 py-0.5 rounded-full uppercase tracking-wider">
-            {t('securedAsset')}
-          </span>
         </div>
         
         <div className="relative z-10">
@@ -133,9 +132,6 @@ export const MyTab: React.FC<MyTabProps> = ({
             </span>
             <span className="text-sm text-amber-400 font-black">ETB</span>
           </div>
-          <span className="text-[9px] text-slate-400 mt-1.5 block leading-relaxed">
-            {t('standardProcessingMsg')}
-          </span>
         </div>
         
         <div className="grid grid-cols-2 gap-3 pt-4 border-t border-slate-700/40 relative z-10">
@@ -172,7 +168,6 @@ export const MyTab: React.FC<MyTabProps> = ({
               </div>
               <div>
                 <span className="text-xs font-black text-slate-800 block">{t('rechargeHistory')}</span>
-                <span className="text-[9px] text-slate-400 block font-medium">{t('verifyPendingPast')}</span>
               </div>
             </div>
             <div className="flex items-center gap-1.5">
@@ -194,7 +189,6 @@ export const MyTab: React.FC<MyTabProps> = ({
               </div>
               <div>
                 <span className="text-xs font-black text-slate-800 block">{t('withdrawalLogs')}</span>
-                <span className="text-[9px] text-slate-400 block font-medium">{t('trackWithdrawPayouts')}</span>
               </div>
             </div>
             <div className="flex items-center gap-1.5">
@@ -216,7 +210,6 @@ export const MyTab: React.FC<MyTabProps> = ({
               </div>
               <div>
                 <span className="text-xs font-black text-slate-800 block">{t('fullStatementLedger')}</span>
-                <span className="text-[9px] text-slate-400 block font-medium">{t('completeBalanceStatement')}</span>
               </div>
             </div>
             <div className="flex items-center gap-1.5">
@@ -238,7 +231,6 @@ export const MyTab: React.FC<MyTabProps> = ({
               </div>
               <div>
                 <span className="text-xs font-black text-slate-800 block">{t('taskMatchesList')}</span>
-                <span className="text-[9px] text-slate-400 block font-medium">{t('finishedMerchantTasks')}</span>
               </div>
             </div>
             <div className="flex items-center gap-1.5">
@@ -271,7 +263,10 @@ export const MyTab: React.FC<MyTabProps> = ({
         <div className="space-y-2">
           {/* Developer Factory reset */}
           <button
-            onClick={factoryReset}
+            onClick={() => {
+              setResetConfirmationInput('');
+              setShowResetConfirm(true);
+            }}
             className="w-full bg-white hover:bg-slate-50 text-slate-700 border border-slate-200/60 transition-all p-3.5 rounded-2xl flex items-center justify-between text-left shadow-2xs cursor-pointer group"
           >
             <div className="flex items-center gap-3">
@@ -280,7 +275,6 @@ export const MyTab: React.FC<MyTabProps> = ({
               </div>
               <div>
                 <span className="text-xs font-black block text-slate-700 group-hover:text-red-700 transition-colors">{t('resetDatabaseEnv')}</span>
-                <span className="text-[9px] text-slate-400 block mt-0.5">{t('deleteCustomLedger')}</span>
               </div>
             </div>
             <ChevronRight size={14} className="text-slate-300 group-hover:text-slate-500 transition-colors" />
@@ -297,7 +291,6 @@ export const MyTab: React.FC<MyTabProps> = ({
               </div>
               <div>
                 <span className="text-xs font-black block text-slate-700 group-hover:text-red-700 transition-colors">{t('logout')}</span>
-                <span className="text-[9px] text-slate-400 block mt-0.5">{t('closeLockSession')}</span>
               </div>
             </div>
             <ChevronRight size={14} className="text-slate-300 group-hover:text-slate-500 transition-colors" />
@@ -515,6 +508,73 @@ export const MyTab: React.FC<MyTabProps> = ({
                   </div>
                 )}
 
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showResetConfirm && (
+          <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center z-50 backdrop-blur-sm p-4">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="bg-white rounded-[24px] w-full max-w-sm overflow-hidden shadow-2xl border border-slate-100 flex flex-col"
+            >
+              <div className="px-6 pt-6 pb-4 flex justify-between items-center bg-red-50 border-b border-red-100/50">
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="text-red-600" size={18} />
+                  <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest">
+                    {t('confirmResetTitle')}
+                  </h3>
+                </div>
+                <button
+                  onClick={() => setShowResetConfirm(false)}
+                  className="w-7 h-7 rounded-full bg-red-100/50 hover:bg-red-100 flex items-center justify-center text-red-600 hover:text-red-800 transition-all cursor-pointer"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-4">
+                <p className="text-[11px] text-slate-500 font-medium leading-relaxed">
+                  {t('confirmResetWarning')}
+                </p>
+
+                <div className="space-y-1.5">
+                  <label className="block text-[9px] font-black uppercase tracking-wider text-slate-400">
+                    {t('confirmResetInputLabel')}
+                  </label>
+                  <input
+                    type="text"
+                    value={resetConfirmationInput}
+                    onChange={(e) => setResetConfirmationInput(e.target.value)}
+                    placeholder="RESET"
+                    className="w-full bg-slate-50 border border-slate-200 focus:border-red-400 focus:ring-1 focus:ring-red-400 rounded-xl px-3.5 py-2 text-xs font-mono uppercase tracking-widest text-slate-800 focus:outline-none transition-all placeholder:text-slate-300"
+                  />
+                </div>
+
+                <div className="flex gap-2 pt-2">
+                  <button
+                    onClick={() => setShowResetConfirm(false)}
+                    className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 font-black text-[10px] uppercase tracking-wider py-3 rounded-xl text-center cursor-pointer transition-all active:scale-[0.98]"
+                  >
+                    {t('cancel')}
+                  </button>
+                  <button
+                    disabled={resetConfirmationInput.trim().toUpperCase() !== 'RESET'}
+                    onClick={async () => {
+                      setShowResetConfirm(false);
+                      await factoryReset();
+                    }}
+                    className="flex-1 bg-red-600 hover:bg-red-700 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed text-white font-black text-[10px] uppercase tracking-wider py-3 rounded-xl text-center cursor-pointer transition-all active:scale-[0.98] shadow-sm flex items-center justify-center gap-1.5"
+                  >
+                    <RefreshCw size={11} /> {t('confirmResetButton')}
+                  </button>
+                </div>
               </div>
             </motion.div>
           </div>

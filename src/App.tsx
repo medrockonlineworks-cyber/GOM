@@ -43,93 +43,7 @@ import {
   Coins
 } from 'lucide-react';
 
-const BankLogo = ({ bankName, className = "" }: { bankName: string; className?: string }) => {
-  const name = bankName.toLowerCase();
-  const [imgError, setImgError] = useState(false);
-  const { bankLogos } = useApp();
-  
-  // Define bank initials and color schemes
-  let initials = 'BK';
-  let bgColor = 'bg-slate-100';
-  let textColor = 'text-slate-700';
-  let ringColor = 'ring-slate-200/40';
-  let logoUrl = '';
 
-  if (name.includes('commercial') || name.includes('cbe')) {
-    initials = 'CBE';
-    bgColor = 'bg-purple-600';
-    textColor = 'text-white';
-    ringColor = 'ring-purple-100';
-    logoUrl = bankLogos?.cbe || 'https://upload.wikimedia.org/wikipedia/commons/2/23/Commercial_Bank_of_Ethiopia_Logo.svg';
-  } else if (name.includes('dashen')) {
-    initials = 'DB';
-    bgColor = 'bg-blue-600';
-    textColor = 'text-white';
-    ringColor = 'ring-blue-100';
-    logoUrl = bankLogos?.dashen || 'https://upload.wikimedia.org/wikipedia/commons/2/22/Dashen_Bank_logo.png';
-  } else if (name.includes('abyssinia') || name.includes('boa')) {
-    initials = 'BoA';
-    bgColor = 'bg-emerald-700';
-    textColor = 'text-white';
-    ringColor = 'ring-emerald-100';
-    logoUrl = bankLogos?.abyssinia || 'https://upload.wikimedia.org/wikipedia/commons/e/ea/Bank_of_Abyssinia_logo.png';
-  } else if (name.includes('awash')) {
-    initials = 'AWB';
-    bgColor = 'bg-orange-500';
-    textColor = 'text-white';
-    ringColor = 'ring-orange-100';
-    logoUrl = bankLogos?.awash || 'https://upload.wikimedia.org/wikipedia/commons/2/2a/Awash_Bank_Logo.png';
-  } else if (name.includes('telebirr') || name.includes('tele')) {
-    initials = 'TB';
-    bgColor = 'bg-cyan-500';
-    textColor = 'text-white';
-    ringColor = 'ring-cyan-100';
-    logoUrl = bankLogos?.telebirr || 'https://upload.wikimedia.org/wikipedia/commons/e/ea/Telebirr_logo.png';
-  } else if (name.includes('hibret') || name.includes('united')) {
-    initials = 'HB';
-    bgColor = 'bg-teal-600';
-    textColor = 'text-white';
-    ringColor = 'ring-teal-100';
-    logoUrl = bankLogos?.hibret || 'https://www.hibretbank.com.et/wp-content/uploads/2020/09/cropped-H-32x32.png';
-  } else if (name.includes('wegagen')) {
-    initials = 'WB';
-    bgColor = 'bg-red-600';
-    textColor = 'text-white';
-    ringColor = 'ring-red-100';
-    logoUrl = bankLogos?.wegagen || 'https://upload.wikimedia.org/wikipedia/commons/3/30/Wegagen_Bank_logo.png';
-  } else if (name.includes('oromia') || name.includes('coop')) {
-    initials = 'CPB';
-    bgColor = 'bg-green-600';
-    textColor = 'text-white';
-    ringColor = 'ring-green-100';
-    logoUrl = bankLogos?.oromia || 'https://upload.wikimedia.org/wikipedia/commons/2/20/Cooperative_Bank_of_Oromia_logo.png';
-  } else {
-    // Generic fallback based on initials of the words
-    const words = bankName.trim().split(/\s+/);
-    initials = words.map(w => w[0]).join('').substring(0, 3).toUpperCase() || 'BK';
-    bgColor = 'bg-amber-600';
-    textColor = 'text-white';
-    ringColor = 'ring-amber-100';
-  }
-
-  return (
-    <div className={`w-8 h-8 rounded-xl flex items-center justify-center font-black text-[10px] tracking-wider shrink-0 shadow-sm border border-white/10 uppercase overflow-hidden ring-4 ${ringColor} ${className}`}>
-      {logoUrl && !imgError ? (
-        <img 
-          src={logoUrl} 
-          alt={bankName}
-          referrerPolicy="no-referrer"
-          onError={() => setImgError(true)}
-          className="w-full h-full object-contain p-0.5 bg-white"
-        />
-      ) : (
-        <div className={`w-full h-full ${bgColor} ${textColor} flex items-center justify-center font-black text-[10px] tracking-wider uppercase`}>
-          {initials}
-        </div>
-      )}
-    </div>
-  );
-};
 
 type UserTab = 'home' | 'orders' | 'my';
 
@@ -519,7 +433,6 @@ function AppContent() {
                     </div>
                     <div>
                       <h3 className="text-base font-black text-slate-800 tracking-tight">{t('ethiopianBankDeposit')}</h3>
-                      <p className="text-[10px] text-slate-400 font-bold">{t('officialPlatformGateways')}</p>
                     </div>
                   </div>
 
@@ -547,11 +460,6 @@ function AppContent() {
                       className="w-full bg-slate-50 border border-slate-200 hover:border-slate-300 rounded-2xl px-4 py-3 text-xs text-slate-800 font-extrabold flex items-center justify-between transition-all cursor-pointer shadow-xs"
                     >
                       <div className="flex items-center gap-3">
-                        {rechargeBank ? <BankLogo bankName={rechargeBank} /> : (
-                          <div className="w-8 h-8 rounded-xl bg-bronze/10 flex items-center justify-center text-bronze shrink-0">
-                            <Coins size={14} />
-                          </div>
-                        )}
                         <span>{rechargeBank || t('selectBankAccount')}</span>
                       </div>
                       {showChannelDropdown ? (
@@ -580,7 +488,6 @@ function AppContent() {
                             }`}
                           >
                             <div className="flex items-center gap-3">
-                              <BankLogo bankName={acc.bank} />
                               <span>{acc.bank}</span>
                             </div>
                             {rechargeBank === acc.bank && <Check size={14} className="text-bronze shrink-0" />}
@@ -603,7 +510,6 @@ function AppContent() {
                         <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 rounded-full blur-xl pointer-events-none" />
                         <div className="flex justify-between items-center gap-4">
                           <div className="flex items-center gap-3">
-                            <BankLogo bankName={selectedAccount.bank} />
                             <div className="space-y-0.5">
                               <span className="block text-[11px] font-black tracking-tight text-amber-400 uppercase">
                                 {selectedAccount.bank}
@@ -997,7 +903,7 @@ function AppContent() {
                 </div>
                 <div>
                   <h3 className="text-sm font-black text-slate-900 uppercase tracking-tight">{t('installGomApp')}</h3>
-                  <p className="text-[10px] text-amber-600 font-extrabold tracking-wide uppercase mt-0.5">Global Online Market</p>
+                  <p className="text-[10px] text-amber-600 font-extrabold tracking-wide uppercase mt-0.5">GOM</p>
                   <p className="text-[10px] text-slate-400">{t('premiumRewardPlatform')}</p>
                 </div>
               </div>
