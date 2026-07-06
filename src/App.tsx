@@ -177,6 +177,7 @@ function AppContent() {
   // Ethiopian banks list
   const ETH_BANKS = [
     'Commercial Bank of Ethiopia (CBE)',
+    'Telebirr',
     'Dashen Bank',
     'Bank of Abyssinia (BoA)',
     'Awash Bank',
@@ -228,8 +229,10 @@ function AppContent() {
       return;
     }
 
-    if (amt > 75000) {
-      setWithdrawError('The maximum withdrawal amount is 75,000 ETB.');
+    const isTelebirr = withdrawBank.toLowerCase().includes('telebirr');
+    const maxWithdraw = isTelebirr ? 75000 : 300000;
+    if (amt > maxWithdraw) {
+      setWithdrawError(`The maximum withdrawal amount for ${withdrawBank} is ${maxWithdraw.toLocaleString()} ETB.`);
       return;
     }
 
@@ -724,7 +727,7 @@ function AppContent() {
 
                 {(() => {
                   const completedCount = currentUser.completedOrderIds ? currentUser.completedOrderIds.length : 0;
-                  const isLocked = completedCount < 10;
+                  const isLocked = completedCount < 15;
                   return (
                     <>
                       {isLocked && (
@@ -772,14 +775,14 @@ function AppContent() {
                             type="number"
                             required
                             min="200"
-                            max="75000"
+                            max={withdrawBank.toLowerCase().includes('telebirr') ? "75000" : "300000"}
                             disabled={isLocked}
-                            placeholder="Min 200 - Max 75k"
+                            placeholder={withdrawBank.toLowerCase().includes('telebirr') ? "Min 200 - Max 75k" : "Min 200 - Max 300k"}
                             value={withdrawAmount}
                             onChange={(e) => setWithdrawAmount(e.target.value)}
                             className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-bronze disabled:opacity-50"
                           />
-                          <span className="text-[9px] text-slate-400 mt-1 block">Min: 200 | Max: 75,000 ETB</span>
+                          <span className="text-[9px] text-slate-400 mt-1 block">Min: 200 | Max: {withdrawBank.toLowerCase().includes('telebirr') ? "75,000" : "300,000"} ETB</span>
                         </div>
                       </div>
 
