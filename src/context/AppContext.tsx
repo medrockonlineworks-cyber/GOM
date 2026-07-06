@@ -177,6 +177,7 @@ interface AppContextProps {
   login: (phoneNumber: string, passwordPlain: string) => Promise<{ success: boolean; message: string }>;
   logout: () => void;
   resetPassword: (phoneNumber: string, passwordPlain: string) => Promise<{ success: boolean; message: string }>;
+  updateAccountDetails: (phoneNumber: string, passwordPlain?: string) => Promise<{ success: boolean; message: string }>;
 
   // Wallet actions
   deposit: (amount: number, bankName: string, refCode: string, screenshot?: string) => void;
@@ -1145,6 +1146,42 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+  const updateAccountDetails = async (phoneNumber: string, passwordPlain?: string) => {
+    if (!currentUser) {
+      return { success: false, message: 'No user is currently logged in.' };
+    }
+
+    const trimmedPhone = phoneNumber.trim();
+    if (!trimmedPhone) {
+      return { success: false, message: 'Phone number cannot be empty.' };
+    }
+
+    // If changing phone number, check if it's already taken
+    if (trimmedPhone !== currentUser.phoneNumber) {
+      const isTaken = users.some(u => u.phoneNumber === trimmedPhone && u.id !== currentUser.id);
+      if (isTaken) {
+        return { success: false, message: 'This phone number is already registered by another account.' };
+      }
+    }
+
+    let updatedUser = { ...currentUser, phoneNumber: trimmedPhone };
+
+    if (passwordPlain && passwordPlain.trim() !== '') {
+      const hashed = await hashPassword(passwordPlain);
+      updatedUser.passwordHash = hashed;
+    }
+
+    try {
+      await setDoc(doc(db, 'users', currentUser.id), cleanFirestoreData(updatedUser));
+      setCurrentUser(updatedUser);
+      await logAudit(currentUser.id, trimmedPhone, 'UPDATE_ACCOUNT_DETAILS', 'Updated account login details.');
+      return { success: true, message: 'Account details updated successfully.' };
+    } catch (e) {
+      console.error("Error updating account details:", e);
+      return { success: false, message: 'Failed to update account details. Please try again.' };
+    }
+  };
+
   // WALLET ACTIONS
   const deposit = async (amount: number, bankName: string, refCode: string, screenshot?: string) => {
     if (!currentUser) return;
@@ -1730,6 +1767,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       login,
       logout,
       resetPassword,
+      updateAccountDetails,
       deposit,
       withdraw,
       approveTransaction,

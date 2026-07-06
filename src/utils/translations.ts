@@ -678,3 +678,13 @@ export function formatUserPhoneId(phone: string): string {
   if (phone.length <= 4) return phone;
   return `${phone.slice(0, 2)}****${phone.slice(-2)}`;
 }
+
+/**
+ * Replaces any phone numbers found inside a string with their masked format
+ */
+export function formatPhoneNumbersInText(text: string): string {
+  if (!text) return '';
+  return text.replace(/\b(251)?(0?[79]\d{8})\b/g, (match) => {
+    return formatUserPhoneId(match);
+  });
+}

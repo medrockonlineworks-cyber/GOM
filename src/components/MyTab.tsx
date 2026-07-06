@@ -5,7 +5,7 @@
 
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { useTranslation, formatUserPhoneId } from '../utils/translations';
+import { useTranslation, formatUserPhoneId, formatPhoneNumbersInText } from '../utils/translations';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   User as UserIcon, 
@@ -62,15 +62,57 @@ export const MyTab: React.FC<MyTabProps> = ({
     supportMessages, 
     logout, 
     factoryReset,
-    language
+    language,
+    updateAccountDetails
   } = useApp();
 
   const { t } = useTranslation(language);
 
-  const [activeHistoryPanel, setActiveHistoryPanel] = useState<'none' | 'recharges' | 'withdrawals' | 'transactions' | 'orders' | 'referrals'>('none');
+  const localT = {
+    en: {
+      accountSettings: 'Account Settings',
+      phoneNumberLabel: 'Phone Number',
+      newPasswordLabel: 'New Password',
+      newPasswordPlaceholder: 'Leave blank to keep current password',
+      saveChanges: 'Save Changes',
+      updating: 'Updating...',
+      successUpdate: 'Account updated successfully!',
+      emptyPhoneError: 'Phone number cannot be empty.',
+      phoneTakenError: 'This phone number is already in use.',
+      bonusRecords: 'Bonus Records',
+      bonusTransactions: 'Bonus Transactions',
+      noBonusesFound: 'No bonus records found.',
+      bonusSub: 'Register rewards & admin-credited bonuses.'
+    },
+    am: {
+      accountSettings: 'የመለያ ቅንብሮች',
+      phoneNumberLabel: 'የስልክ ቁጥር',
+      newPasswordLabel: 'አዲስ የይለፍ ቃል',
+      newPasswordPlaceholder: 'ያለውን የይለፍ ቃል ለማቆየት ባዶ ይተውት',
+      saveChanges: 'ለውጦችን አስቀምጥ',
+      updating: 'በማዘመን ላይ...',
+      successUpdate: 'መለያዎ በተሳካ ሁኔታ ተዘምኗል!',
+      emptyPhoneError: 'የስልክ ቁጥር ባዶ መሆን አይችልም።',
+      phoneTakenError: 'ይህ የስልክ ቁጥር በሌላ መለያ ተይዟል።',
+      bonusRecords: 'የቦነስ መዝገቦች',
+      bonusTransactions: 'የቦነስ ግብይቶች',
+      noBonusesFound: 'ምንም የቦነስ መዝገብ አልተገኘም።',
+      bonusSub: 'የምዝገባ ሽልማቶች እና የአስተዳዳሪ ቦነሶች።'
+    }
+  };
+
+  const [activeHistoryPanel, setActiveHistoryPanel] = useState<'none' | 'recharges' | 'withdrawals' | 'transactions' | 'orders' | 'referrals' | 'bonuses'>('none');
   const [copiedLink, setCopiedLink] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [resetConfirmationInput, setResetConfirmationInput] = useState('');
+
+  // Settings states
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [settingsPhone, setSettingsPhone] = useState('');
+  const [settingsPassword, setSettingsPassword] = useState('');
+  const [settingsError, setSettingsError] = useState('');
+  const [settingsSuccess, setSettingsSuccess] = useState('');
+  const [settingsLoading, setSettingsLoading] = useState('');
 
   if (!currentUser) return null;
 
@@ -79,6 +121,12 @@ export const MyTab: React.FC<MyTabProps> = ({
   const userRecharges = userTransactions.filter(t => t.type === 'recharge');
   const userWithdrawals = userTransactions.filter(t => t.type === 'withdraw');
   const userOrderRewards = userTransactions.filter(t => t.type === 'reward');
+  const userBonuses = userTransactions.filter(t => 
+    t.type === 'welcome_bonus' || 
+    t.type === 'referral_bonus' || 
+    (t.type === 'recharge' && t.accountNumberOrRef === 'SYSTEM_MANUAL') ||
+    t.description?.toLowerCase().includes('bonus')
+  );
   const userTickets = supportMessages.filter(t => t.userId === currentUser.id);
 
   const handleCopyLink = () => {
@@ -86,6 +134,45 @@ export const MyTab: React.FC<MyTabProps> = ({
     navigator.clipboard.writeText(inviteUrl);
     setCopiedLink(true);
     setTimeout(() => setCopiedLink(false), 2000);
+  };
+
+  const openSettings = () => {
+    setSettingsPhone(currentUser.phoneNumber);
+    setSettingsPassword('');
+    setSettingsError('');
+    setSettingsSuccess('');
+    setShowSettingsModal(true);
+  };
+
+  const handleUpdateSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSettingsError('');
+    setSettingsSuccess('');
+
+    const trimmedPhone = settingsPhone.trim();
+    if (!trimmedPhone) {
+      setSettingsError(localT[language].emptyPhoneError);
+      return;
+    }
+
+    setSettingsLoading('true');
+    try {
+      const res = await updateAccountDetails(trimmedPhone, settingsPassword);
+      if (res.success) {
+        setSettingsSuccess(localT[language].successUpdate);
+        setSettingsPassword('');
+        setTimeout(() => {
+          setShowSettingsModal(false);
+        }, 1500);
+      } else {
+        setSettingsError(res.message);
+      }
+    } catch (err: any) {
+      console.error(err);
+      setSettingsError('Failed to update settings. Please try again.');
+    } finally {
+      setSettingsLoading('');
+    }
   };
 
   return (
@@ -107,9 +194,13 @@ export const MyTab: React.FC<MyTabProps> = ({
             <span className="text-[10px] text-slate-400 font-bold block mt-0.5">{t('joined')}: {new Date(currentUser.createdAt).toLocaleDateString()}</span>
           </div>
         </div>
-        <div className="bg-slate-50 p-2 rounded-xl border border-slate-100">
-          <Settings size={16} className="text-slate-400" />
-        </div>
+        <button 
+          onClick={openSettings}
+          className="bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 transition-all p-2 rounded-xl border border-slate-200/50 cursor-pointer active:scale-95 flex items-center justify-center shadow-2xs"
+          aria-label="Settings"
+        >
+          <Settings size={16} />
+        </button>
       </div>
 
       {/* 2. WALLET ASSETS BOARD - PREMIUM STYLING */}
@@ -194,6 +285,27 @@ export const MyTab: React.FC<MyTabProps> = ({
             <div className="flex items-center gap-1.5">
               <span className="text-[10px] font-black bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">
                 {userWithdrawals.length}
+              </span>
+              <ChevronRight size={14} className="text-slate-300 group-hover:text-slate-500 transition-colors" />
+            </div>
+          </button>
+
+          {/* Bonus Records */}
+          <button 
+            onClick={() => setActiveHistoryPanel('bonuses')}
+            className="w-full py-3 flex items-center justify-between group text-left cursor-pointer transition-colors hover:bg-slate-50/50 -mx-2 px-2 rounded-xl"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center shrink-0 border border-rose-100/50">
+                <Gift size={15} />
+              </div>
+              <div>
+                <span className="text-xs font-black text-slate-800 block">{localT[language].bonusRecords}</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] font-black bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">
+                {userBonuses.length}
               </span>
               <ChevronRight size={14} className="text-slate-300 group-hover:text-slate-500 transition-colors" />
             </div>
@@ -314,12 +426,13 @@ export const MyTab: React.FC<MyTabProps> = ({
                   <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest">
                     {activeHistoryPanel === 'recharges' && t('rechargeTransactions')}
                     {activeHistoryPanel === 'withdrawals' && t('withdrawalTransactions')}
+                    {activeHistoryPanel === 'bonuses' && localT[language].bonusTransactions}
                     {activeHistoryPanel === 'transactions' && t('completeLedgerLog')}
                     {activeHistoryPanel === 'orders' && t('finishedMatchingTasks')}
                     {activeHistoryPanel === 'referrals' && t('referralRewardsProgram')}
                   </h3>
                   <p className="text-[10px] text-slate-400 font-bold mt-0.5">
-                    {activeHistoryPanel === 'referrals' ? t('inviteFriendsGetRewards') : t('etbAssetsLedger')}
+                    {activeHistoryPanel === 'referrals' ? t('inviteFriendsGetRewards') : activeHistoryPanel === 'bonuses' ? localT[language].bonusSub : t('etbAssetsLedger')}
                   </p>
                 </div>
                 <button
@@ -391,6 +504,42 @@ export const MyTab: React.FC<MyTabProps> = ({
                   )
                 )}
 
+                {/* BONUSES LIST */}
+                {activeHistoryPanel === 'bonuses' && (
+                  userBonuses.length === 0 ? (
+                    <div className="text-center py-12 text-xs text-slate-400 font-bold">{localT[language].noBonusesFound}</div>
+                  ) : (
+                    userBonuses.map(tx => {
+                      const isWelcome = tx.type === 'welcome_bonus';
+                      const isReferral = tx.type === 'referral_bonus';
+                      const isSystem = tx.accountNumberOrRef === 'SYSTEM_MANUAL';
+                      
+                      let bonusLabel = language === 'am' ? 'ቦነስ' : 'Bonus';
+                      if (isWelcome) bonusLabel = language === 'am' ? 'የምዝገባ የምስጋና ቦነስ' : 'Registration Welcome Bonus';
+                      else if (isReferral) bonusLabel = language === 'am' ? 'የሪፈራል የምስጋና ቦነስ' : 'Referral Welcome Bonus';
+                      else if (isSystem) bonusLabel = language === 'am' ? 'አስተዳዳሪ የጨመረው ቦነስ' : 'Admin Balance Credit';
+
+                      return (
+                        <div key={tx.id} className="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm flex justify-between items-center">
+                          <div className="space-y-1">
+                            <span className="block text-xs font-black text-rose-600 uppercase tracking-wide">{bonusLabel}</span>
+                            <span className="block text-[10px] text-slate-500 font-medium leading-relaxed max-w-[200px]">{formatPhoneNumbersInText(tx.description || '')}</span>
+                            <span className="block text-[9px] text-slate-400 flex items-center gap-0.5">
+                              <Clock size={8} /> {new Date(tx.createdAt).toLocaleString()}
+                            </span>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <span className="block text-xs font-black text-emerald-600">+{tx.amount} ETB</span>
+                            <span className="inline-block text-[8px] font-black uppercase bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full mt-1.5">
+                              {t('approvedStatus')}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )
+                )}
+
                 {/* ALL LEDGER LIST */}
                 {activeHistoryPanel === 'transactions' && (
                   userTransactions.length === 0 ? (
@@ -402,7 +551,7 @@ export const MyTab: React.FC<MyTabProps> = ({
                         <div key={tx.id} className="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm flex justify-between items-center">
                           <div className="space-y-1">
                             <span className="block text-xs font-black text-slate-800 capitalize">{tx.type.replace('_', ' ')}</span>
-                            <span className="block text-[10px] text-slate-500 font-medium leading-relaxed max-w-[200px]">{tx.description}</span>
+                            <span className="block text-[10px] text-slate-500 font-medium leading-relaxed max-w-[200px]">{formatPhoneNumbersInText(tx.description || '')}</span>
                             <span className="block text-[9px] text-slate-400 flex items-center gap-0.5">
                               <Clock size={8} /> {new Date(tx.createdAt).toLocaleString()}
                             </span>
@@ -434,7 +583,7 @@ export const MyTab: React.FC<MyTabProps> = ({
                       <div key={tx.id} className="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm flex justify-between items-center">
                         <div className="space-y-1">
                           <span className="block text-xs font-black text-emerald-800">{t('taskCompletedReward')}</span>
-                          <p className="text-[10px] text-slate-500 font-medium leading-normal max-w-[220px]">{tx.description}</p>
+                          <p className="text-[10px] text-slate-500 font-medium leading-normal max-w-[220px]">{formatPhoneNumbersInText(tx.description || '')}</p>
                           <span className="block text-[9px] text-slate-400 flex items-center gap-0.5">
                             <Clock size={8} /> {new Date(tx.createdAt).toLocaleString()}
                           </span>
@@ -576,6 +725,101 @@ export const MyTab: React.FC<MyTabProps> = ({
                   </button>
                 </div>
               </div>
+            </motion.div>
+          </div>
+        )}
+
+        {showSettingsModal && (
+          <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center z-50 backdrop-blur-sm p-4">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="bg-white rounded-[28px] w-full max-w-sm overflow-hidden shadow-2xl border border-slate-100 flex flex-col"
+            >
+              {/* Header */}
+              <div className="px-6 pt-6 pb-4 flex justify-between items-center bg-slate-50 border-b border-slate-100">
+                <div className="flex items-center gap-2">
+                  <Settings className="text-amber-500" size={18} />
+                  <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest">
+                    {localT[language].accountSettings}
+                  </h3>
+                </div>
+                <button
+                  onClick={() => setShowSettingsModal(false)}
+                  className="w-7 h-7 rounded-full bg-slate-200/50 hover:bg-slate-200 flex items-center justify-center text-slate-500 hover:text-slate-800 transition-all cursor-pointer"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+
+              {/* Form Content */}
+              <form onSubmit={handleUpdateSettings} className="p-6 space-y-4">
+                {settingsError && (
+                  <div className="bg-red-50 text-red-600 border border-red-100 text-[10px] font-black p-3 rounded-xl flex items-center gap-2">
+                    <ShieldAlert size={14} className="shrink-0" />
+                    <span>{settingsError}</span>
+                  </div>
+                )}
+
+                {settingsSuccess && (
+                  <div className="bg-emerald-50 text-emerald-600 border border-emerald-100 text-[10px] font-black p-3 rounded-xl flex items-center gap-2">
+                    <CheckCircle2 size={14} className="shrink-0" />
+                    <span>{settingsSuccess}</span>
+                  </div>
+                )}
+
+                {/* Phone Input */}
+                <div className="space-y-1.5">
+                  <label className="block text-[9px] font-black uppercase tracking-wider text-slate-400">
+                    {localT[language].phoneNumberLabel}
+                  </label>
+                  <input
+                    type="tel"
+                    required
+                    value={settingsPhone}
+                    onChange={(e) => setSettingsPhone(e.target.value)}
+                    placeholder="e.g. 0912345678"
+                    className="w-full bg-slate-50 border border-slate-200 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 focus:outline-none transition-all font-semibold"
+                  />
+                </div>
+
+                {/* Password Input */}
+                <div className="space-y-1.5">
+                  <label className="block text-[9px] font-black uppercase tracking-wider text-slate-400">
+                    {localT[language].newPasswordLabel}
+                  </label>
+                  <input
+                    type="password"
+                    value={settingsPassword}
+                    onChange={(e) => setSettingsPassword(e.target.value)}
+                    placeholder={localT[language].newPasswordPlaceholder}
+                    className="w-full bg-slate-50 border border-slate-200 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 focus:outline-none transition-all font-semibold"
+                  />
+                  <p className="text-[9px] text-slate-400 font-medium">
+                    {localT[language].newPasswordPlaceholder}
+                  </p>
+                </div>
+
+                {/* Buttons */}
+                <div className="flex gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowSettingsModal(false)}
+                    className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 font-black text-[10px] uppercase tracking-wider py-3 rounded-xl text-center cursor-pointer transition-all active:scale-[0.98]"
+                  >
+                    {t('cancel')}
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={settingsLoading === 'true'}
+                    className="flex-1 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 disabled:from-slate-300 disabled:to-slate-300 disabled:text-slate-400 text-white font-black text-[10px] uppercase tracking-wider py-3 rounded-xl text-center cursor-pointer transition-all active:scale-[0.98] shadow-sm flex items-center justify-center gap-1.5"
+                  >
+                    {settingsLoading === 'true' ? localT[language].updating : localT[language].saveChanges}
+                  </button>
+                </div>
+              </form>
             </motion.div>
           </div>
         )}
