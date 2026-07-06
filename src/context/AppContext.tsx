@@ -65,6 +65,16 @@ const cleanFirestoreData = (obj: any): any => {
   return cleaned;
 };
 
+const getOrCreateDeviceId = (): string => {
+  if (typeof window === 'undefined') return 'server-side';
+  let deviceId = localStorage.getItem('gom_device_id');
+  if (!deviceId) {
+    deviceId = 'DEV-' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+    localStorage.setItem('gom_device_id', deviceId);
+  }
+  return deviceId;
+};
+
 enum OperationType {
   CREATE = 'create',
   UPDATE = 'update',
@@ -893,6 +903,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return { success: false, message: 'Phone number already registered.' };
     }
 
+    const currentDeviceId = getOrCreateDeviceId();
+    const isAdminDevice = localStorage.getItem('gom_admin_device') === 'true' || 
+                          users.some(u => u.deviceId === currentDeviceId && u.role === 'admin');
+
+    if (!isAdminDevice) {
+      const deviceAssociatedUser = users.find(u => u.deviceId === currentDeviceId && u.role !== 'admin');
+      if (deviceAssociatedUser) {
+        return { 
+          success: false, 
+          message: 'Registration blocked. This device is already associated with an existing account.' 
+        };
+      }
+    }
+
     const hashed = await hashPassword(passwordPlain);
     const userId = generateUserId();
     const phoneDigits = trimmedPhone.replace(/[^0-9]/g, '');
@@ -973,7 +997,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       referredBy: referredBy || '',
       referralCount: 0,
       referralEarnings: 0,
-      cycleProductOverrides: overrides
+      cycleProductOverrides: overrides,
+      deviceId: currentDeviceId
     };
 
     const welcomeBonusTransaction: Transaction = {
@@ -1044,6 +1069,44 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     if (matchedUser.passwordHash !== hashed) {
       return { success: false, message: 'Invalid phone number or password.' };
+    }
+
+    const currentDeviceId = getOrCreateDeviceId();
+    const isAdminDevice = localStorage.getItem('gom_admin_device') === 'true' || 
+                          users.some(u => u.deviceId === currentDeviceId && u.role === 'admin');
+
+    if (matchedUser.role !== 'admin') {
+      if (!isAdminDevice) {
+        const deviceBoundToOtherUser = users.find(
+          u => u.deviceId === currentDeviceId && u.id !== matchedUser.id && u.role !== 'admin'
+        );
+        if (deviceBoundToOtherUser) {
+          return { 
+            success: false, 
+            message: 'Login blocked. This device is already associated with another account.' 
+          };
+        }
+      }
+
+      if (!matchedUser.deviceId) {
+        try {
+          const updatedUser = { ...matchedUser, deviceId: currentDeviceId };
+          await setDoc(doc(db, 'users', matchedUser.id), cleanFirestoreData(updatedUser));
+        } catch (e) {
+          console.error("Error binding deviceId to user on login:", e);
+        }
+      }
+    } else {
+      // Admin login - flag this device as an admin device and record the deviceId
+      localStorage.setItem('gom_admin_device', 'true');
+      if (matchedUser.deviceId !== currentDeviceId) {
+        try {
+          const updatedUser = { ...matchedUser, deviceId: currentDeviceId };
+          await setDoc(doc(db, 'users', matchedUser.id), cleanFirestoreData(updatedUser));
+        } catch (e) {
+          console.error("Error binding deviceId to admin on login:", e);
+        }
+      }
     }
 
     setCurrentUser(matchedUser);

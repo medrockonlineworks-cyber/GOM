@@ -22,6 +22,7 @@ export interface User {
   referralEarnings?: number; // total earned from referrals
   cycleProductOverrides?: { id: number; productName: string; productImage: string }[];
   lastOrderCompletedAt?: string; // ISO string representing when the last order task was completed
+  deviceId?: string; // unique device identifier to prevent multiple accounts per device
 }
 
 export type TransactionType = 'recharge' | 'withdraw' | 'payment' | 'reward' | 'welcome_bonus' | 'referral_bonus';
