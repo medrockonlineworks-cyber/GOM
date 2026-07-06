@@ -20,40 +20,6 @@
   <!-- Inner Glowing Ring -->
   <rect x="24" y="24" width="464" height="464" rx="88" fill="none" stroke="url(#goldGrad)" stroke-width="4" stroke-opacity="0.3" />
 
-  <!-- Center Decorative Globe/Network & Letter G -->
-  <g transform="translate(256, 256)" filter="url(#shadow)">
-    <!-- Globe Meridians / Network Lines -->
-    <circle r="140" fill="none" stroke="url(#goldGrad)" stroke-width="6" stroke-opacity="0.2" />
-    <ellipse rx="140" ry="50" fill="none" stroke="url(#goldGrad)" stroke-width="4" stroke-opacity="0.25" />
-    <ellipse rx="50" ry="140" fill="none" stroke="url(#goldGrad)" stroke-width="4" stroke-opacity="0.25" />
-    <line x1="-140" y1="0" x2="140" y2="0" stroke="url(#goldGrad)" stroke-width="4" stroke-opacity="0.25" />
-    <line x1="0" y1="-140" x2="0" y2="140" stroke="url(#goldGrad)" stroke-width="4" stroke-opacity="0.25" />
-
-    <!-- Sleek Golden Letter G and Basket/Globe Accent -->
-    <!-- Draw a stylized 3D-looking Letter G that curves like a dynamic arrow -->
-    <path d="M 60,-50 
-             A 90,90 0 1,0 60,70 
-             L 0,70 
-             L 0,30 
-             L 30,30 
-             A 50,50 0 1,1 30,-20 
-             L 50,-40" 
-          fill="none" 
-          stroke="url(#goldGrad)" 
-          stroke-width="24" 
-          stroke-linecap="round" 
-          stroke-linejoin="round" />
-
-    <!-- Core Star/Sparkle Glow -->
-    <path d="M 0,-10 L 3,-3 L 10,0 L 3,3 L 0,10 L -3,3 L -10,0 L -3,-3 Z" fill="#FFFFFF" transform="translate(30, 30) scale(1.5)" />
-    
-    <!-- Connection Dots -->
-    <circle cx="0" cy="-140" r="10" fill="#FFFFFF" />
-    <circle cx="-140" cy="0" r="10" fill="url(#goldGrad)" />
-    <circle cx="140" cy="0" r="10" fill="url(#goldGrad)" />
-    <circle cx="0" cy="140" r="10" fill="#FFFFFF" />
-  </g>
-
-  <!-- App Title text inside icon (clean minimal display) -->
-  <text x="256" y="450" font-family="'Inter', sans-serif" font-weight="900" font-size="36" fill="#FFFFFF" letter-spacing="8" text-anchor="middle" opacity="0.9">GOM</text>
+  <!-- Center Big Text "GOM" -->
+  <text x="256" y="305" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-weight="900" font-size="150" fill="url(#goldGrad)" filter="url(#shadow)" letter-spacing="2" text-anchor="middle">GOM</text>
 </svg>

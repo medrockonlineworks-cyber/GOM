@@ -907,23 +907,6 @@ function AppContent() {
                 <div>
                   <h3 className="text-sm font-black text-slate-900 uppercase tracking-tight">{t('installGomApp')}</h3>
                   <p className="text-[10px] text-amber-600 font-extrabold tracking-wide uppercase mt-0.5">GOM</p>
-                  <p className="text-[10px] text-slate-400">{t('premiumRewardPlatform')}</p>
-                </div>
-              </div>
-
-              {/* Benefits */}
-              <div className="space-y-2 bg-slate-50 p-3 rounded-2xl border border-slate-100 text-[10px] text-slate-600 leading-relaxed">
-                <div className="flex items-center gap-2 font-semibold text-slate-800">
-                  <div className="w-1.5 h-1.5 rounded-full bg-amber-500"></div>
-                  <span>{t('pwaBenefit1')}</span>
-                </div>
-                <div className="flex items-center gap-2 font-semibold text-slate-800">
-                  <div className="w-1.5 h-1.5 rounded-full bg-amber-500"></div>
-                  <span>{t('pwaBenefit2')}</span>
-                </div>
-                <div className="flex items-center gap-2 font-semibold text-slate-800">
-                  <div className="w-1.5 h-1.5 rounded-full bg-amber-500"></div>
-                  <span>{t('pwaBenefit3')}</span>
                 </div>
               </div>
 
