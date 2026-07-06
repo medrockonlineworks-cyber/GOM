@@ -1349,19 +1349,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const order = orders.find(o => o.id === orderId);
     if (!order) return { success: false, message: 'Order not found.' };
 
-    // Enforce 10 minutes gap between order task completions
+    // Enforce 5 minutes gap between order task completions
     if (currentUser.lastOrderCompletedAt) {
       const lastCompleted = new Date(currentUser.lastOrderCompletedAt).getTime();
       const now = Date.now();
-      const tenMinutesInMs = 10 * 60 * 1000;
+      const fiveMinutesInMs = 5 * 60 * 1000;
       const timePassed = now - lastCompleted;
-      if (timePassed < tenMinutesInMs) {
-        const remainingSeconds = Math.ceil((tenMinutesInMs - timePassed) / 1000);
+      if (timePassed < fiveMinutesInMs) {
+        const remainingSeconds = Math.ceil((fiveMinutesInMs - timePassed) / 1000);
         const minutes = Math.floor(remainingSeconds / 60);
         const seconds = remainingSeconds % 60;
         return { 
           success: false, 
-          message: `You must wait at least 10 minutes between completing order tasks. Please wait ${minutes}m ${seconds}s before completing this task.` 
+          message: `You must wait at least 5 minutes between completing order tasks. Please wait ${minutes}m ${seconds}s before completing this task.` 
         };
       }
     }
@@ -1736,43 +1736,38 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const factoryReset = async () => {
-    localStorage.clear();
     try {
-      const batch = writeBatch(db);
+      if (currentUser) {
+        const batch = writeBatch(db);
+        
+        // Delete current user's user document
+        batch.delete(doc(db, 'users', currentUser.id));
+        
+        // Delete current user's transactions
+        const userTxs = transactions.filter(tx => tx.userId === currentUser.id);
+        userTxs.forEach(tx => {
+          batch.delete(doc(db, 'transactions', tx.id));
+        });
+        
+        // Delete current user's support messages
+        const userSupport = supportMessages.filter(msg => msg.userId === currentUser.id);
+        userSupport.forEach(msg => {
+          batch.delete(doc(db, 'support', msg.id));
+        });
+        
+        // Delete current user's audit logs
+        const userLogs = auditLogs.filter(log => log.userId === currentUser.id);
+        userLogs.forEach(log => {
+          batch.delete(doc(db, 'auditLogs', log.id));
+        });
+        
+        await batch.commit();
+      }
       
-      // Delete users in batch
-      users.forEach(u => {
-        batch.delete(doc(db, 'users', u.id));
-      });
-      // Delete transactions
-      transactions.forEach(tx => {
-        batch.delete(doc(db, 'transactions', tx.id));
-      });
-      // Delete announcements
-      announcements.forEach(ann => {
-        batch.delete(doc(db, 'announcements', ann.id));
-      });
-      // Delete support messages
-      supportMessages.forEach(msg => {
-        batch.delete(doc(db, 'support', msg.id));
-      });
-      // Delete audit logs
-      auditLogs.forEach(log => {
-        batch.delete(doc(db, 'auditLogs', log.id));
-      });
-      // Delete bank accounts
-      rechargeAccounts.forEach(acc => {
-        batch.delete(doc(db, 'rechargeAccounts', acc.id));
-      });
-      
-      await batch.commit();
-      
-      // Re-seed with fresh data
-      await seedInitialData();
-      
+      localStorage.clear();
       window.location.reload();
     } catch (e) {
-      console.error("Error factory resetting system:", e);
+      console.error("Error resetting own account:", e);
     }
   };
 

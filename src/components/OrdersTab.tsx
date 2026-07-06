@@ -42,8 +42,8 @@ export const OrdersTab: React.FC<OrdersTabProps> = ({ onOpenRechargeModal }) => 
     const calculateTimeLeft = () => {
       const lastCompleted = new Date(currentUser.lastOrderCompletedAt!).getTime();
       const now = Date.now();
-      const tenMinutesInMs = 10 * 60 * 1000;
-      const remaining = tenMinutesInMs - (now - lastCompleted);
+      const fiveMinutesInMs = 5 * 60 * 1000;
+      const remaining = fiveMinutesInMs - (now - lastCompleted);
       return remaining > 0 ? Math.ceil(remaining / 1000) : 0;
     };
 
