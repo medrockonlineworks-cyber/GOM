@@ -20,6 +20,44 @@
   <!-- Inner Glowing Ring -->
   <rect x="24" y="24" width="464" height="464" rx="88" fill="none" stroke="url(#goldGrad)" stroke-width="4" stroke-opacity="0.3" />
 
+  <!-- Stylized Globe Map Background -->
+  <g id="globe-map" opacity="0.25">
+    <!-- Continent Silhouette Outlines (Background Geography) -->
+    <path d="M 140,160 Q 155,135 185,145 Q 205,155 215,175 Q 195,185 170,175 Z" fill="url(#goldGrad)" />
+    <path d="M 175,195 Q 210,210 190,260 Q 170,310 160,330 Q 155,280 165,230 Z" fill="url(#goldGrad)" />
+    <path d="M 240,140 Q 280,120 330,130 Q 370,150 360,190 Q 330,220 300,180 Z" fill="url(#goldGrad)" />
+    <path d="M 270,195 Q 310,200 320,240 Q 310,290 280,310 Q 270,250 260,210 Z" fill="url(#goldGrad)" />
+    <path d="M 330,270 Q 360,260 370,290 Q 340,310 320,295 Z" fill="url(#goldGrad)" />
+
+    <!-- Globe Grid Lines (Latitudes) -->
+    <circle cx="256" cy="256" r="160" fill="none" stroke="url(#goldGrad)" stroke-width="1.5" />
+    <line x1="96" y1="256" x2="416" y2="256" stroke="url(#goldGrad)" stroke-width="1.5" />
+    <ellipse cx="256" cy="256" rx="160" ry="60" fill="none" stroke="url(#goldGrad)" stroke-width="1.5" />
+    <ellipse cx="256" cy="256" rx="160" ry="115" fill="none" stroke="url(#goldGrad)" stroke-width="1.5" />
+    
+    <!-- Globe Grid Lines (Longitudes) -->
+    <line x1="256" y1="96" x2="256" y2="416" stroke="url(#goldGrad)" stroke-width="1.5" />
+    <ellipse cx="256" cy="256" rx="60" ry="160" fill="none" stroke="url(#goldGrad)" stroke-width="1.5" />
+    <ellipse cx="256" cy="256" rx="115" ry="160" fill="none" stroke="url(#goldGrad)" stroke-width="1.5" />
+
+    <!-- Tilted Satellite Orbit Ring (Dynamic Vibe) -->
+    <ellipse cx="256" cy="256" rx="185" ry="45" fill="none" stroke="url(#goldGrad)" stroke-width="2" transform="rotate(-28, 256, 256)" stroke-dasharray="8 4" />
+
+    <!-- Glowing Network Intersections / Connection Nodes -->
+    <circle cx="256" cy="96" r="4.5" fill="url(#goldGrad)" />
+    <circle cx="256" cy="416" r="4.5" fill="url(#goldGrad)" />
+    <circle cx="96" cy="256" r="4.5" fill="url(#goldGrad)" />
+    <circle cx="416" cy="256" r="4.5" fill="url(#goldGrad)" />
+    <circle cx="256" cy="141" r="3.5" fill="url(#goldGrad)" />
+    <circle cx="256" cy="371" r="3.5" fill="url(#goldGrad)" />
+    <circle cx="141" cy="256" r="3.5" fill="url(#goldGrad)" />
+    <circle cx="371" cy="256" r="3.5" fill="url(#goldGrad)" />
+    <circle cx="201" cy="201" r="4" fill="url(#goldGrad)" />
+    <circle cx="311" cy="201" r="4" fill="url(#goldGrad)" />
+    <circle cx="201" cy="311" r="4" fill="url(#goldGrad)" />
+    <circle cx="311" cy="311" r="4" fill="url(#goldGrad)" />
+  </g>
+
   <!-- Center Big Text "GOM" -->
   <text x="256" y="305" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-weight="900" font-size="150" fill="url(#goldGrad)" filter="url(#shadow)" letter-spacing="2" text-anchor="middle">GOM</text>
 </svg>
