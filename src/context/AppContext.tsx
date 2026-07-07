@@ -431,8 +431,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const savedMultiplier = localStorage.getItem('gom_scaling_multiplier');
     const scaling = savedMultiplier ? Number(savedMultiplier) : 1.5;
 
-    // Generate dynamic starting cost for Level 1 between 750 and 1000 ETB
-    const dynamicLevel1Base = Math.floor(Math.random() * (1000 - 750 + 1)) + 750;
+    // Generate dynamic starting cost for Level 1 between 699 and 999 ETB
+    const dynamicLevel1Base = Math.floor(Math.random() * (999 - 699 + 1)) + 699;
 
     // Always map over all 12 initial products to guarantee all 12 exist
     const rawCosts = INITIAL_PRODUCTS_RAW.map((p, idx) => {
@@ -756,7 +756,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       // Cost calculation
       // Implement specific rule requested by the user:
-      // - Order 1: material cost between 701 and 1000 ETB (starts from base welcome bonus 500)
+      // - Order 1: material cost between 699 and 999 ETB (starts from base welcome bonus 500)
       // - Order 2, 3: less than balance by 5 ETB (affordable)
       // - Order 4: greater than balance (requires recharge - 30% of previous balance)
       // - Order 5, 6, 7: less than balance by 5 ETB (affordable)
@@ -785,8 +785,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         );
       }
 
-      // Order 1: cost is between 701 and 1000 ETB (e.g. 800)
-      simulatedCosts[1] = 800;
+      // Order 1: cost is between 699 and 999 ETB
+      const configuredLvl1Cost = productCosts.find(p => p.id === 1)?.baseCost || 699;
+      simulatedCosts[1] = (configuredLvl1Cost >= 699 && configuredLvl1Cost <= 999) ? configuredLvl1Cost : 699;
       simulatedBalances[1] = simulatedCosts[1] + Math.round(simulatedCosts[1] * calculatedPcts[1]);
 
       // Order 2: less than balance by 5 ETB
@@ -1578,8 +1579,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
     }
 
-    // Generate a new dynamic Level 1 base cost between 750 and 1000 ETB
-    const newLevel1Base = Math.floor(Math.random() * (1000 - 750 + 1)) + 750;
+    // Generate a new dynamic Level 1 base cost between 699 and 999 ETB
+    const newLevel1Base = Math.floor(Math.random() * (999 - 699 + 1)) + 699;
 
     // Dynamically adjust/arrange all 12 product level costs based on this starting cost
     const rawScaledCosts = productCosts.map((p, idx) => {

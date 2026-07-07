@@ -10,7 +10,7 @@ export const INITIAL_PRODUCTS_RAW = [
     id: 1,
     productName: "Premium Leather Messenger Bag",
     productImage: "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=400&auto=format&fit=crop&q=60",
-    baseCost: 800,
+    baseCost: 699,
     rewardMultiplier: 0.25, // 25% reward
   },
   {
