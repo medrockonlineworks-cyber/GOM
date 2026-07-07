@@ -21,7 +21,7 @@
   <rect x="24" y="24" width="464" height="464" rx="88" fill="none" stroke="url(#goldGrad)" stroke-width="4" stroke-opacity="0.3" />
 
   <!-- Stylized Globe Map Background -->
-  <g id="globe-map" opacity="0.25">
+  <g id="globe-map" opacity="0.55">
     <!-- Globe Circular Boundary -->
     <circle cx="256" cy="256" r="160" fill="none" stroke="url(#goldGrad)" stroke-width="3" />
     
