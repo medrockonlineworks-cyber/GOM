@@ -160,6 +160,7 @@ function AppContent() {
   const [withdrawAccNo, setWithdrawAccNo] = useState('');
   const [withdrawError, setWithdrawError] = useState('');
   const [withdrawSuccess, setWithdrawSuccess] = useState(false);
+  const [lastWithdrawInfo, setLastWithdrawInfo] = useState<{ amount: number; bank: string; accNo: string } | null>(null);
 
   const [supportSubject, setSupportSubject] = useState('Wallet Recharge Issue');
   const [supportMessage, setSupportMessage] = useState('');
@@ -248,13 +249,10 @@ function AppContent() {
 
     const res = withdraw(amt, withdrawBank, withdrawAccNo);
     if (res.success) {
+      setLastWithdrawInfo({ amount: amt, bank: withdrawBank, accNo: withdrawAccNo });
       setWithdrawSuccess(true);
       setWithdrawAmount('');
       setWithdrawAccNo('');
-      setTimeout(() => {
-        setWithdrawSuccess(false);
-        setWithdrawModalOpen(false);
-      }, 500);
     } else {
       setWithdrawError(res.message);
     }
@@ -702,105 +700,163 @@ function AppContent() {
                 <X size={16} />
               </button>
 
-              <div className="flex items-center gap-2 mb-1">
-                <div className="w-9 h-9 rounded-xl bg-amber-50 text-bronze flex items-center justify-center">
-                  <ArrowDownLeft size={20} />
-                </div>
-                <div>
-                  <h3 className="text-sm font-black text-slate-800">{t('withdrawalPayout')}</h3>
-                  <p className="text-[10px] text-slate-400">{t('withdrawalToEthiopianAccounts')}</p>
-                </div>
-              </div>
-
-              {/* Withdraw Form */}
-              <form onSubmit={handleWithdrawSubmit} className="space-y-3.5 pt-2">
-                {withdrawError && (
-                  <div className="p-2.5 bg-red-50 text-red-600 rounded-xl text-[10px] font-bold border border-red-100">
-                    {withdrawError}
+              {withdrawSuccess ? (
+                <div className="text-center py-4 space-y-4">
+                  <motion.div
+                    initial={{ scale: 0.5, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1, y: [0, -10, 0] }}
+                    transition={{ type: "spring", stiffness: 100, damping: 10 }}
+                    className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto shadow-inner"
+                  >
+                    <CheckCircle2 size={36} className="text-emerald-600 animate-pulse" />
+                  </motion.div>
+                  
+                  <div className="space-y-1">
+                    <h3 className="text-base font-black text-emerald-800">
+                      {language === 'am' ? 'የማውጣት ጥያቄ ተመዝግቧል!' : 'Withdrawal Request Submitted!'}
+                    </h3>
+                    <p className="text-[11px] text-slate-500 px-4">
+                      {t('withdrawalSuccessMsg')}
+                    </p>
                   </div>
-                )}
-                {withdrawSuccess && (
-                  <div className="p-2.5 bg-emerald-50 text-emerald-600 rounded-xl text-[10px] font-bold border border-emerald-100">
-                    {t('withdrawalSuccessMsg')}
+
+                  {lastWithdrawInfo && (
+                    <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 text-left space-y-2.5 max-w-xs mx-auto">
+                      <div className="flex justify-between items-center pb-2 border-b border-slate-200/50">
+                        <span className="text-[10px] text-slate-400 font-bold uppercase">{language === 'am' ? 'መጠን' : 'Amount'}</span>
+                        <span className="text-sm font-black text-emerald-600">
+                          {lastWithdrawInfo.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })} ETB
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center text-[10px]">
+                        <span className="text-slate-400 font-bold uppercase">{language === 'am' ? 'ባንክ' : 'Bank'}</span>
+                        <span className="text-slate-700 font-extrabold text-right max-w-[150px] truncate">{lastWithdrawInfo.bank}</span>
+                      </div>
+                      <div className="flex justify-between items-center text-[10px]">
+                        <span className="text-slate-400 font-bold uppercase">{language === 'am' ? 'የአካውንት ቁጥር' : 'Account No'}</span>
+                        <span className="text-slate-700 font-mono font-bold">{lastWithdrawInfo.accNo}</span>
+                      </div>
+                      <div className="flex justify-between items-center text-[10px]">
+                        <span className="text-slate-400 font-bold uppercase">{language === 'am' ? 'ሁኔታ' : 'Status'}</span>
+                        <span className="bg-amber-100 text-amber-800 font-extrabold px-2 py-0.5 rounded-full text-[9px] uppercase tracking-wider">
+                          {language === 'am' ? 'በሂደት ላይ' : 'Pending Approval'}
+                        </span>
+                      </div>
+                      <div className="pt-1 text-[9px] text-slate-400 text-center italic">
+                        {language === 'am' ? 'ክፍያው በ24 ሰዓታት ውስጥ ይከናወናል።' : 'Payout processed within 24 hours.'}
+                      </div>
+                    </div>
+                  )}
+
+                  <button
+                    onClick={() => {
+                      setWithdrawSuccess(false);
+                      setWithdrawModalOpen(false);
+                      setLastWithdrawInfo(null);
+                    }}
+                    className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-3 px-4 rounded-xl text-xs transition-all shadow cursor-pointer mt-2"
+                  >
+                    {language === 'am' ? 'ተከናውኗል' : 'Done'}
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <div className="flex items-center gap-2 mb-1">
+                    <div className="w-9 h-9 rounded-xl bg-amber-50 text-bronze flex items-center justify-center">
+                      <ArrowDownLeft size={20} />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-black text-slate-800">{t('withdrawalPayout')}</h3>
+                      <p className="text-[10px] text-slate-400">{t('withdrawalToEthiopianAccounts')}</p>
+                    </div>
                   </div>
-                )}
 
-                {(() => {
-                  const completedCount = currentUser.completedOrderIds ? currentUser.completedOrderIds.length : 0;
-                  const isLocked = completedCount < 15;
-                  return (
-                    <>
-                      {isLocked && (
-                        <div className="bg-amber-50 border border-amber-200/60 rounded-2xl p-3 text-[10px] text-amber-800 leading-relaxed space-y-1">
-                          <span className="font-black text-amber-900 block uppercase tracking-wider text-[9px]">⚠️ {t('withdrawalLocked')}</span>
-                          <p>{t('withdrawalLockedDesc', { completedCount })}</p>
-                        </div>
-                      )}
-
-                      <div className="bg-slate-50 border border-slate-100 p-3 rounded-xl flex justify-between items-center">
-                        <span className="text-[10px] font-bold text-slate-500 uppercase">{t('availableBalanceLabel')}</span>
-                        <span className="text-xs font-black text-slate-800">{currentUser.walletBalance.toLocaleString()} ETB</span>
+                  {/* Withdraw Form */}
+                  <form onSubmit={handleWithdrawSubmit} className="space-y-3.5 pt-2">
+                    {withdrawError && (
+                      <div className="p-2.5 bg-red-50 text-red-600 rounded-xl text-[10px] font-bold border border-red-100">
+                        {withdrawError}
                       </div>
+                    )}
 
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">{t('selectPayoutBank')}</label>
-                        <select
-                          value={withdrawBank}
-                          disabled={isLocked}
-                          onChange={(e) => setWithdrawBank(e.target.value)}
-                          className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-bronze disabled:opacity-50"
-                        >
-                          {ETH_BANKS.map((bank, index) => (
-                            <option key={index} value={bank}>{bank}</option>
-                          ))}
-                        </select>
-                      </div>
+                    {(() => {
+                      const completedCount = currentUser.completedOrderIds ? currentUser.completedOrderIds.length : 0;
+                      const isLocked = completedCount < 15;
+                      return (
+                        <>
+                          {isLocked && (
+                            <div className="bg-amber-50 border border-amber-200/60 rounded-2xl p-3 text-[10px] text-amber-800 leading-relaxed space-y-1">
+                              <span className="font-black text-amber-900 block uppercase tracking-wider text-[9px]">⚠️ {t('withdrawalLocked')}</span>
+                              <p>{t('withdrawalLockedDesc', { completedCount })}</p>
+                            </div>
+                          )}
 
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">{t('yourAccountNumberLabel')}</label>
-                          <input
-                            type="text"
-                            required
+                          <div className="bg-slate-50 border border-slate-100 p-3 rounded-xl flex justify-between items-center">
+                            <span className="text-[10px] font-bold text-slate-500 uppercase">{t('availableBalanceLabel')}</span>
+                            <span className="text-xs font-black text-slate-800">{currentUser.walletBalance.toLocaleString()} ETB</span>
+                          </div>
+
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">{t('selectPayoutBank')}</label>
+                            <select
+                              value={withdrawBank}
+                              disabled={isLocked}
+                              onChange={(e) => setWithdrawBank(e.target.value)}
+                              className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-bronze disabled:opacity-50"
+                            >
+                              {ETH_BANKS.map((bank, index) => (
+                                <option key={index} value={bank}>{bank}</option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">{t('yourAccountNumberLabel')}</label>
+                              <input
+                                type="text"
+                                required
+                                disabled={isLocked}
+                                placeholder="e.g. 1000xxxxxxxxx"
+                                value={withdrawAccNo}
+                                onChange={(e) => setWithdrawAccNo(e.target.value)}
+                                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-bronze disabled:opacity-50"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">{t('withdrawAmountLabel')}</label>
+                              <input
+                                type="number"
+                                required
+                                min="200"
+                                max={withdrawBank.toLowerCase().includes('telebirr') ? "75000" : "300000"}
+                                disabled={isLocked}
+                                placeholder={withdrawBank.toLowerCase().includes('telebirr') ? "Min 200 - Max 75k" : "Min 200 - Max 300k"}
+                                value={withdrawAmount}
+                                onChange={(e) => setWithdrawAmount(e.target.value)}
+                                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-bronze disabled:opacity-50"
+                              />
+                              <span className="text-[9px] text-slate-400 mt-1 block">Min: 200 | Max: {withdrawBank.toLowerCase().includes('telebirr') ? "75,000" : "300,000"} ETB</span>
+                            </div>
+                          </div>
+
+                          <button
+                            type="submit"
                             disabled={isLocked}
-                            placeholder="e.g. 1000xxxxxxxxx"
-                            value={withdrawAccNo}
-                            onChange={(e) => setWithdrawAccNo(e.target.value)}
-                            className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-bronze disabled:opacity-50"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">{t('withdrawAmountLabel')}</label>
-                          <input
-                            type="number"
-                            required
-                            min="200"
-                            max={withdrawBank.toLowerCase().includes('telebirr') ? "75000" : "300000"}
-                            disabled={isLocked}
-                            placeholder={withdrawBank.toLowerCase().includes('telebirr') ? "Min 200 - Max 75k" : "Min 200 - Max 300k"}
-                            value={withdrawAmount}
-                            onChange={(e) => setWithdrawAmount(e.target.value)}
-                            className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-bronze disabled:opacity-50"
-                          />
-                          <span className="text-[9px] text-slate-400 mt-1 block">Min: 200 | Max: {withdrawBank.toLowerCase().includes('telebirr') ? "75,000" : "300,000"} ETB</span>
-                        </div>
-                      </div>
-
-                      <button
-                        type="submit"
-                        disabled={isLocked}
-                        className={`w-full font-bold py-3 rounded-xl shadow transition-all text-xs cursor-pointer ${
-                          isLocked 
-                            ? 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none border border-slate-300/50' 
-                            : 'bg-bronze hover:bg-bronze-hover active:opacity-90 text-white'
-                        }`}
-                      >
-                        {isLocked ? t('complete10TasksToWithdraw', { completedCount }) : t('submitPayoutRequest')}
-                      </button>
-                    </>
-                  );
-                })()}
-              </form>
+                            className={`w-full font-bold py-3 rounded-xl shadow transition-all text-xs cursor-pointer ${
+                              isLocked 
+                                ? 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none border border-slate-300/50' 
+                                : 'bg-bronze hover:bg-bronze-hover active:opacity-90 text-white'
+                            }`}
+                          >
+                            {isLocked ? t('complete10TasksToWithdraw', { completedCount }) : t('submitPayoutRequest')}
+                          </button>
+                        </>
+                      );
+                    })()}
+                  </form>
+                </>
+              )}
             </motion.div>
           </div>
         )}
