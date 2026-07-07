@@ -794,6 +794,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         );
       }
 
+      // Helper to round to 2 decimal places
+      const r2 = (n: number) => Math.round(n * 100) / 100;
+
       // Order 1: cost is user-specific between 699 and 999 ETB
       const configuredLvl1Cost = productCosts.find(p => p.id === 1)?.baseCost || 699;
       let userLevel1Base = 699;
@@ -803,72 +806,88 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         const offset = (userSeed % 41) - 20; // stable -20 to +20 offset around configured
         userLevel1Base = Math.max(699, Math.min(999, configuredLvl1Cost + offset));
       }
-      simulatedCosts[1] = userLevel1Base;
-      simulatedBalances[1] = simulatedCosts[1] + Math.round(simulatedCosts[1] * calculatedPcts[1]);
+      const decimalsPool = [0.78, 0.45, 0.12, 0.89, 0.56, 0.23, 0.67, 0.34];
+      const decimal1 = decimalsPool[userSeed % decimalsPool.length];
+      simulatedCosts[1] = r2(userLevel1Base + decimal1);
+      simulatedBalances[1] = r2(simulatedCosts[1] + (simulatedCosts[1] * calculatedPcts[1]));
 
       // Order 2: less than balance by 5 ETB
-      simulatedCosts[2] = simulatedBalances[1] - 5;
-      simulatedBalances[2] = simulatedBalances[1] + Math.round(simulatedCosts[2] * calculatedPcts[2]);
+      const decimal2 = decimalsPool[(userSeed + 2) % decimalsPool.length];
+      simulatedCosts[2] = r2(simulatedBalances[1] - 5 + (decimal2 - 0.5));
+      simulatedBalances[2] = r2(simulatedBalances[1] + (simulatedCosts[2] * calculatedPcts[2]));
 
       // Order 3: less than balance by 5 ETB
-      simulatedCosts[3] = simulatedBalances[2] - 5;
-      simulatedBalances[3] = simulatedBalances[2] + Math.round(simulatedCosts[3] * calculatedPcts[3]);
+      const decimal3 = decimalsPool[(userSeed + 3) % decimalsPool.length];
+      simulatedCosts[3] = r2(simulatedBalances[2] - 5 + (decimal3 - 0.5));
+      simulatedBalances[3] = r2(simulatedBalances[2] + (simulatedCosts[3] * calculatedPcts[3]));
 
       // Order 4: greater than balance (requires recharge), recharge required is exactly 30% of previous balance
-      simulatedCosts[4] = simulatedBalances[3] + Math.round(simulatedBalances[3] * 0.30);
-      simulatedBalances[4] = simulatedCosts[4] + Math.round(simulatedCosts[4] * calculatedPcts[4]);
+      const decimal4 = decimalsPool[(userSeed + 4) % decimalsPool.length];
+      simulatedCosts[4] = r2(simulatedBalances[3] + (simulatedBalances[3] * 0.30) + decimal4);
+      simulatedBalances[4] = r2(simulatedCosts[4] + (simulatedCosts[4] * calculatedPcts[4]));
 
       // Order 5: less than balance by 5 ETB
-      simulatedCosts[5] = simulatedBalances[4] - 5;
-      simulatedBalances[5] = simulatedBalances[4] + Math.round(simulatedCosts[5] * calculatedPcts[5]);
+      const decimal5 = decimalsPool[(userSeed + 5) % decimalsPool.length];
+      simulatedCosts[5] = r2(simulatedBalances[4] - 5 + (decimal5 - 0.5));
+      simulatedBalances[5] = r2(simulatedBalances[4] + (simulatedCosts[5] * calculatedPcts[5]));
 
       // Order 6: less than balance by 5 ETB
-      simulatedCosts[6] = simulatedBalances[5] - 5;
-      simulatedBalances[6] = simulatedBalances[5] + Math.round(simulatedCosts[6] * calculatedPcts[6]);
+      const decimal6 = decimalsPool[(userSeed + 6) % decimalsPool.length];
+      simulatedCosts[6] = r2(simulatedBalances[5] - 5 + (decimal6 - 0.5));
+      simulatedBalances[6] = r2(simulatedBalances[5] + (simulatedCosts[6] * calculatedPcts[6]));
 
       // Order 7: less than balance by 5 ETB
-      simulatedCosts[7] = simulatedBalances[6] - 5;
-      simulatedBalances[7] = simulatedBalances[6] + Math.round(simulatedCosts[7] * calculatedPcts[7]);
+      const decimal7 = decimalsPool[(userSeed + 7) % decimalsPool.length];
+      simulatedCosts[7] = r2(simulatedBalances[6] - 5 + (decimal7 - 0.5));
+      simulatedBalances[7] = r2(simulatedBalances[6] + (simulatedCosts[7] * calculatedPcts[7]));
 
       // Order 8: greater than balance (requires recharge), recharge required is exactly 38% of previous balance
-      simulatedCosts[8] = simulatedBalances[7] + Math.round(simulatedBalances[7] * 0.38);
-      simulatedBalances[8] = simulatedCosts[8] + Math.round(simulatedCosts[8] * calculatedPcts[8]);
+      const decimal8 = decimalsPool[(userSeed + 8) % decimalsPool.length];
+      simulatedCosts[8] = r2(simulatedBalances[7] + (simulatedBalances[7] * 0.38) + decimal8);
+      simulatedBalances[8] = r2(simulatedCosts[8] + (simulatedCosts[8] * calculatedPcts[8]));
 
       // Order 9: less than balance by 5 ETB
-      simulatedCosts[9] = simulatedBalances[8] - 5;
-      simulatedBalances[9] = simulatedBalances[8] + Math.round(simulatedCosts[9] * calculatedPcts[9]);
+      const decimal9 = decimalsPool[(userSeed + 9) % decimalsPool.length];
+      simulatedCosts[9] = r2(simulatedBalances[8] - 5 + (decimal9 - 0.5));
+      simulatedBalances[9] = r2(simulatedBalances[8] + (simulatedCosts[9] * calculatedPcts[9]));
 
       // Order 10: less than balance by 5 ETB
-      simulatedCosts[10] = simulatedBalances[9] - 5;
-      simulatedBalances[10] = simulatedBalances[9] + Math.round(simulatedCosts[10] * calculatedPcts[10]);
+      const decimal10 = decimalsPool[(userSeed + 10) % decimalsPool.length];
+      simulatedCosts[10] = r2(simulatedBalances[9] - 5 + (decimal10 - 0.5));
+      simulatedBalances[10] = r2(simulatedBalances[9] + (simulatedCosts[10] * calculatedPcts[10]));
 
       // Order 11: greater than balance (requires recharge), recharge required is exactly 30% of previous balance
-      simulatedCosts[11] = simulatedBalances[10] + Math.round(simulatedBalances[10] * 0.30);
-      simulatedBalances[11] = simulatedCosts[11] + Math.round(simulatedCosts[11] * calculatedPcts[11]);
+      const decimal11 = decimalsPool[(userSeed + 11) % decimalsPool.length];
+      simulatedCosts[11] = r2(simulatedBalances[10] + (simulatedBalances[10] * 0.30) + decimal11);
+      simulatedBalances[11] = r2(simulatedCosts[11] + (simulatedCosts[11] * calculatedPcts[11]));
 
       // Order 12: less than balance by 5 ETB
-      simulatedCosts[12] = simulatedBalances[11] - 5;
-      simulatedBalances[12] = simulatedBalances[11] + Math.round(simulatedCosts[12] * calculatedPcts[12]);
+      const decimal12 = decimalsPool[(userSeed + 12) % decimalsPool.length];
+      simulatedCosts[12] = r2(simulatedBalances[11] - 5 + (decimal12 - 0.5));
+      simulatedBalances[12] = r2(simulatedBalances[11] + (simulatedCosts[12] * calculatedPcts[12]));
 
       // Order 13: less than balance by 5 ETB
-      simulatedCosts[13] = simulatedBalances[12] - 5;
-      simulatedBalances[13] = simulatedBalances[12] + Math.round(simulatedCosts[13] * calculatedPcts[13]);
+      const decimal13 = decimalsPool[(userSeed + 13) % decimalsPool.length];
+      simulatedCosts[13] = r2(simulatedBalances[12] - 5 + (decimal13 - 0.5));
+      simulatedBalances[13] = r2(simulatedBalances[12] + (simulatedCosts[13] * calculatedPcts[13]));
 
       // Order 14: less than balance by 5 ETB
-      simulatedCosts[14] = simulatedBalances[13] - 5;
-      simulatedBalances[14] = simulatedBalances[13] + Math.round(simulatedCosts[14] * calculatedPcts[14]);
+      const decimal14 = decimalsPool[(userSeed + 14) % decimalsPool.length];
+      simulatedCosts[14] = r2(simulatedBalances[13] - 5 + (decimal14 - 0.5));
+      simulatedBalances[14] = r2(simulatedBalances[13] + (simulatedCosts[14] * calculatedPcts[14]));
 
       // Order 15: greater than balance (requires recharge), recharge required is exactly 13% of previous balance
-      simulatedCosts[15] = simulatedBalances[14] + Math.round(simulatedBalances[14] * 0.13);
-      simulatedBalances[15] = simulatedCosts[15] + Math.round(simulatedCosts[15] * calculatedPcts[15]);
+      const decimal15 = decimalsPool[(userSeed + 15) % decimalsPool.length];
+      simulatedCosts[15] = r2(simulatedBalances[14] + (simulatedBalances[14] * 0.13) + decimal15);
+      simulatedBalances[15] = r2(simulatedCosts[15] + (simulatedCosts[15] * calculatedPcts[15]));
 
       const cost = simulatedCosts[rawProd.id] || rawProd.baseCost;
 
-      const reward = Math.round(cost * pct);
+      const reward = r2(cost * pct);
 
       // Minimum Recharge calculation: (Material Cost - wallet balance)
       // Display 0 if they have enough balance
-      const minRechargeRequired = Math.max(0, cost - currentUser.walletBalance);
+      const minRechargeRequired = r2(Math.max(0, cost - currentUser.walletBalance));
 
       const override = currentUser.cycleProductOverrides?.find(o => o.id === rawProd.id);
       
@@ -1519,8 +1538,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     const reward = order.reward;
-    const newBalance = currentUser.walletBalance + reward;
-    const newTotalEarnings = currentUser.totalEarnings + reward;
+    const newBalance = Math.round((currentUser.walletBalance + reward) * 100) / 100;
+    const newTotalEarnings = Math.round((currentUser.totalEarnings + reward) * 100) / 100;
 
     const nextOrderIndex = currentUser.currentOrderIndex + 1;
 
