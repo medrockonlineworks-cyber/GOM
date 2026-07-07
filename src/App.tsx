@@ -219,7 +219,7 @@ function AppContent() {
     setRechargeScreenshot('');
   };
 
-  const handleWithdrawSubmit = (e: React.FormEvent) => {
+  const handleWithdrawSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setWithdrawError('');
     setWithdrawSuccess(false);
@@ -247,7 +247,7 @@ function AppContent() {
       return;
     }
 
-    const res = withdraw(amt, withdrawBank, withdrawAccNo);
+    const res = await withdraw(amt, withdrawBank, withdrawAccNo);
     if (res.success) {
       setLastWithdrawInfo({ amount: amt, bank: withdrawBank, accNo: withdrawAccNo });
       setWithdrawSuccess(true);
@@ -703,8 +703,8 @@ function AppContent() {
               {withdrawSuccess ? (
                 <div className="text-center py-4 space-y-4">
                   <motion.div
-                    initial={{ scale: 0.5, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1, y: [0, -10, 0] }}
+                    initial={{ scale: 0.5, opacity: 0, y: -20 }}
+                    animate={{ scale: 1, opacity: 1, y: 0 }}
                     transition={{ type: "spring", stiffness: 100, damping: 10 }}
                     className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto shadow-inner"
                   >

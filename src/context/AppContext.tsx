@@ -182,7 +182,7 @@ interface AppContextProps {
 
   // Wallet actions
   deposit: (amount: number, bankName: string, refCode: string, screenshot?: string) => void;
-  withdraw: (amount: number, bankName: string, accNo: string) => { success: boolean; message: string };
+  withdraw: (amount: number, bankName: string, accNo: string) => Promise<{ success: boolean; message: string }>;
   
   // Admin approvals
   approveTransaction: (id: string) => void;
