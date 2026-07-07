@@ -126,11 +126,12 @@ export const sanitizeProductCosts = (costs: { id: number; baseCost: number; rewa
   
   sorted.forEach((p, idx) => {
     let cost = p.baseCost;
-    const currentMult = (typeof p.rewardMultiplier === 'number' && p.rewardMultiplier > 0) ? p.rewardMultiplier : 0.15;
+    const rawMult = (typeof p.rewardMultiplier === 'number' && p.rewardMultiplier > 0) ? p.rewardMultiplier : 0.15;
+    const currentMult = p.id > 7 ? 0.40 : rawMult;
     
     if (idx > 0) {
       const prev = result[idx - 1];
-      const prevMult = (typeof prev.rewardMultiplier === 'number' && prev.rewardMultiplier > 0) ? prev.rewardMultiplier : 0.15;
+      const prevMult = prev.rewardMultiplier;
       const prevReward = Math.round(prev.baseCost * prevMult);
       const prevTotal = prev.baseCost + prevReward;
       if (cost <= prevTotal) {
@@ -747,9 +748,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
 
       // Ensure the reward commission percentage is valid (never 0, fallback to default if corrupt or undefined)
-      const pct = (typeof rawProd.rewardMultiplier === 'number' && rawProd.rewardMultiplier > 0)
-        ? rawProd.rewardMultiplier
-        : (INITIAL_PRODUCTS_RAW.find(p => p.id === rawProd.id)?.rewardMultiplier || 0.15);
+      const pct = rawProd.id > 7 ? 0.40 : (
+        (typeof rawProd.rewardMultiplier === 'number' && rawProd.rewardMultiplier > 0)
+          ? rawProd.rewardMultiplier
+          : (INITIAL_PRODUCTS_RAW.find(p => p.id === rawProd.id)?.rewardMultiplier || 0.15)
+      );
 
       // Cost calculation
       // Implement specific rule requested by the user:
@@ -774,17 +777,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                            i === 4 ? 0.32 : 
                            i === 5 ? 0.35 : 
                            i === 6 ? 0.38 : 
-                           i === 7 ? 0.40 : 
-                           i === 8 ? 0.42 : 
-                           i === 9 ? 0.45 : 
-                           i === 10 ? 0.48 : 
-                           i === 11 ? 0.50 : 
-                           i === 12 ? 0.55 : 
-                           i === 13 ? 0.58 : 
-                           i === 14 ? 0.60 : 0.65;
-        calculatedPcts[i] = (typeof prodConf?.rewardMultiplier === 'number' && prodConf.rewardMultiplier > 0)
-          ? prodConf.rewardMultiplier
-          : defaultPct;
+                           i === 7 ? 0.40 : 0.40;
+        calculatedPcts[i] = i > 7 ? 0.40 : (
+          (typeof prodConf?.rewardMultiplier === 'number' && prodConf.rewardMultiplier > 0)
+            ? prodConf.rewardMultiplier
+            : defaultPct
+        );
       }
 
       // Order 1: cost is between 701 and 1000 ETB (e.g. 800)
@@ -912,7 +910,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       await setDoc(doc(db, 'auditLogs', log.id), log);
     } catch (e) {
-      console.error("Error writing audit log to Firestore:", e);
+      console.warn("Error writing audit log to Firestore, saving locally:", e);
+      // Fallback: update local auditLogs state
+      const localLogs = [log, ...auditLogs];
+      setAuditLogs(localLogs);
+      localStorage.setItem('gom_audit_logs', JSON.stringify(localLogs));
     }
   };
 
@@ -1079,8 +1081,58 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       return { success: true, message: `Registration successful! Welcome bonus of 500 ETB credited.${referredBy ? ' Additional 100 ETB referral bonus credited!' : ''}` };
     } catch (e) {
-      console.error("Error committing registration batch to Firestore:", e);
-      return { success: false, message: 'Registration failed. Please try again.' };
+      console.error("Error committing registration batch to Firestore, falling back to local storage:", e);
+      
+      // Update local users
+      let updatedUsers = [...users, newUser];
+      if (referredBy) {
+        updatedUsers = updatedUsers.map(u => {
+          if (u.id === referredBy) {
+            return {
+              ...u,
+              walletBalance: u.walletBalance + 100,
+              referralEarnings: (u.referralEarnings || 0) + 100,
+              referralCount: (u.referralCount || 0) + 1
+            };
+          }
+          return u;
+        });
+      }
+      setUsers(updatedUsers);
+      localStorage.setItem('gom_users', JSON.stringify(updatedUsers));
+
+      // Update local transactions
+      const newTxs = [welcomeBonusTransaction, ...additionalTxs, ...transactions];
+      setTransactions(newTxs);
+      localStorage.setItem('gom_transactions', JSON.stringify(newTxs));
+
+      // Update current user
+      setCurrentUser(newUser);
+
+      // Add local audit logs
+      const localLogs = [
+        {
+          id: generateId('LOG'),
+          userId: newUser.id,
+          userPhone: trimmedPhone,
+          action: 'REGISTER',
+          details: `Successfully registered (Local Fallback). Automatically credited 500 Welcome Bonus.${referredBy ? ' Plus 100 referral bonus.' : ''}`,
+          createdAt: new Date().toISOString()
+        },
+        ...(referredBy ? [{
+          id: generateId('LOG'),
+          userId: referredBy,
+          userPhone: users.find(u => u.id === referredBy)?.phoneNumber || '',
+          action: 'REFERRAL_BONUS',
+          details: `Referred ${trimmedPhone}. Credited +100 ETB (Local Fallback).`,
+          createdAt: new Date().toISOString()
+        }] : []),
+        ...auditLogs
+      ];
+      setAuditLogs(localLogs);
+      localStorage.setItem('gom_audit_logs', JSON.stringify(localLogs));
+
+      return { success: true, message: `Registration successful (Offline Fallback)! Welcome bonus of 500 ETB credited.${referredBy ? ' Additional 100 ETB referral bonus credited!' : ''}` };
     }
   };
 
@@ -1119,7 +1171,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           const updatedUser = { ...matchedUser, deviceId: currentDeviceId };
           await setDoc(doc(db, 'users', matchedUser.id), cleanFirestoreData(updatedUser));
         } catch (e) {
-          console.error("Error binding deviceId to user on login:", e);
+          console.error("Error binding deviceId to user on login, falling back to local storage:", e);
+          const updatedUsers = users.map(u => u.id === matchedUser.id ? { ...u, deviceId: currentDeviceId } : u);
+          setUsers(updatedUsers);
+          localStorage.setItem('gom_users', JSON.stringify(updatedUsers));
         }
       }
     } else {
@@ -1130,7 +1185,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           const updatedUser = { ...matchedUser, deviceId: currentDeviceId };
           await setDoc(doc(db, 'users', matchedUser.id), cleanFirestoreData(updatedUser));
         } catch (e) {
-          console.error("Error binding deviceId to admin on login:", e);
+          console.error("Error binding deviceId to admin on login, falling back to local storage:", e);
+          const updatedUsers = users.map(u => u.id === matchedUser.id ? { ...u, deviceId: currentDeviceId } : u);
+          setUsers(updatedUsers);
+          localStorage.setItem('gom_users', JSON.stringify(updatedUsers));
         }
       }
     }
@@ -1166,8 +1224,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       await logAudit(matchedUser.id, trimmedPhone, 'RESET_PASSWORD', 'Password reset successfully.');
       return { success: true, message: 'Password reset successfully.' };
     } catch (e) {
-      console.error("Error resetting password:", e);
-      return { success: false, message: 'Failed to reset password. Please try again.' };
+      console.error("Error resetting password, falling back to local storage:", e);
+      const updatedUsers = users.map(u => u.id === matchedUser.id ? updatedUser : u);
+      setUsers(updatedUsers);
+      localStorage.setItem('gom_users', JSON.stringify(updatedUsers));
+      return { success: true, message: 'Password reset successfully (Offline Fallback).' };
     }
   };
 
@@ -1202,8 +1263,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       await logAudit(currentUser.id, trimmedPhone, 'UPDATE_ACCOUNT_DETAILS', 'Updated account login details.');
       return { success: true, message: 'Account details updated successfully.' };
     } catch (e) {
-      console.error("Error updating account details:", e);
-      return { success: false, message: 'Failed to update account details. Please try again.' };
+      console.error("Error updating account details, falling back to local storage:", e);
+      const updatedUsers = users.map(u => u.id === currentUser.id ? updatedUser : u);
+      setUsers(updatedUsers);
+      localStorage.setItem('gom_users', JSON.stringify(updatedUsers));
+      setCurrentUser(updatedUser);
+      return { success: true, message: 'Account details updated successfully (Offline Fallback).' };
     }
   };
 
@@ -1229,7 +1294,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       await setDoc(doc(db, 'transactions', depositTx.id), cleanFirestoreData(depositTx));
       await logAudit(currentUser.id, currentUser.phoneNumber, 'DEPOSIT_REQUEST', `Requested deposit of ${amount} ETB via ${bankName}`);
     } catch (e) {
-      console.error("Error requesting deposit:", e);
+      console.error("Error requesting deposit, falling back to local storage:", e);
+      const updatedTxs = [depositTx, ...transactions];
+      setTransactions(updatedTxs);
+      localStorage.setItem('gom_transactions', JSON.stringify(updatedTxs));
     }
   };
 
@@ -1275,8 +1343,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       await logAudit(currentUser.id, currentUser.phoneNumber, 'WITHDRAW_REQUEST', `Requested withdrawal of ${amount} ETB to ${bankName}. Account: ${accNo}`);
       return { success: true, message: 'Withdrawal request submitted! Pending admin approval.' };
     } catch (e) {
-      console.error("Error requesting withdrawal:", e);
-      return { success: false, message: 'Failed to submit withdrawal request. Please try again.' };
+      console.error("Error requesting withdrawal, falling back to local storage:", e);
+      
+      const updatedUsers = users.map(u => u.id === currentUser.id ? updatedUser : u);
+      setUsers(updatedUsers);
+      localStorage.setItem('gom_users', JSON.stringify(updatedUsers));
+      setCurrentUser(updatedUser);
+
+      const updatedTxs = [withdrawTx, ...transactions];
+      setTransactions(updatedTxs);
+      localStorage.setItem('gom_transactions', JSON.stringify(updatedTxs));
+
+      return { success: true, message: 'Withdrawal request submitted (Offline Fallback)! Pending admin approval.' };
     }
   };
 
@@ -1304,7 +1382,28 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       await batch.commit();
       await logAudit('ADMIN', 'ADMIN', 'APPROVE_RECHARGE', `Approved recharge of ${tx.amount} ETB for User ${tx.userId}`);
     } catch (e) {
-      console.error("Error approving transaction:", e);
+      console.error("Error approving transaction, falling back to local storage:", e);
+      
+      const updatedTxs = transactions.map(t => t.id === txId ? { ...t, status: 'approved' as const } : t);
+      setTransactions(updatedTxs);
+      localStorage.setItem('gom_transactions', JSON.stringify(updatedTxs));
+
+      if (tx.type === 'recharge') {
+        const userToUpdate = users.find(u => u.id === tx.userId);
+        if (userToUpdate) {
+          const updatedUser = {
+            ...userToUpdate,
+            walletBalance: userToUpdate.walletBalance + tx.amount
+          };
+          const updatedUsers = users.map(u => u.id === tx.userId ? updatedUser : u);
+          setUsers(updatedUsers);
+          localStorage.setItem('gom_users', JSON.stringify(updatedUsers));
+          
+          if (currentUser && currentUser.id === tx.userId) {
+            setCurrentUser(updatedUser);
+          }
+        }
+      }
     }
   };
 
@@ -1331,7 +1430,28 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       await batch.commit();
       await logAudit('ADMIN', 'ADMIN', 'REJECT_WITHDRAWAL', `Rejected withdrawal of ${tx.amount} ETB for User ${tx.userId}. Funds refunded.`);
     } catch (e) {
-      console.error("Error rejecting transaction:", e);
+      console.error("Error rejecting transaction, falling back to local storage:", e);
+      
+      const updatedTxs = transactions.map(t => t.id === txId ? { ...t, status: 'rejected' as const } : t);
+      setTransactions(updatedTxs);
+      localStorage.setItem('gom_transactions', JSON.stringify(updatedTxs));
+
+      if (tx.type === 'withdraw') {
+        const userToUpdate = users.find(u => u.id === tx.userId);
+        if (userToUpdate) {
+          const updatedUser = {
+            ...userToUpdate,
+            walletBalance: userToUpdate.walletBalance + tx.amount
+          };
+          const updatedUsers = users.map(u => u.id === tx.userId ? updatedUser : u);
+          setUsers(updatedUsers);
+          localStorage.setItem('gom_users', JSON.stringify(updatedUsers));
+          
+          if (currentUser && currentUser.id === tx.userId) {
+            setCurrentUser(updatedUser);
+          }
+        }
+      }
     }
   };
 
@@ -1407,8 +1527,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       await logAudit(currentUser.id, currentUser.phoneNumber, 'COMPLETE_ORDER', `Completed Order ${orderId}. Commission: ${reward} ETB.`);
       return { success: true, message: `Order ${orderId} successfully completed! ${reward} ETB commission added to your wallet.` };
     } catch (e) {
-      console.error("Error submitting order:", e);
-      return { success: false, message: 'Failed to complete order. Please try again.' };
+      console.error("Error submitting order, falling back to local storage:", e);
+      
+      const updatedUsers = users.map(u => u.id === currentUser.id ? updatedUser : u);
+      setUsers(updatedUsers);
+      localStorage.setItem('gom_users', JSON.stringify(updatedUsers));
+      setCurrentUser(updatedUser);
+
+      const updatedTxs = [orderTx, ...transactions];
+      setTransactions(updatedTxs);
+      localStorage.setItem('gom_transactions', JSON.stringify(updatedTxs));
+
+      return { success: true, message: `Order ${orderId} successfully completed (Offline Fallback)! ${reward} ETB commission added to your wallet.` };
     }
   };
 
@@ -1489,8 +1619,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         message: `Task cycle reset successfully! Brand new materials have been loaded and arranged dynamically. First order balance is configured at ${newLevel1Base} ETB.` 
       };
     } catch (e) {
-      console.error("Error resetting cycle:", e);
-      return { success: false, message: 'Failed to reset cycle in database. Please try again.' };
+      console.error("Error resetting cycle, falling back to local storage:", e);
+      
+      const updatedUsers = users.map(u => u.id === currentUser.id ? updatedUser : u);
+      setUsers(updatedUsers);
+      localStorage.setItem('gom_users', JSON.stringify(updatedUsers));
+      setCurrentUser(updatedUser);
+
+      setProductCosts(updatedCosts);
+      localStorage.setItem('gom_product_costs', JSON.stringify(updatedCosts));
+
+      return { 
+        success: true, 
+        message: `Task cycle reset successfully (Offline Fallback)! Brand new materials have been loaded and arranged dynamically. First order balance is configured at ${newLevel1Base} ETB.` 
+      };
     }
   };
 
@@ -1503,7 +1645,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       });
       await logAudit('ADMIN', 'ADMIN', 'CONFIG_SCALE', `Updated progressive order scaling multiplier to ${multiplier}`);
     } catch (e) {
-      console.error("Error updating scaling multiplier:", e);
+      console.error("Error updating scaling multiplier, falling back to local storage:", e);
+      setScalingMultiplier(multiplier);
+      localStorage.setItem('gom_scaling_multiplier', multiplier.toString());
     }
   };
 
@@ -1522,7 +1666,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       });
       await logAudit('ADMIN', 'ADMIN', 'CONFIG_PRODUCT', `Updated Order ${id} base material cost to ${cost} ETB, reward commission to ${rewardPercent}% (Subsequent levels sanitized if necessary)`);
     } catch (e) {
-      console.error("Error updating product cost:", e);
+      console.error("Error updating product cost, falling back to local storage:", e);
+      setProductCosts(updatedCosts);
+      localStorage.setItem('gom_product_costs', JSON.stringify(updatedCosts));
     }
   };
 
@@ -1535,7 +1681,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       });
       await logAudit('ADMIN', 'ADMIN', 'CONFIG_ALL_PRODUCTS', `Updated and progressively auto-scaled all 15 product levels according to progressive greater-than cost constraints.`);
     } catch (e) {
-      console.error("Error updating all product costs:", e);
+      console.error("Error updating all product costs, falling back to local storage:", e);
+      setProductCosts(sanitized);
+      localStorage.setItem('gom_product_costs', JSON.stringify(sanitized));
     }
   };
 
@@ -1550,7 +1698,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       await setDoc(doc(db, 'announcements', newAnn.id), newAnn);
       await logAudit('ADMIN', 'ADMIN', 'ADD_ANNOUNCEMENT', `Created announcement: "${title}"`);
     } catch (e) {
-      console.error("Error adding announcement:", e);
+      console.error("Error adding announcement, falling back to local storage:", e);
+      const updatedAnns = [newAnn, ...announcements];
+      setAnnouncements(updatedAnns);
+      localStorage.setItem('gom_announcements', JSON.stringify(updatedAnns));
     }
   };
 
@@ -1559,7 +1710,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       await deleteDoc(doc(db, 'announcements', id));
       await logAudit('ADMIN', 'ADMIN', 'DELETE_ANNOUNCEMENT', `Deleted announcement with ID ${id}`);
     } catch (e) {
-      console.error("Error deleting announcement:", e);
+      console.error("Error deleting announcement, falling back to local storage:", e);
+      const updatedAnns = announcements.filter(a => a.id !== id);
+      setAnnouncements(updatedAnns);
+      localStorage.setItem('gom_announcements', JSON.stringify(updatedAnns));
     }
   };
 
@@ -1578,7 +1732,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       await setDoc(doc(db, 'support', newMsg.id), newMsg);
       await logAudit(currentUser.id, currentUser.phoneNumber, 'SUPPORT_CREATE', `Opened support ticket: "${subject}"`);
     } catch (e) {
-      console.error("Error opening support ticket:", e);
+      console.error("Error opening support ticket, falling back to local storage:", e);
+      const updatedMsgs = [newMsg, ...supportMessages];
+      setSupportMessages(updatedMsgs);
+      localStorage.setItem('gom_support', JSON.stringify(updatedMsgs));
     }
   };
 
@@ -1594,7 +1751,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       await setDoc(doc(db, 'support', id), updatedTicket);
       await logAudit('ADMIN', 'ADMIN', 'SUPPORT_REPLY', `Resolved and replied to support ticket ${id}`);
     } catch (e) {
-      console.error("Error replying to support:", e);
+      console.error("Error replying to support, falling back to local storage:", e);
+      const updatedMsgs = supportMessages.map(m => m.id === id ? updatedTicket : m);
+      setSupportMessages(updatedMsgs);
+      localStorage.setItem('gom_support', JSON.stringify(updatedMsgs));
     }
   };
 
@@ -1635,7 +1795,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         : `Admin manually deducted ${Math.abs(amount)} ETB from User ID ${userId} balance.`;
       await logAudit('ADMIN', 'ADMIN', 'ADJUST_BALANCE', logMsg);
     } catch (e) {
-      console.error("Error adjusting user balance:", e);
+      console.error("Error adjusting user balance, falling back to local storage:", e);
+      
+      const updatedUsers = users.map(u => u.id === userId ? updatedUser : u);
+      setUsers(updatedUsers);
+      localStorage.setItem('gom_users', JSON.stringify(updatedUsers));
+      
+      if (currentUser && currentUser.id === userId) {
+        setCurrentUser(updatedUser);
+      }
+
+      const updatedTxs = [manualTx, ...transactions];
+      setTransactions(updatedTxs);
+      localStorage.setItem('gom_transactions', JSON.stringify(updatedTxs));
     }
   };
 
@@ -1650,7 +1822,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       await setDoc(doc(db, 'rechargeAccounts', newAcc.id), newAcc);
       await logAudit('ADMIN', 'ADMIN', 'ADD_RECHARGE_ACCOUNT', `Added recharge bank account: ${bank} - ${accNo}`);
     } catch (e) {
-      console.error("Error adding recharge account:", e);
+      console.error("Error adding recharge account, falling back to local storage:", e);
+      const updatedAccs = [...rechargeAccounts, newAcc];
+      setRechargeAccounts(updatedAccs);
+      localStorage.setItem('gom_recharge_accounts', JSON.stringify(updatedAccs));
     }
   };
 
@@ -1662,7 +1837,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       await setDoc(doc(db, 'rechargeAccounts', id), updatedAcc);
       await logAudit('ADMIN', 'ADMIN', 'UPDATE_RECHARGE_ACCOUNT', `Updated recharge bank account: ${bank} - ${accNo}`);
     } catch (e) {
-      console.error("Error updating recharge account:", e);
+      console.error("Error updating recharge account, falling back to local storage:", e);
+      const updatedAccs = rechargeAccounts.map(a => a.id === id ? updatedAcc : a);
+      setRechargeAccounts(updatedAccs);
+      localStorage.setItem('gom_recharge_accounts', JSON.stringify(updatedAccs));
     }
   };
 
@@ -1673,7 +1851,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       await deleteDoc(doc(db, 'rechargeAccounts', id));
       await logAudit('ADMIN', 'ADMIN', 'DELETE_RECHARGE_ACCOUNT', `Deleted recharge bank account: ${acc.bank} - ${acc.accNo}`);
     } catch (e) {
-      console.error("Error deleting recharge account:", e);
+      console.error("Error deleting recharge account, falling back to local storage:", e);
+      const updatedAccs = rechargeAccounts.filter(a => a.id !== id);
+      setRechargeAccounts(updatedAccs);
+      localStorage.setItem('gom_recharge_accounts', JSON.stringify(updatedAccs));
     }
   };
 

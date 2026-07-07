@@ -854,14 +854,7 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
                                                level === 4 ? 32 : 
                                                level === 5 ? 35 : 
                                                level === 6 ? 38 : 
-                                               level === 7 ? 40 : 
-                                               level === 8 ? 42 : 
-                                               level === 9 ? 45 : 
-                                               level === 10 ? 48 : 
-                                               level === 11 ? 50 : 
-                                               level === 12 ? 55 : 
-                                               level === 13 ? 58 : 
-                                               level === 14 ? 60 : 65;
+                                               level === 7 ? 40 : 40;
                             newCosts.push({
                               id: level,
                               baseCost: cost,

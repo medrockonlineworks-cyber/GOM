@@ -60,56 +60,56 @@ export const INITIAL_PRODUCTS_RAW = [
     productName: "Hi-Fi Studio Reference Soundbar System",
     productImage: "https://images.unsplash.com/photo-1545454675-3531b543be5d?w=400&auto=format&fit=crop&q=60",
     baseCost: 11000,
-    rewardMultiplier: 0.38, // 38% reward
+    rewardMultiplier: 0.40, // 40% reward
   },
   {
     id: 9,
     productName: "Vanguard Titanium Expedition Camera Rig",
     productImage: "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=400&auto=format&fit=crop&q=60",
     baseCost: 16500,
-    rewardMultiplier: 0.45, // 45% reward
+    rewardMultiplier: 0.40, // 40% reward
   },
   {
     id: 10,
     productName: "Hyperion Quantum Elite Workspace Station",
     productImage: "https://images.unsplash.com/photo-1593642632823-8f785ba67e45?w=400&auto=format&fit=crop&q=60",
     baseCost: 24700,
-    rewardMultiplier: 0.48, // 48% reward
+    rewardMultiplier: 0.40, // 40% reward
   },
   {
     id: 11,
     productName: "Enterprise Quantum Core Server Rack",
     productImage: "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=400&auto=format&fit=crop&q=60",
     baseCost: 37000,
-    rewardMultiplier: 0.30, // 30% reward
+    rewardMultiplier: 0.40, // 40% reward
   },
   {
     id: 12,
     productName: "Ultimate Pro Holographic AI Studio",
     productImage: "https://images.unsplash.com/photo-1600132806370-bf17e65e942f?w=400&auto=format&fit=crop&q=60",
     baseCost: 55000,
-    rewardMultiplier: 0.55, // 55% reward
+    rewardMultiplier: 0.40, // 40% reward
   },
   {
     id: 13,
     productName: "Quantum Neural Supercomputer Unit",
     productImage: "https://images.unsplash.com/photo-1518770660439-4636190af475?w=400&auto=format&fit=crop&q=60",
     baseCost: 82000,
-    rewardMultiplier: 0.58, // 58% reward
+    rewardMultiplier: 0.40, // 40% reward
   },
   {
     id: 14,
     productName: "Industrial Silicon Processing Cluster",
     productImage: "https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=400&auto=format&fit=crop&q=60",
     baseCost: 125000,
-    rewardMultiplier: 0.60, // 60% reward
+    rewardMultiplier: 0.40, // 40% reward
   },
   {
     id: 15,
     productName: "Global Satellite Uplink Mainframe",
     productImage: "https://images.unsplash.com/photo-1541185933-ef5d8ed016c2?w=400&auto=format&fit=crop&q=60",
     baseCost: 190000,
-    rewardMultiplier: 0.13, // 13% reward
+    rewardMultiplier: 0.40, // 40% reward
   }
 ];
 
