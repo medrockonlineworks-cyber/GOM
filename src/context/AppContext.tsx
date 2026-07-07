@@ -721,6 +721,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return;
     }
 
+    // Stable seed based on currentUser id
+    let userSeed = 0;
+    const userIdStr = currentUser.id || '';
+    for (let i = 0; i < userIdStr.length; i++) {
+      userSeed = (userSeed << 5) - userSeed + userIdStr.charCodeAt(i);
+      userSeed |= 0;
+    }
+    userSeed = Math.abs(userSeed);
+
     const calculated: Order[] = productCosts.map((rawProd, idx) => {
       // Order status logic:
       // Index 0 represents Order 1, index 11 represents Order 12.
@@ -785,9 +794,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         );
       }
 
-      // Order 1: cost is between 699 and 999 ETB
+      // Order 1: cost is user-specific between 699 and 999 ETB
       const configuredLvl1Cost = productCosts.find(p => p.id === 1)?.baseCost || 699;
-      simulatedCosts[1] = (configuredLvl1Cost >= 699 && configuredLvl1Cost <= 999) ? configuredLvl1Cost : 699;
+      let userLevel1Base = 699;
+      if (configuredLvl1Cost === 699) {
+        userLevel1Base = 699 + (userSeed % 301); // 699 to 999
+      } else {
+        const offset = (userSeed % 41) - 20; // stable -20 to +20 offset around configured
+        userLevel1Base = Math.max(699, Math.min(999, configuredLvl1Cost + offset));
+      }
+      simulatedCosts[1] = userLevel1Base;
       simulatedBalances[1] = simulatedCosts[1] + Math.round(simulatedCosts[1] * calculatedPcts[1]);
 
       // Order 2: less than balance by 5 ETB
@@ -855,8 +871,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const minRechargeRequired = Math.max(0, cost - currentUser.walletBalance);
 
       const override = currentUser.cycleProductOverrides?.find(o => o.id === rawProd.id);
-      const productName = override ? override.productName : (INITIAL_PRODUCTS_RAW.find(p => p.id === rawProd.id)?.productName || `Premium Order Product ${rawProd.id}`);
-      const productImage = override ? override.productImage : (INITIAL_PRODUCTS_RAW.find(p => p.id === rawProd.id)?.productImage || "");
+      
+      const pool = ALTERNATIVE_PRODUCTS_POOLS[rawProd.id];
+      let stableProduct = {
+        productName: INITIAL_PRODUCTS_RAW.find(p => p.id === rawProd.id)?.productName || `Premium Order Product ${rawProd.id}`,
+        productImage: INITIAL_PRODUCTS_RAW.find(p => p.id === rawProd.id)?.productImage || ""
+      };
+      if (pool && pool.length > 0) {
+        const stableIndex = (userSeed + rawProd.id) % pool.length;
+        stableProduct = pool[stableIndex];
+      }
+
+      const productName = override ? override.productName : stableProduct.productName;
+      const productImage = override ? override.productImage : stableProduct.productImage;
 
       return {
         id: rawProd.id,
