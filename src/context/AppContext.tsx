@@ -391,16 +391,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const saved = localStorage.getItem('gom_recharge_accounts');
     if (saved) {
       try {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        if (parsed.length === 2 && parsed.some((a: any) => a.accNo === '1000419524747') && parsed.some((a: any) => a.accNo === '0926193920')) {
+          return parsed;
+        }
       } catch (e) {
         // Fallback
       }
     }
     return [
-      { id: 'acc-1', bank: 'Commercial Bank of Ethiopia (CBE)', accName: 'GOM', accNo: '1000552233445' },
-      { id: 'acc-2', bank: 'Dashen Bank', accName: 'GOM', accNo: '001244558832' },
-      { id: 'acc-3', bank: 'Bank of Abyssinia (BoA)', accName: 'GOM', accNo: '55887744331' },
-      { id: 'acc-4', bank: 'Awash Bank', accName: 'GOM', accNo: '013204938200' }
+      { id: 'acc-1', bank: 'Commercial Bank of Ethiopia (CBE)', accName: 'GOM', accNo: '1000419524747' },
+      { id: 'acc-2', bank: 'Telebirr', accName: 'GOM', accNo: '0926193920' }
     ];
   });
 
@@ -504,10 +505,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       
       // 3. Seed bank accounts
       const initialAccounts = [
-        { id: 'acc-1', bank: 'Commercial Bank of Ethiopia (CBE)', accName: 'GOM', accNo: '1000552233445' },
-        { id: 'acc-2', bank: 'Dashen Bank', accName: 'GOM', accNo: '001244558832' },
-        { id: 'acc-3', bank: 'Bank of Abyssinia (BoA)', accName: 'GOM', accNo: '55887744331' },
-        { id: 'acc-4', bank: 'Awash Bank', accName: 'GOM', accNo: '013204938200' }
+        { id: 'acc-1', bank: 'Commercial Bank of Ethiopia (CBE)', accName: 'GOM', accNo: '1000419524747' },
+        { id: 'acc-2', bank: 'Telebirr', accName: 'GOM', accNo: '0926193920' }
       ];
       initialAccounts.forEach((acc) => {
         const ref = doc(db, 'rechargeAccounts', acc.id);
@@ -713,6 +712,46 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => {
     localStorage.setItem('gom_current_user', JSON.stringify(rawCurrentUser));
   }, [rawCurrentUser]);
+
+  // Auto-migrate bank accounts to CBE and Telebirr if old accounts are present
+  useEffect(() => {
+    const migrateBankAccounts = async () => {
+      if (rechargeAccounts.length === 0) return;
+
+      const needsMigration = rechargeAccounts.length !== 2 || 
+        !rechargeAccounts.some(a => a.bank === 'Commercial Bank of Ethiopia (CBE)' && a.accNo === '1000419524747') ||
+        !rechargeAccounts.some(a => a.bank === 'Telebirr' && a.accNo === '0926193920');
+
+      if (needsMigration) {
+        console.log("Migrating database recharge accounts to CBE (1000419524747) and Telebirr (0926193920)...");
+        try {
+          const targetAccounts = [
+            { id: 'acc-1', bank: 'Commercial Bank of Ethiopia (CBE)', accName: 'GOM', accNo: '1000419524747' },
+            { id: 'acc-2', bank: 'Telebirr', accName: 'GOM', accNo: '0926193920' }
+          ];
+
+          for (const acc of targetAccounts) {
+            await setDoc(doc(db, 'rechargeAccounts', acc.id), acc);
+          }
+
+          const oldIdsToDelete = rechargeAccounts
+            .map(a => a.id)
+            .filter(id => id !== 'acc-1' && id !== 'acc-2');
+
+          for (const oldId of oldIdsToDelete) {
+            if (oldId) {
+              await deleteDoc(doc(db, 'rechargeAccounts', oldId));
+            }
+          }
+          console.log("Database recharge accounts migrated successfully!");
+        } catch (error) {
+          console.error("Failed to migrate recharge accounts in Firestore:", error);
+        }
+      }
+    };
+
+    migrateBankAccounts();
+  }, [rechargeAccounts]);
 
   // Recalculate dynamic orders list whenever user changes, productCosts scale, or balance shifts
   useEffect(() => {
