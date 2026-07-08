@@ -11,6 +11,36 @@ import { Phone, Lock, Eye, EyeOff, KeyRound, ShoppingBag, Landmark, ArrowLeft, C
 
 type AuthView = 'login' | 'register' | 'forgot';
 
+const COUNTRIES = [
+  { code: '+251', name: 'Ethiopia (+251)', flag: '🇪🇹' },
+  { code: '+254', name: 'Kenya (+254)', flag: '🇰🇪' },
+  { code: '+253', name: 'Djibouti (+253)', flag: '🇩🇯' },
+  { code: '+252', name: 'Somalia (+252)', flag: '🇸🇴' },
+  { code: '+291', name: 'Eritrea (+291)', flag: '🇪🇷' },
+  { code: '+211', name: 'South Sudan (+211)', flag: '🇸🇸' },
+  { code: '+249', name: 'Sudan (+249)', flag: '🇸🇩' },
+  { code: '+971', name: 'UAE (+971)', flag: '🇦🇪' },
+  { code: '+966', name: 'Saudi Arabia (+966)', flag: '🇸🇦' },
+  { code: '+1', name: 'USA/Canada (+1)', flag: '🇺🇸' },
+  { code: '+44', name: 'UK (+44)', flag: '🇬🇧' },
+  { code: '+86', name: 'China (+86)', flag: '🇨🇳' },
+  { code: '', name: 'Local / Admin', flag: '📱' },
+];
+
+const getFullPhoneNumber = (code: string, rawPhone: string) => {
+  let clean = rawPhone.trim().replace(/\s+/g, '');
+  if (!code) {
+    return clean;
+  }
+  if (clean.startsWith('+')) {
+    return clean;
+  }
+  if (clean.startsWith('0')) {
+    clean = clean.substring(1);
+  }
+  return `${code}${clean}`;
+};
+
 export const AuthScreens: React.FC = () => {
   const { login, register, resetPassword, language, setLanguage } = useApp();
   const { t } = useTranslation(language);
@@ -26,6 +56,13 @@ export const AuthScreens: React.FC = () => {
     const remember = localStorage.getItem('gom_remember_me') !== 'false';
     return remember ? (localStorage.getItem('gom_remembered_phone') || '') : '';
   });
+  const [loginCountryCode, setLoginCountryCode] = useState(() => {
+    const remember = localStorage.getItem('gom_remember_me') !== 'false';
+    return remember ? (localStorage.getItem('gom_remembered_country_code') || '+251') : '+251';
+  });
+  const [registerCountryCode, setRegisterCountryCode] = useState('+251');
+  const [forgotCountryCode, setForgotCountryCode] = useState('+251');
+
   const [password, setPassword] = useState(() => {
     const remember = localStorage.getItem('gom_remember_me') !== 'false';
     return remember ? (localStorage.getItem('gom_remembered_pass') || '') : '';
@@ -44,6 +81,9 @@ export const AuthScreens: React.FC = () => {
   const resetState = (targetView?: AuthView) => {
     const remember = localStorage.getItem('gom_remember_me') !== 'false';
     setPhoneNumber((targetView === 'login' && remember) ? (localStorage.getItem('gom_remembered_phone') || '') : '');
+    setLoginCountryCode((targetView === 'login' && remember) ? (localStorage.getItem('gom_remembered_country_code') || '+251') : '+251');
+    setRegisterCountryCode('+251');
+    setForgotCountryCode('+251');
     setPassword((targetView === 'login' && remember) ? (localStorage.getItem('gom_remembered_pass') || '') : '');
     setConfirmPassword('');
     setReferralCode(new URLSearchParams(window.location.search).get('ref') || '');
@@ -62,17 +102,20 @@ export const AuthScreens: React.FC = () => {
     setIsLoading(true);
 
     try {
-      const res = await login(phoneNumber, password);
+      const fullPhone = getFullPhoneNumber(loginCountryCode, phoneNumber);
+      const res = await login(fullPhone, password);
       if (!res.success) {
         setError(res.message);
       } else {
         if (rememberMe) {
           localStorage.setItem('gom_remember_me', 'true');
           localStorage.setItem('gom_remembered_phone', phoneNumber);
+          localStorage.setItem('gom_remembered_country_code', loginCountryCode);
           localStorage.setItem('gom_remembered_pass', password);
         } else {
           localStorage.setItem('gom_remember_me', 'false');
           localStorage.removeItem('gom_remembered_phone');
+          localStorage.removeItem('gom_remembered_country_code');
           localStorage.removeItem('gom_remembered_pass');
         }
       }
@@ -100,7 +143,8 @@ export const AuthScreens: React.FC = () => {
 
     setIsLoading(true);
     try {
-      const res = await register(phoneNumber, password, referralCode);
+      const fullPhone = getFullPhoneNumber(registerCountryCode, phoneNumber);
+      const res = await register(fullPhone, password, referralCode);
       if (res.success) {
         setSuccess(res.message);
         // Instant success, context automatically redirects current session
@@ -131,7 +175,8 @@ export const AuthScreens: React.FC = () => {
 
     setIsLoading(true);
     try {
-      const res = await resetPassword(phoneNumber, password);
+      const fullPhone = getFullPhoneNumber(forgotCountryCode, phoneNumber);
+      const res = await resetPassword(fullPhone, password);
       if (res.success) {
         setSuccess('Password updated successfully! Redirecting to login...');
         setTimeout(() => {
@@ -207,18 +252,31 @@ export const AuthScreens: React.FC = () => {
 
                   <div>
                     <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-widest mb-1.5">{t('phoneLabel')}</label>
-                    <div className="relative group">
-                      <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 group-focus-within:text-bronze transition-colors">
-                        <Phone size={16} />
-                      </span>
-                      <input
-                        type="text"
-                        required
-                        placeholder="e.g. 09xxxxxxxx or 07xxxxxxxx"
-                        value={phoneNumber}
-                        onChange={(e) => setPhoneNumber(e.target.value)}
-                        className="w-full bg-slate-50 text-slate-800 text-sm pl-10 pr-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-bronze/40 focus:border-bronze focus:bg-white transition-all font-medium placeholder-slate-400/80 shadow-xs"
-                      />
+                    <div className="flex gap-2">
+                      <select
+                        value={loginCountryCode}
+                        onChange={(e) => setLoginCountryCode(e.target.value)}
+                        className="bg-slate-50 text-slate-800 text-sm px-3.5 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-bronze/40 focus:border-bronze focus:bg-white transition-all font-extrabold cursor-pointer shadow-xs min-w-[95px] text-center"
+                      >
+                        {COUNTRIES.map((c) => (
+                          <option key={c.code} value={c.code}>
+                            {c.flag} {c.code || 'Local'}
+                          </option>
+                        ))}
+                      </select>
+                      <div className="relative flex-1 group">
+                        <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 group-focus-within:text-bronze transition-colors">
+                          <Phone size={16} />
+                        </span>
+                        <input
+                          type="text"
+                          required
+                          placeholder={loginCountryCode === '+251' ? "e.g. 09xxxxxxxx" : "e.g. Phone number"}
+                          value={phoneNumber}
+                          onChange={(e) => setPhoneNumber(e.target.value)}
+                          className="w-full bg-slate-50 text-slate-800 text-sm pl-10 pr-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-bronze/40 focus:border-bronze focus:bg-white transition-all font-medium placeholder-slate-400/80 shadow-xs"
+                        />
+                      </div>
                     </div>
                   </div>
 
@@ -333,18 +391,31 @@ export const AuthScreens: React.FC = () => {
 
                   <div>
                     <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-widest mb-1.5">{t('phoneLabel')}</label>
-                    <div className="relative group">
-                      <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 group-focus-within:text-bronze transition-colors">
-                        <Phone size={16} />
-                      </span>
-                      <input
-                        type="text"
-                        required
-                        placeholder="e.g. 09xxxxxxxx or 07xxxxxxxx"
-                        value={phoneNumber}
-                        onChange={(e) => setPhoneNumber(e.target.value)}
-                        className="w-full bg-slate-50 text-slate-800 text-sm pl-10 pr-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-bronze/40 focus:border-bronze focus:bg-white transition-all font-medium placeholder-slate-400/80 shadow-xs"
-                      />
+                    <div className="flex gap-2">
+                      <select
+                        value={registerCountryCode}
+                        onChange={(e) => setRegisterCountryCode(e.target.value)}
+                        className="bg-slate-50 text-slate-800 text-sm px-3.5 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-bronze/40 focus:border-bronze focus:bg-white transition-all font-extrabold cursor-pointer shadow-xs min-w-[95px] text-center"
+                      >
+                        {COUNTRIES.map((c) => (
+                          <option key={c.code} value={c.code}>
+                            {c.flag} {c.code || 'Local'}
+                          </option>
+                        ))}
+                      </select>
+                      <div className="relative flex-1 group">
+                        <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 group-focus-within:text-bronze transition-colors">
+                          <Phone size={16} />
+                        </span>
+                        <input
+                          type="text"
+                          required
+                          placeholder={registerCountryCode === '+251' ? "e.g. 09xxxxxxxx" : "e.g. Phone number"}
+                          value={phoneNumber}
+                          onChange={(e) => setPhoneNumber(e.target.value)}
+                          className="w-full bg-slate-50 text-slate-800 text-sm pl-10 pr-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-bronze/40 focus:border-bronze focus:bg-white transition-all font-medium placeholder-slate-400/80 shadow-xs"
+                        />
+                      </div>
                     </div>
                   </div>
 
@@ -475,18 +546,31 @@ export const AuthScreens: React.FC = () => {
 
                   <div>
                     <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-widest mb-1.5">{t('registeredPhoneLabel')}</label>
-                    <div className="relative group">
-                      <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 group-focus-within:text-bronze transition-colors">
-                        <Phone size={16} />
-                      </span>
-                      <input
-                        type="text"
-                        required
-                        placeholder="e.g. 09xxxxxxxx or 07xxxxxxxx"
-                        value={phoneNumber}
-                        onChange={(e) => setPhoneNumber(e.target.value)}
-                        className="w-full bg-slate-50 text-slate-800 text-sm pl-10 pr-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-bronze/40 focus:border-bronze focus:bg-white transition-all font-medium placeholder-slate-400/80 shadow-xs"
-                      />
+                    <div className="flex gap-2">
+                      <select
+                        value={forgotCountryCode}
+                        onChange={(e) => setForgotCountryCode(e.target.value)}
+                        className="bg-slate-50 text-slate-800 text-sm px-3.5 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-bronze/40 focus:border-bronze focus:bg-white transition-all font-extrabold cursor-pointer shadow-xs min-w-[95px] text-center"
+                      >
+                        {COUNTRIES.map((c) => (
+                          <option key={c.code} value={c.code}>
+                            {c.flag} {c.code || 'Local'}
+                          </option>
+                        ))}
+                      </select>
+                      <div className="relative flex-1 group">
+                        <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 group-focus-within:text-bronze transition-colors">
+                          <Phone size={16} />
+                        </span>
+                        <input
+                          type="text"
+                          required
+                          placeholder={forgotCountryCode === '+251' ? "e.g. 09xxxxxxxx" : "e.g. Phone number"}
+                          value={phoneNumber}
+                          onChange={(e) => setPhoneNumber(e.target.value)}
+                          className="w-full bg-slate-50 text-slate-800 text-sm pl-10 pr-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-bronze/40 focus:border-bronze focus:bg-white transition-all font-medium placeholder-slate-400/80 shadow-xs"
+                        />
+                      </div>
                     </div>
                   </div>
 

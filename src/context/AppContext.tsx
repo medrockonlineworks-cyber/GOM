@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, useRef } from 'react';
 import { 
   User, 
   Transaction, 
@@ -219,6 +219,7 @@ export const useApp = () => {
 };
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const migrationAttempted = useRef(false);
   // Load or initialize state from localStorage with migration check
   const [users, setUsers] = useState<User[]>(() => {
     const saved = localStorage.getItem('gom_users');
@@ -392,7 +393,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        if (parsed.length === 2 && parsed.some((a: any) => a.accNo === '1000419524747') && parsed.some((a: any) => a.accNo === '0926193920')) {
+        if (parsed.length === 2 && parsed.some((a: any) => a.accNo === '1000419524747' && a.accName === 'Ethiopia agent-Leykun jemaneh') && parsed.some((a: any) => a.accNo === '0926193920' && a.accName === 'Ethiopia agent-Leykun jemaneh')) {
           return parsed;
         }
       } catch (e) {
@@ -400,8 +401,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
     }
     return [
-      { id: 'acc-1', bank: 'Commercial Bank of Ethiopia (CBE)', accName: 'GOM', accNo: '1000419524747' },
-      { id: 'acc-2', bank: 'Telebirr', accName: 'GOM', accNo: '0926193920' }
+      { id: 'acc-1', bank: 'Commercial Bank of Ethiopia (CBE)', accName: 'Ethiopia agent-Leykun jemaneh', accNo: '1000419524747' },
+      { id: 'acc-2', bank: 'Telebirr', accName: 'Ethiopia agent-Leykun jemaneh', accNo: '0926193920' }
     ];
   });
 
@@ -505,8 +506,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       
       // 3. Seed bank accounts
       const initialAccounts = [
-        { id: 'acc-1', bank: 'Commercial Bank of Ethiopia (CBE)', accName: 'GOM', accNo: '1000419524747' },
-        { id: 'acc-2', bank: 'Telebirr', accName: 'GOM', accNo: '0926193920' }
+        { id: 'acc-1', bank: 'Commercial Bank of Ethiopia (CBE)', accName: 'Ethiopia agent-Leykun jemaneh', accNo: '1000419524747' },
+        { id: 'acc-2', bank: 'Telebirr', accName: 'Ethiopia agent-Leykun jemaneh', accNo: '0926193920' }
       ];
       initialAccounts.forEach((acc) => {
         const ref = doc(db, 'rechargeAccounts', acc.id);
@@ -715,19 +716,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Auto-migrate bank accounts to CBE and Telebirr if old accounts are present
   useEffect(() => {
+    if (migrationAttempted.current) return;
+
     const migrateBankAccounts = async () => {
       if (rechargeAccounts.length === 0) return;
 
       const needsMigration = rechargeAccounts.length !== 2 || 
-        !rechargeAccounts.some(a => a.bank === 'Commercial Bank of Ethiopia (CBE)' && a.accNo === '1000419524747') ||
-        !rechargeAccounts.some(a => a.bank === 'Telebirr' && a.accNo === '0926193920');
+        !rechargeAccounts.some(a => a.bank === 'Commercial Bank of Ethiopia (CBE)' && a.accNo === '1000419524747' && a.accName === 'Ethiopia agent-Leykun jemaneh') ||
+        !rechargeAccounts.some(a => a.bank === 'Telebirr' && a.accNo === '0926193920' && a.accName === 'Ethiopia agent-Leykun jemaneh');
 
       if (needsMigration) {
-        console.log("Migrating database recharge accounts to CBE (1000419524747) and Telebirr (0926193920)...");
+        migrationAttempted.current = true;
+        console.log("Migrating database recharge accounts to CBE (1000419524747) and Telebirr (0926193920) with agent name...");
         try {
           const targetAccounts = [
-            { id: 'acc-1', bank: 'Commercial Bank of Ethiopia (CBE)', accName: 'GOM', accNo: '1000419524747' },
-            { id: 'acc-2', bank: 'Telebirr', accName: 'GOM', accNo: '0926193920' }
+            { id: 'acc-1', bank: 'Commercial Bank of Ethiopia (CBE)', accName: 'Ethiopia agent-Leykun jemaneh', accNo: '1000419524747' },
+            { id: 'acc-2', bank: 'Telebirr', accName: 'Ethiopia agent-Leykun jemaneh', accNo: '0926193920' }
           ];
 
           for (const acc of targetAccounts) {
@@ -747,6 +751,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         } catch (error) {
           console.error("Failed to migrate recharge accounts in Firestore:", error);
         }
+      } else {
+        migrationAttempted.current = true;
       }
     };
 
@@ -1006,10 +1012,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // AUTH ACTIONS
   const register = async (phoneNumber: string, passwordPlain: string, referralCode?: string) => {
-    // Phone validation
+    // Phone validation (relaxed for multi-country support)
     const trimmedPhone = phoneNumber.trim();
-    if (!trimmedPhone.match(/^(09|07)\d{8}$/) && !trimmedPhone.match(/^\+251(9|7)\d{8}$/)) {
-      return { success: false, message: 'Invalid phone format. Please use standard Ethiopian format (09xxxxxxxx or 07xxxxxxxx).' };
+    const isE164 = trimmedPhone.match(/^\+\d{7,15}$/);
+    const isEthiopianLocal = trimmedPhone.match(/^(09|07)\d{8}$/);
+    if (!isE164 && !isEthiopianLocal) {
+      return { success: false, message: 'Invalid phone format. Please enter a valid phone number (e.g. +2519xxxxxxxx).' };
     }
 
     const exists = users.some(u => u.phoneNumber === trimmedPhone);
