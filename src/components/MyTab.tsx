@@ -63,7 +63,9 @@ export const MyTab: React.FC<MyTabProps> = ({
     logout, 
     factoryReset,
     language,
-    updateAccountDetails
+    updateAccountDetails,
+    formatPrice,
+    currency
   } = useApp();
 
   const { t } = useTranslation(language);
@@ -98,6 +100,66 @@ export const MyTab: React.FC<MyTabProps> = ({
       bonusTransactions: 'የቦነስ ግብይቶች',
       noBonusesFound: 'ምንም የቦነስ መዝገብ አልተገኘም።',
       bonusSub: 'የምዝገባ ሽልማቶች እና የአስተዳዳሪ ቦነሶች።'
+    },
+    ar: {
+      accountSettings: 'إعدادات الحساب',
+      phoneNumberLabel: 'رقم الهاتف',
+      newPasswordLabel: 'كلمة المرور الجديدة',
+      newPasswordPlaceholder: 'اتركه فارغاً للاحتفاظ بكلمة المرور الحالية',
+      saveChanges: 'حفظ التغييرات',
+      updating: 'جاري التحديث...',
+      successUpdate: 'تم تحديث الحساب بنجاح!',
+      emptyPhoneError: 'لا يمكن أن يكون رقم الهاتف فارغاً.',
+      phoneTakenError: 'رقم الهاتف هذا قيد الاستخدام بالفعل.',
+      bonusRecords: 'سجلات المكافآت',
+      bonusTransactions: 'معاملات المكافآت',
+      noBonusesFound: 'لم يتم العثور على سجلات مكافآت.',
+      bonusSub: 'مكافآت التسجيل والمكافآت المعتمدة من الإدارة.'
+    },
+    zh: {
+      accountSettings: '账户设置',
+      phoneNumberLabel: '手机号码',
+      newPasswordLabel: '新密码',
+      newPasswordPlaceholder: '留空以保持当前密码',
+      saveChanges: '保存更改',
+      updating: '更新中...',
+      successUpdate: '账户更新成功！',
+      emptyPhoneError: '手机号码不能为空。',
+      phoneTakenError: '该手机号码已被使用。',
+      bonusRecords: '红利记录',
+      bonusTransactions: '红利交易',
+      noBonusesFound: '未找到红利记录。',
+      bonusSub: '注册奖励和管理员发放的红利。'
+    },
+    es: {
+      accountSettings: 'Configuración de la Cuenta',
+      phoneNumberLabel: 'Número de Teléfono',
+      newPasswordLabel: 'Nueva Contraseña',
+      newPasswordPlaceholder: 'Dejar en blanco para mantener la contraseña actual',
+      saveChanges: 'Guardar Cambios',
+      updating: 'Actualizando...',
+      successUpdate: '¡Cuenta actualizada con éxito!',
+      emptyPhoneError: 'El número de teléfono no puede estar vacío.',
+      phoneTakenError: 'Este número de teléfono ya está en uso.',
+      bonusRecords: 'Registros de Bonos',
+      bonusTransactions: 'Transacciones de Bonos',
+      noBonusesFound: 'No se encontraron registros de bonos.',
+      bonusSub: 'Recompensas de registro y bonos acreditados por el administrador.'
+    },
+    fr: {
+      accountSettings: 'Paramètres du Compte',
+      phoneNumberLabel: 'Numéro de Téléphone',
+      newPasswordLabel: 'Nouveau Mot de Passe',
+      newPasswordPlaceholder: 'Laisser vide pour conserver le mot de passe actuel',
+      saveChanges: 'Enregistrer les Modifications',
+      updating: 'Mise à jour...',
+      successUpdate: 'Compte mis à jour avec succès !',
+      emptyPhoneError: 'Le numéro de téléphone ne peut pas être vide.',
+      phoneTakenError: 'Ce numéro de téléphone est déjà utilisé.',
+      bonusRecords: 'Historique des Bonus',
+      bonusTransactions: 'Transactions de Bonus',
+      noBonusesFound: 'Aucun enregistrement de bonus trouvé.',
+      bonusSub: 'Récompenses d\'inscription et bonus crédités par l\'administrateur.'
     }
   };
 
@@ -219,9 +281,9 @@ export const MyTab: React.FC<MyTabProps> = ({
         <div className="relative z-10">
           <div className="flex items-baseline gap-1.5">
             <span className="text-3xl font-black tracking-tight text-white">
-              {currentUser.walletBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              {formatPrice(currentUser.walletBalance, { showUnit: false })}
             </span>
-            <span className="text-sm text-amber-400 font-black">ETB</span>
+            <span className="text-sm text-amber-400 font-black">{currency}</span>
           </div>
         </div>
         
@@ -461,7 +523,7 @@ export const MyTab: React.FC<MyTabProps> = ({
                           </span>
                         </div>
                         <div className="text-right">
-                          <span className="block text-xs font-black text-amber-800 text-right">+{tx.amount} ETB</span>
+                          <span className="block text-xs font-black text-amber-800 text-right">+{formatPrice(tx.amount)}</span>
                           <span className={`inline-block text-[8px] font-black uppercase px-2 py-0.5 rounded-full mt-1.5 ${
                             tx.status === 'pending' ? 'bg-amber-100 text-amber-700' :
                             tx.status === 'approved' ? 'bg-emerald-100 text-emerald-700' :
@@ -490,7 +552,7 @@ export const MyTab: React.FC<MyTabProps> = ({
                           </span>
                         </div>
                         <div className="text-right">
-                          <span className="block text-xs font-black text-red-500">-{tx.amount} ETB</span>
+                          <span className="block text-xs font-black text-red-500">-{formatPrice(tx.amount)}</span>
                           <span className={`inline-block text-[8px] font-black uppercase px-2 py-0.5 rounded-full mt-1.5 ${
                             tx.status === 'pending' ? 'bg-amber-100 text-amber-700' :
                             tx.status === 'approved' ? 'bg-emerald-100 text-emerald-700' :
@@ -514,10 +576,10 @@ export const MyTab: React.FC<MyTabProps> = ({
                       const isReferral = tx.type === 'referral_bonus';
                       const isSystem = tx.accountNumberOrRef === 'SYSTEM_MANUAL';
                       
-                      let bonusLabel = language === 'am' ? 'ቦነስ' : 'Bonus';
-                      if (isWelcome) bonusLabel = language === 'am' ? 'የምዝገባ የምስጋና ቦነስ' : 'Registration Welcome Bonus';
-                      else if (isReferral) bonusLabel = language === 'am' ? 'የሪፈራል የምስጋና ቦነስ' : 'Referral Welcome Bonus';
-                      else if (isSystem) bonusLabel = language === 'am' ? 'አስተዳዳሪ የጨመረው ቦነስ' : 'Admin Balance Credit';
+                      let bonusLabel = t('bonus');
+                      if (isWelcome) bonusLabel = t('registrationWelcomeBonus');
+                      else if (isReferral) bonusLabel = t('referralWelcomeBonus');
+                      else if (isSystem) bonusLabel = t('adminBalanceCredit');
 
                       return (
                         <div key={tx.id} className="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm flex justify-between items-center">
@@ -529,7 +591,7 @@ export const MyTab: React.FC<MyTabProps> = ({
                             </span>
                           </div>
                           <div className="text-right shrink-0">
-                            <span className="block text-xs font-black text-emerald-600">+{tx.amount} ETB</span>
+                            <span className="block text-xs font-black text-emerald-600">+{formatPrice(tx.amount)}</span>
                             <span className="inline-block text-[8px] font-black uppercase bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full mt-1.5">
                               {t('approvedStatus')}
                             </span>
@@ -558,7 +620,7 @@ export const MyTab: React.FC<MyTabProps> = ({
                           </div>
                           <div className="text-right shrink-0">
                             <span className={`block text-xs font-black ${isAddition ? 'text-emerald-600' : 'text-slate-800'}`}>
-                              {isAddition ? '+' : '-'}{tx.amount} ETB
+                              {isAddition ? '+' : '-'}{formatPrice(tx.amount)}
                             </span>
                             <span className={`inline-block text-[8px] font-black uppercase px-2 py-0.5 rounded-full mt-1.5 ${
                               tx.status === 'pending' ? 'bg-amber-100 text-amber-700' :
@@ -589,7 +651,7 @@ export const MyTab: React.FC<MyTabProps> = ({
                           </span>
                         </div>
                         <div className="text-right shrink-0">
-                          <span className="block text-xs font-black text-emerald-600">+{tx.amount} ETB</span>
+                          <span className="block text-xs font-black text-emerald-600">+{formatPrice(tx.amount)}</span>
                           <span className="inline-block text-[8px] font-black uppercase bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full mt-1.5">
                             {t('unlocked')}
                           </span>
@@ -634,7 +696,7 @@ export const MyTab: React.FC<MyTabProps> = ({
                         </div>
                         <div className="bg-emerald-900/50 rounded-xl p-2.5 border border-emerald-800/30">
                           <span className="block text-[8px] uppercase tracking-wider text-emerald-300">{t('referralEarnings')}</span>
-                          <span className="block text-sm font-black text-emerald-400 mt-0.5">{(currentUser.referralEarnings || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ETB</span>
+                          <span className="block text-sm font-black text-emerald-400 mt-0.5">{formatPrice(currentUser.referralEarnings || 0)}</span>
                         </div>
                       </div>
 

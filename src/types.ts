@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+export type Currency = 'ETB' | 'USD' | 'EUR' | 'CNY' | 'SAR' | 'KES' | 'SOS' | 'AOA';
+
 export type UserRole = 'user' | 'admin';
 
 export interface User {

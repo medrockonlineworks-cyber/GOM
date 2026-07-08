@@ -94,13 +94,73 @@ const MarketplaceLogoCell: React.FC<{ src: string; alt: string; brandKey: string
 };
 
 const generateRandomWithdrawal = () => {
-  const prefixes = [
-    '0901', '0910', '0911', '0912', '0913', '0914', '0915', '0916', '0918', '0920', '0921', '0922', '0924', '0925', '0926', '0930', '0935', '0940', '0945', '0960', '0970', '0980',
-    '0707', '0708', '0710', '0711', '0712', '0713', '0714', '0715', '0716', '0720', '0721', '0722', '0790', '0799'
+  const countryFormats = [
+    // Ethiopia
+    () => {
+      const prefixes = ['910', '911', '912', '913', '914', '915', '916', '918', '920', '921', '922', '930', '960', '707', '708', '710', '711', '712', '790'];
+      const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
+      const suffix = Math.floor(10 + Math.random() * 90);
+      return `+251 ${prefix}****${suffix}`;
+    },
+    // USA/Canada
+    () => {
+      const prefixes = ['213', '646', '312', '415', '718', '305', '206'];
+      const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
+      const suffix = Math.floor(10 + Math.random() * 90);
+      return `+1 (${prefix}) ****-${suffix}`;
+    },
+    // UK
+    () => {
+      const prefix = '79' + Math.floor(10 + Math.random() * 90);
+      const suffix = Math.floor(10 + Math.random() * 90);
+      return `+44 ${prefix}****${suffix}`;
+    },
+    // UAE
+    () => {
+      const prefixes = ['50', '52', '55', '56'];
+      const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
+      const suffix = Math.floor(10 + Math.random() * 90);
+      return `+971 ${prefix}****${suffix}`;
+    },
+    // Kenya
+    () => {
+      const prefixes = ['71', '72', '74', '79'];
+      const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
+      const suffix = Math.floor(10 + Math.random() * 90);
+      return `+254 ${prefix}****${suffix}`;
+    },
+    // Nigeria
+    () => {
+      const prefixes = ['803', '805', '812', '905'];
+      const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
+      const suffix = Math.floor(10 + Math.random() * 90);
+      return `+234 ${prefix}****${suffix}`;
+    },
+    // Saudi Arabia
+    () => {
+      const prefixes = ['50', '53', '55', '59'];
+      const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
+      const suffix = Math.floor(10 + Math.random() * 90);
+      return `+966 ${prefix}****${suffix}`;
+    },
+    // South Africa
+    () => {
+      const prefixes = ['72', '82', '73', '83'];
+      const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
+      const suffix = Math.floor(10 + Math.random() * 90);
+      return `+27 ${prefix}****${suffix}`;
+    },
+    // India
+    () => {
+      const prefixes = ['98', '99', '88', '77', '91'];
+      const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
+      const suffix = Math.floor(10 + Math.random() * 90);
+      return `+91 ${prefix}****${suffix}`;
+    }
   ];
-  const randomPrefix = prefixes[Math.floor(Math.random() * prefixes.length)];
-  const randomSuffix = Math.floor(10 + Math.random() * 90); // 2 digits
-  const phone = `${randomPrefix}****${randomSuffix}`;
+
+  const randomFormat = countryFormats[Math.floor(Math.random() * countryFormats.length)];
+  const phone = randomFormat();
   
   const amounts = [
     20000, 22500, 25000, 28400, 32000, 35000, 42000, 48500, 55000, 68000, 75000,
@@ -124,7 +184,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
   onOpenWithdrawModal, 
   onOpenSupportModal 
 }) => {
-  const { currentUser, announcements, orders, language, users, marketplaceLogos } = useApp();
+  const { currentUser, announcements, orders, language, users, marketplaceLogos, formatPrice, currency } = useApp();
   const { t } = useTranslation(language);
   const [announcementIndex, setAnnouncementIndex] = useState(0);
   const [ticker, setTicker] = useState(() => generateRandomWithdrawal());
@@ -203,9 +263,9 @@ export const HomeTab: React.FC<HomeTabProps> = ({
           <p className="text-[10px] opacity-80 uppercase font-black tracking-widest text-amber-400">{t('walletBalance')}</p>
           <div className="flex items-baseline gap-1.5 mt-1">
             <span className="text-3xl font-black tracking-tight text-white">
-              {currentUser.walletBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              {formatPrice(currentUser.walletBalance, { showUnit: false })}
             </span>
-            <span className="text-sm font-bold text-amber-400">ETB</span>
+            <span className="text-sm font-bold text-amber-400">{currency}</span>
           </div>
         </div>
       </motion.div>
@@ -225,25 +285,31 @@ export const HomeTab: React.FC<HomeTabProps> = ({
               transition={{ duration: 0.25, ease: 'easeOut' }}
               className="absolute left-0 right-0 flex flex-col justify-center"
             >
-              {language === 'am' ? (
-                <>
-                  <div className="text-[9px] font-black uppercase tracking-wider text-emerald-800">
-                    እንኳን ደስ አላችሁ! 🎉
-                  </div>
+              <div className="text-[9px] font-black uppercase tracking-wider text-emerald-800">
+                {t('congratulations')}
+              </div>
+              {(() => {
+                const isEthiopian = ticker.phone.trim().startsWith('+251');
+                const amountStr = isEthiopian 
+                  ? `${ticker.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ETB`
+                  : `$${(ticker.amount / 196).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD`;
+
+                const rawText = t('userWithdrew', { phone: '__PHONE__', amount: '__AMOUNT__' });
+                const parts = rawText.split(/(__PHONE__|__AMOUNT__)/);
+                return (
                   <div className="text-[11px] font-extrabold text-slate-700 leading-tight mt-0.5">
-                    ተጠቃሚ <span className="text-emerald-700 font-mono font-black">{ticker.phone}</span> በስኬት <span className="text-emerald-700 font-mono font-black">{ticker.amount.toLocaleString()}</span> ETB አውጥተዋል።
+                    {parts.map((part, index) => {
+                      if (part === '__PHONE__') {
+                        return <span key={index} className="text-emerald-700 font-mono font-black">{ticker.phone}</span>;
+                      }
+                      if (part === '__AMOUNT__') {
+                        return <span key={index} className="text-emerald-700 font-mono font-black">{amountStr}</span>;
+                      }
+                      return <span key={index}>{part}</span>;
+                    })}
                   </div>
-                </>
-              ) : (
-                <>
-                  <div className="text-[9px] font-black uppercase tracking-wider text-emerald-800">
-                    Congratulations! 🎉
-                  </div>
-                  <div className="text-[11px] font-extrabold text-slate-700 leading-tight mt-0.5">
-                    User <span className="text-emerald-700 font-mono font-black">{ticker.phone}</span> successfully withdrew <span className="text-emerald-700 font-mono font-black">{ticker.amount.toLocaleString()}.00 ETB</span>.
-                  </div>
-                </>
-              )}
+                );
+              })()}
             </motion.div>
           </AnimatePresence>
         </div>
@@ -338,8 +404,30 @@ export const HomeTab: React.FC<HomeTabProps> = ({
             animate={{ opacity: 1, y: 0 }}
             className="space-y-1"
           >
-            <h4 className="text-xs font-black text-white">{announcements[announcementIndex].title}</h4>
-            <p className="text-[11px] text-slate-300 leading-relaxed font-medium">{announcements[announcementIndex].content}</p>
+            <h4 className="text-xs font-black text-white">
+              {(() => {
+                const ann = announcements[announcementIndex];
+                if (ann.id === 'ann-1' || ann.title?.includes('Welcome to GOM')) {
+                  return t('welcomeGomTitle');
+                }
+                if (ann.id === 'ann-2' || ann.title?.includes('Supported Ethiopian Banks')) {
+                  return t('supportedBanksTitle');
+                }
+                return ann.title;
+              })()}
+            </h4>
+            <p className="text-[11px] text-slate-300 leading-relaxed font-medium">
+              {(() => {
+                const ann = announcements[announcementIndex];
+                if (ann.id === 'ann-1' || ann.content?.includes('thrilled to launch')) {
+                  return t('welcomeGomContent');
+                }
+                if (ann.id === 'ann-2' || ann.content?.includes('processed within 1-2 hours')) {
+                  return t('supportedBanksContent');
+                }
+                return ann.content;
+              })()}
+            </p>
           </motion.div>
         </div>
       )}
@@ -578,7 +666,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                   </div>
                   <div className="bg-white border border-slate-200 p-3 rounded-2xl text-center shadow-xs">
                     <span className="text-[9px] text-slate-400 uppercase font-black tracking-wider">{t('totalTeamRewards')}</span>
-                    <span className="block text-xl font-black text-emerald-600 mt-1">{(currentUser.referralEarnings || 0).toLocaleString()} ETB</span>
+                    <span className="block text-xl font-black text-emerald-600 mt-1">{formatPrice(currentUser.referralEarnings || 0)}</span>
                   </div>
                 </div>
 

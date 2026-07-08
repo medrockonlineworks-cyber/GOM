@@ -13,7 +13,8 @@ import {
   AuditLog, 
   SystemReport,
   OrderStatus,
-  RechargeAccount
+  RechargeAccount,
+  Currency
 } from '../types';
 import { hashPassword, generateUserId, generateId } from '../utils/security';
 import { 
@@ -22,6 +23,7 @@ import {
   INITIAL_USERS,
   ALTERNATIVE_PRODUCTS_POOLS
 } from '../utils/mockData';
+import { Language } from '../utils/translations';
 import { 
   collection, 
   doc, 
@@ -170,8 +172,13 @@ interface AppContextProps {
   deleteMarketplaceLogo: (marketKey: string) => Promise<void>;
   
   // Language Support
-  language: 'en' | 'am';
-  setLanguage: (lang: 'en' | 'am') => void;
+  language: Language;
+  setLanguage: (lang: Language) => void;
+
+  // Currency Support
+  currency: Currency;
+  setCurrency: (currency: Currency) => void;
+  formatPrice: (amount: number, options?: { showUnit?: boolean }) => string;
   
   // Auth actions
   register: (phoneNumber: string, passwordPlain: string, referralCode?: string) => Promise<{ success: boolean; message: string }>;
@@ -216,6 +223,29 @@ export const useApp = () => {
   const context = useContext(AppContext);
   if (!context) throw new Error('useApp must be used within an AppProvider');
   return context;
+};
+
+// Exchange rates and symbols relative to ETB (Base currency)
+export const EXCHANGE_RATES: Record<Currency, number> = {
+  ETB: 1,
+  USD: 196,     // 1 USD = 196 ETB
+  EUR: 213,     // 1 EUR = 213 ETB
+  CNY: 27,      // 1 CNY = 27 ETB
+  SAR: 52.2,    // 1 SAR = 52.2 ETB
+  KES: 1.5,     // 1 KES = 1.5 ETB
+  SOS: 0.34,    // 1 SOS = 0.34 ETB
+  AOA: 0.23,    // 1 AOA = 0.23 ETB
+};
+
+export const CURRENCY_SYMBOLS: Record<Currency, string> = {
+  ETB: 'Br',
+  USD: '$',
+  EUR: '€',
+  CNY: '¥',
+  SAR: 'SR',
+  KES: 'KSh',
+  SOS: 'Sh.So.',
+  AOA: 'Kz',
 };
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -342,14 +372,53 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setRawCurrentUser(user);
   };
 
-  const [language, setLanguageState] = useState<'en' | 'am'>(() => {
-    const saved = localStorage.getItem('gom_lang');
-    return (saved === 'am' || saved === 'en') ? saved : 'en';
+  const [language, setLanguageState] = useState<Language>(() => {
+    const saved = localStorage.getItem('gom_lang') as Language;
+    return ['en', 'am', 'ar', 'zh', 'es', 'fr'].includes(saved) ? saved : 'en';
   });
 
-  const setLanguage = (lang: 'en' | 'am') => {
+  const setLanguage = (lang: Language) => {
     setLanguageState(lang);
     localStorage.setItem('gom_lang', lang);
+  };
+
+  const [currency, setCurrencyState] = useState<Currency>(() => {
+    const saved = localStorage.getItem('gom_currency') as Currency;
+    const allowed: Currency[] = ['ETB', 'USD', 'EUR', 'CNY', 'SAR', 'KES', 'SOS', 'AOA'];
+    return allowed.includes(saved) ? saved : 'ETB';
+  });
+
+  const setCurrency = (curr: Currency) => {
+    setCurrencyState(curr);
+    localStorage.setItem('gom_currency', curr);
+  };
+
+  // Automatically adjust currency based on the registered country of the currentUser
+  useEffect(() => {
+    if (currentUser && currentUser.phoneNumber) {
+      const phone = currentUser.phoneNumber.trim();
+      const isEthiopian = phone.startsWith('+251') || 
+                          phone.startsWith('251') || 
+                          (!phone.startsWith('+') && (phone.startsWith('09') || phone.startsWith('07') || phone.startsWith('9') || phone.startsWith('7')));
+      
+      const targetCurrency: Currency = isEthiopian ? 'ETB' : 'USD';
+      setCurrencyState(targetCurrency);
+      localStorage.setItem('gom_currency', targetCurrency);
+    }
+  }, [currentUser]);
+
+  const formatPrice = (amount: number, options?: { showUnit?: boolean }) => {
+    const showUnit = options?.showUnit !== false;
+    const rate = EXCHANGE_RATES[currency] || 1;
+    const converted = amount / rate;
+    const symbol = CURRENCY_SYMBOLS[currency] || '';
+    if (showUnit) {
+      if (currency === 'USD' || currency === 'EUR' || currency === 'CNY') {
+        return `${symbol}${converted.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currency}`;
+      }
+      return `${converted.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${symbol}`;
+    }
+    return converted.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
 
   const [cartTrigger, setCartTrigger] = useState(0);
@@ -2085,6 +2154,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       rechargeAccounts,
       language,
       setLanguage,
+      currency,
+      setCurrency,
+      formatPrice,
       bankLogos,
       marketplaceLogos,
       updateBankLogo,

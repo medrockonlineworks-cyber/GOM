@@ -6,6 +6,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { useTranslation } from '../utils/translations';
+import LanguageSelector from './LanguageSelector';
 import { motion } from 'motion/react';
 import { Phone, Lock, Eye, EyeOff, KeyRound, ShoppingBag, Landmark, ArrowLeft, Coins, Gift } from 'lucide-react';
 
@@ -207,12 +208,7 @@ export const AuthScreens: React.FC = () => {
           
           {/* Floating Language Changer for non-authenticated users */}
           <div className="absolute top-4 right-4 z-20">
-            <button
-              onClick={() => setLanguage(language === 'en' ? 'am' : 'en')}
-              className="bg-[#051F10]/95 backdrop-blur-md border border-emerald-800/40 text-[10px] font-black text-white rounded-xl px-3 py-1.5 cursor-pointer hover:bg-emerald-900 transition-colors shadow-inner flex items-center gap-1.5"
-            >
-              {language === 'en' ? '🇺🇸 EN' : '🇪🇹 አማ'}
-            </button>
+            <LanguageSelector />
           </div>
 
           <h1 className="text-3.5xl font-black uppercase tracking-[0.25em] text-white">GOM</h1>

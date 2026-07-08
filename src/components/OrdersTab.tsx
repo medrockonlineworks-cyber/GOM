@@ -26,7 +26,7 @@ interface OrdersTabProps {
 }
 
 export const OrdersTab: React.FC<OrdersTabProps> = ({ onOpenRechargeModal }) => {
-  const { currentUser, orders, submitOrder, addToCart, resetOrderCycle, transactions, language } = useStateSelectAll();
+  const { currentUser, orders, submitOrder, addToCart, resetOrderCycle, transactions, language, formatPrice } = useStateSelectAll();
   const { t } = useTranslation(language);
   const [processingId, setProcessingId] = useState<number | null>(null);
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
@@ -234,7 +234,7 @@ export const OrdersTab: React.FC<OrdersTabProps> = ({ onOpenRechargeModal }) => 
                     <p className={`text-[10px] font-black text-right ${isLocked ? 'text-slate-400' : 'text-slate-800'}`}>
                       {isLocked 
                         ? `🔒 ${t('locked')}` 
-                        : `${order.materialCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ETB`
+                        : formatPrice(order.materialCost)
                       }
                     </p>
                     
@@ -242,13 +242,13 @@ export const OrdersTab: React.FC<OrdersTabProps> = ({ onOpenRechargeModal }) => 
                     <p className={`text-[10px] font-black text-right ${isLocked ? 'text-slate-400' : 'text-emerald-600'}`}>
                       {isLocked 
                         ? `🔒 ${t('locked')}` 
-                        : `+${order.reward.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ETB`
+                        : `+${formatPrice(order.reward)}`
                       }
                     </p>
 
                     <p className="text-[10px] font-bold">{t('currentBalance')}:</p>
                     <p className="text-[10px] font-black text-right text-slate-800">
-                      {currentUser.walletBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ETB
+                      {formatPrice(currentUser.walletBalance)}
                     </p>
 
                     <p className="text-[10px] font-bold">{language === 'en' ? 'Status' : 'ሁኔታ'}:</p>
@@ -267,7 +267,7 @@ export const OrdersTab: React.FC<OrdersTabProps> = ({ onOpenRechargeModal }) => 
                       <>
                         <p className="text-[10px] font-bold text-red-600">{t('minRecharge')}:</p>
                         <p className="text-[10px] font-black text-right text-red-600">
-                          {(order.materialCost - currentUser.walletBalance).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ETB
+                          {formatPrice(order.materialCost - currentUser.walletBalance)}
                         </p>
                       </>
                     )}
@@ -283,7 +283,7 @@ export const OrdersTab: React.FC<OrdersTabProps> = ({ onOpenRechargeModal }) => 
                       {isCompleted 
                         ? t('earningsSettled') 
                         : hasInsufficientBalance 
-                        ? `${t('minRecharge')}: ${(order.materialCost - currentUser.walletBalance).toLocaleString()} ETB` 
+                        ? `${t('minRecharge')}: ${formatPrice(order.materialCost - currentUser.walletBalance)}` 
                         : t('readyToSubmit')
                       }
                     </span>
@@ -336,7 +336,7 @@ export const OrdersTab: React.FC<OrdersTabProps> = ({ onOpenRechargeModal }) => 
                         <div className="flex flex-col gap-1.5 w-full">
                           <div className="bg-red-50 border border-red-200/60 p-2.5 rounded-xl text-[10px] text-red-700 font-medium mb-1 space-y-1">
                             <p className="font-extrabold uppercase tracking-wide">{t('insufficientBalance')}</p>
-                            <p>{t('minRecharge')}: <strong className="text-red-900">{(order.materialCost - currentUser.walletBalance).toLocaleString()} ETB</strong></p>
+                            <p>{t('minRecharge')}: <strong className="text-red-900">{formatPrice(order.materialCost - currentUser.walletBalance)}</strong></p>
                           </div>
                            <div className="flex gap-2 w-full">
                             <button
@@ -428,7 +428,7 @@ export const OrdersTab: React.FC<OrdersTabProps> = ({ onOpenRechargeModal }) => 
 
               <div className="bg-emerald-50/50 border border-emerald-100 p-4 rounded-2xl">
                 <span className="block text-[10px] text-emerald-800 font-extrabold uppercase tracking-wider">{t('commissionRewardCredited')}</span>
-                <span className="block text-2xl font-black text-emerald-700 mt-1">+{successReward} ETB</span>
+                <span className="block text-2xl font-black text-emerald-700 mt-1">+{formatPrice(successReward)}</span>
               </div>
 
               <p className="text-[10px] text-slate-400 font-medium">{t('walletCreditedNextUnlocked')}</p>

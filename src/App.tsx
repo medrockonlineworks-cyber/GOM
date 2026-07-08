@@ -4,8 +4,9 @@
  */
 
 import React, { useState } from 'react';
-import { AppProvider, useApp } from './context/AppContext';
+import { AppProvider, useApp, EXCHANGE_RATES } from './context/AppContext';
 import { useTranslation } from './utils/translations';
+import LanguageSelector from './components/LanguageSelector';
 import { MobileFrame } from './components/MobileFrame';
 import { AuthScreens } from './components/AuthScreens';
 import { HomeTab } from './components/HomeTab';
@@ -43,13 +44,109 @@ import {
   Coins
 } from 'lucide-react';
 
+const COUNTRIES = [
+  { code: '+251', name: 'Ethiopia (+251)', flag: '🇪🇹' },
+  { code: '+254', name: 'Kenya (+254)', flag: '🇰🇪' },
+  { code: '+253', name: 'Djibouti (+253)', flag: '🇩🇯' },
+  { code: '+252', name: 'Somalia (+252)', flag: '🇸🇴' },
+  { code: '+291', name: 'Eritrea (+291)', flag: '🇪🇷' },
+  { code: '+211', name: 'South Sudan (+211)', flag: '🇸🇸' },
+  { code: '+249', name: 'Sudan (+249)', flag: '🇸🇩' },
+  { code: '+971', name: 'UAE (+971)', flag: '🇦🇪' },
+  { code: '+966', name: 'Saudi Arabia (+966)', flag: '🇸🇦' },
+  { code: '+1', name: 'USA/Canada (+1)', flag: '🇺🇸' },
+  { code: '+44', name: 'UK (+44)', flag: '🇬🇧' },
+  { code: '+86', name: 'China (+86)', flag: '🇨🇳' },
+  { code: '', name: 'Local / Admin', flag: '📱' },
+];
 
+interface CountryLocalMethod {
+  countryCode: string;
+  countryName: string;
+  flag: string;
+  bank: string;
+  accNo: string;
+  accName: string;
+}
+
+const COUNTRY_LOCAL_METHODS: CountryLocalMethod[] = [
+  { countryCode: '+254', countryName: 'Kenya', flag: '🇰🇪', bank: 'M-Pesa (Safaricom)', accNo: 'Paybill: 254254', accName: 'GOM Kenya Agent' },
+  { countryCode: '+254', countryName: 'Kenya', flag: '🇰🇪', bank: 'Airtel Money (Kenya)', accNo: 'Till: 112233', accName: 'GOM Kenya Agent' },
+  { countryCode: '+254', countryName: 'Kenya', flag: '🇰🇪', bank: 'Equity Bank (Kenya)', accNo: 'Equity Till: 987654', accName: 'GOM Kenya Agent' },
+  { countryCode: '+253', countryName: 'Djibouti', flag: '🇩🇯', bank: 'Waafi Cash (Djibouti)', accNo: 'Merchant: 253253', accName: 'GOM Djibouti Agent' },
+  { countryCode: '+253', countryName: 'Djibouti', flag: '🇩🇯', bank: 'CAC Bank Pay', accNo: 'CAC-556677', accName: 'GOM Djibouti Agent' },
+  { countryCode: '+252', countryName: 'Somalia', flag: '🇸🇴', bank: 'EVC Plus (Somalia)', accNo: 'Merchant: 252252', accName: 'GOM Somalia Agent' },
+  { countryCode: '+252', countryName: 'Somalia', flag: '🇸🇴', bank: 'Zaad (Somalia)', accNo: 'Merchant: 998877', accName: 'GOM Somalia Agent' },
+  { countryCode: '+252', countryName: 'Somalia', flag: '🇸🇴', bank: 'Premier Bank (Somalia)', accNo: 'Premier-112233', accName: 'GOM Somalia Agent' },
+  { countryCode: '+291', countryName: 'Eritrea', flag: '🇪🇷', bank: 'Nakfa Mobile Money', accNo: 'N-887766', accName: 'GOM Eritrea Agent' },
+  { countryCode: '+291', countryName: 'Eritrea', flag: '🇪🇷', bank: 'Himbol Financial Services', accNo: 'H-554433', accName: 'GOM Eritrea Agent' },
+  { countryCode: '+211', countryName: 'South Sudan', flag: '🇸🇸', bank: 'm-Gurush (South Sudan)', accNo: 'Merchant: 211211', accName: 'GOM South Sudan Agent' },
+  { countryCode: '+211', countryName: 'South Sudan', flag: '🇸🇸', bank: 'NilePay Mobile Money', accNo: 'Merchant: 445566', accName: 'GOM South Sudan Agent' },
+  { countryCode: '+249', countryName: 'Sudan', flag: '🇸🇩', bank: 'Bank of Khartoum (BOK)', accNo: 'BOK-Sudan-223344', accName: 'GOM Sudan Agent' },
+  { countryCode: '+249', countryName: 'Sudan', flag: '🇸🇩', bank: 'Sygpay Mobile Wallet', accNo: 'Syg-667788', accName: 'GOM Sudan Agent' },
+  { countryCode: '+971', countryName: 'UAE', flag: '🇦🇪', bank: 'e& money (UAE)', accNo: 'Wallet: 971971', accName: 'GOM UAE Agent' },
+  { countryCode: '+971', countryName: 'UAE', flag: '🇦🇪', bank: 'STC Pay UAE', accNo: 'Wallet: 556677', accName: 'GOM UAE Agent' },
+  { countryCode: '+971', countryName: 'UAE', flag: '🇦🇪', bank: 'Careem Pay (UAE)', accNo: 'Careem-334455', accName: 'GOM UAE Agent' },
+  { countryCode: '+966', countryName: 'Saudi Arabia', flag: '🇸🇦', bank: 'STC Pay (KSA)', accNo: 'Wallet: 966966', accName: 'GOM KSA Agent' },
+  { countryCode: '+966', countryName: 'Saudi Arabia', flag: '🇸🇦', bank: 'Urpay (KSA)', accNo: 'Ur-778899', accName: 'GOM KSA Agent' },
+  { countryCode: '+966', countryName: 'Saudi Arabia', flag: '🇸🇦', bank: 'Al Rajhi Bank (KSA)', accNo: 'Rajhi-334422', accName: 'GOM KSA Agent' },
+  { countryCode: '+1', countryName: 'USA/Canada', flag: '🇺🇸', bank: 'Zelle Transfer', accNo: 'zelle@gom-agent.com', accName: 'GOM North America LLC' },
+  { countryCode: '+1', countryName: 'USA/Canada', flag: '🇺🇸', bank: 'Venmo Payment', accNo: '@gom-agent-pay', accName: 'GOM North America LLC' },
+  { countryCode: '+1', countryName: 'USA/Canada', flag: '🇺🇸', bank: 'Cash App', accNo: '$gomagentpay', accName: 'GOM North America LLC' },
+  { countryCode: '+44', countryName: 'UK', flag: '🇬🇧', bank: 'Revolut Pay', accNo: 'revolut@gom-agent.co.uk', accName: 'GOM UK Ltd' },
+  { countryCode: '+44', countryName: 'UK', flag: '🇬🇧', bank: 'Faster Payments (UK)', accNo: 'Sort: 04-00-04, Acc: 98765432', accName: 'GOM UK Ltd' },
+  { countryCode: '+44', countryName: 'UK', flag: '🇬🇧', bank: 'Monzo Bank Pay', accNo: 'Sort: 04-00-04, Acc: 11223344', accName: 'GOM UK Ltd' },
+  { countryCode: '+86', countryName: 'China', flag: '🇨🇳', bank: 'Alipay (支付宝)', accNo: 'alipay@gom-agent.cn', accName: 'GOM China Agent' },
+  { countryCode: '+86', countryName: 'China', flag: '🇨🇳', bank: 'WeChat Pay (微信支付)', accNo: 'wechat@gom-agent.cn', accName: 'GOM China Agent' },
+];
+
+const getUserCountry = (phone?: string) => {
+  if (!phone) return null;
+  const trimmed = phone.trim();
+  for (const c of COUNTRIES) {
+    if (c.code && (trimmed.startsWith(c.code) || trimmed.startsWith(c.code.replace('+', '')))) {
+      return c;
+    }
+  }
+  if (trimmed.startsWith('09') || trimmed.startsWith('07') || trimmed.startsWith('9') || trimmed.startsWith('7')) {
+    return { code: '+251', name: 'Ethiopia (+251)', flag: '🇪🇹' };
+  }
+  return null;
+};
 
 type UserTab = 'home' | 'orders' | 'my';
 
 function AppContent() {
-  const { currentUser, deposit, withdraw, addSupportTicket, rechargeAccounts, language, setLanguage } = useApp();
+  const { currentUser, deposit, withdraw, addSupportTicket, rechargeAccounts, language, setLanguage, currency, setCurrency, formatPrice } = useApp();
   const { t } = useTranslation(language);
+
+  const isEthiopianUser = currentUser && (
+    currentUser.phoneNumber?.trim().startsWith('+251') || 
+    currentUser.phoneNumber?.trim().startsWith('251') || 
+    (!currentUser.phoneNumber?.trim().startsWith('+') && (
+      currentUser.phoneNumber?.trim().startsWith('09') || 
+      currentUser.phoneNumber?.trim().startsWith('07') || 
+      currentUser.phoneNumber?.trim().startsWith('9') || 
+      currentUser.phoneNumber?.trim().startsWith('7')
+    ))
+  );
+
+  const isEth = isEthiopianUser || currency === 'ETB';
+
+  const INT_WITHDRAW_METHODS = [
+    'Mastercard',
+    'PayPal',
+    'Binance (USDT)',
+    'Visa Card'
+  ];
+
+  const INT_RECHARGE_METHODS = [
+    { bank: 'Mastercard', accNo: 'N/A', accName: 'International Card' },
+    { bank: 'PayPal', accNo: 'N/A', accName: 'International Wallet' },
+    { bank: 'Binance Pay (USDT)', accNo: 'N/A', accName: 'Binance Smart Chain' },
+    { bank: 'Visa Card', accNo: 'N/A', accName: 'International Card' }
+  ];
+
   const [activeTab, setActiveTab] = useState<UserTab>('home');
   const [isAdminView, setIsAdminView] = useState(false);
 
@@ -139,11 +236,31 @@ function AppContent() {
       setRechargeScreenshot('');
       setShowChannelDropdown(false);
       setIsDragActive(false);
-      if (rechargeAccounts && rechargeAccounts.length > 0) {
-        setRechargeBank(rechargeAccounts[0].bank);
+      if (isEth) {
+        if (rechargeAccounts && rechargeAccounts.length > 0) {
+          setRechargeBank(rechargeAccounts[0].bank);
+        } else {
+          setRechargeBank('Commercial Bank of Ethiopia (CBE)');
+        }
+      } else {
+        setRechargeBank('Mastercard');
       }
     }
-  }, [rechargeModalOpen, rechargeAccounts]);
+  }, [rechargeModalOpen, rechargeAccounts, isEth]);
+
+  // Reset withdrawal success state and set default bank on modal open
+  React.useEffect(() => {
+    if (withdrawModalOpen) {
+      setWithdrawError('');
+      setWithdrawSuccess(false);
+      setLastWithdrawInfo(null);
+      if (isEth) {
+        setWithdrawBank('Commercial Bank of Ethiopia (CBE)');
+      } else {
+        setWithdrawBank('Mastercard');
+      }
+    }
+  }, [withdrawModalOpen, isEth]);
 
   // Auto-close recharge modal when success is triggered
   React.useEffect(() => {
@@ -169,11 +286,13 @@ function AppContent() {
   // Sync prefill amount when changes occur
   React.useEffect(() => {
     if (prefillRechargeAmount > 0) {
-      setRechargeAmount(prefillRechargeAmount.toString());
+      const rate = EXCHANGE_RATES[currency] || 1;
+      const val = (prefillRechargeAmount / rate).toFixed(2);
+      setRechargeAmount(val);
     } else {
       setRechargeAmount('');
     }
-  }, [prefillRechargeAmount]);
+  }, [prefillRechargeAmount, currency]);
 
   // Ethiopian banks list
   const ETH_BANKS = [
@@ -195,9 +314,45 @@ function AppContent() {
     setRechargeError('');
     setRechargeSuccess(false);
 
-    const amt = Number(rechargeAmount);
-    if (isNaN(amt) || amt < 200) {
-      setRechargeError('The minimum recharge amount is 200 ETB.');
+    // Validate if selected method is a local method of another country and user is from Ethiopia
+    const matchedOtherCountryMethod = COUNTRY_LOCAL_METHODS.find(m => m.bank === rechargeBank);
+    if (matchedOtherCountryMethod) {
+      if (isEth) {
+        setRechargeError('This local payment method is unavailable for users in Ethiopia. Ethiopia has its own local methods (CBE/Telebirr).');
+        return;
+      }
+      const userCountry = getUserCountry(currentUser?.phoneNumber);
+      if (userCountry?.code !== matchedOtherCountryMethod.countryCode) {
+        setRechargeError(`This payment method is restricted to users in ${matchedOtherCountryMethod.countryName}.`);
+        return;
+      }
+    }
+
+    // Validate if non-Ethiopian is selecting Ethiopian local accounts
+    const isEthBank = rechargeAccounts && rechargeAccounts.some(acc => acc.bank === rechargeBank);
+    if (isEthBank && !isEth) {
+      setRechargeError('Ethiopian local bank options are only available to users in Ethiopia.');
+      return;
+    }
+
+    const isIntMethod = ['Mastercard', 'PayPal', 'Binance Pay (USDT)', 'Visa Card'].includes(rechargeBank);
+    if (isEth && isIntMethod) {
+      setRechargeError('This payment method is unavailable for users in Ethiopia.');
+      return;
+    }
+
+    const inputAmt = Number(rechargeAmount);
+    if (isNaN(inputAmt) || inputAmt <= 0) {
+      setRechargeError('Please enter a valid amount.');
+      return;
+    }
+
+    const baseAmt = currency === 'USD' ? inputAmt * 196 : inputAmt;
+    if (baseAmt < 200) {
+      setRechargeError(currency === 'USD'
+        ? 'The minimum recharge amount is $1.02 (200 ETB).'
+        : 'The minimum recharge amount is 200 ETB.'
+      );
       return;
     }
 
@@ -211,8 +366,8 @@ function AppContent() {
       return;
     }
 
-    deposit(amt, rechargeBank, rechargeRef, rechargeScreenshot);
-    setLastSubmittedRecharge({ amount: amt, bank: rechargeBank, ref: rechargeRef });
+    deposit(baseAmt, rechargeBank, rechargeRef, rechargeScreenshot);
+    setLastSubmittedRecharge({ amount: baseAmt, bank: rechargeBank, ref: rechargeRef });
     setRechargeSuccess(true);
     setRechargeRef('');
     setRechargeAmount('');
@@ -224,21 +379,56 @@ function AppContent() {
     setWithdrawError('');
     setWithdrawSuccess(false);
 
-    const amt = Number(withdrawAmount);
-    if (isNaN(amt) || amt < 200) {
-      setWithdrawError('The minimum withdrawal amount is 200 ETB.');
+    // Validate if selected method is a local method of another country and user is from Ethiopia
+    const matchedOtherCountryMethod = COUNTRY_LOCAL_METHODS.find(m => m.bank === withdrawBank);
+    if (matchedOtherCountryMethod) {
+      if (isEth) {
+        setWithdrawError('This local payout method is unavailable for users in Ethiopia. Ethiopia has its own local methods (CBE/Telebirr).');
+        return;
+      }
+      const userCountry = getUserCountry(currentUser?.phoneNumber);
+      if (userCountry?.code !== matchedOtherCountryMethod.countryCode) {
+        setWithdrawError(`This payout method is restricted to users in ${matchedOtherCountryMethod.countryName}.`);
+        return;
+      }
+    }
+
+    // Validate if non-Ethiopian is selecting Ethiopian banks
+    if (ETH_BANKS.includes(withdrawBank) && !isEth) {
+      setWithdrawError('Ethiopian bank payouts are only available for users registered in Ethiopia.');
+      return;
+    }
+
+    const isIntMethod = INT_WITHDRAW_METHODS.includes(withdrawBank);
+    if (isEth && isIntMethod) {
+      setWithdrawError('This withdrawal method is unavailable for users in Ethiopia.');
+      return;
+    }
+
+    const inputAmt = Number(withdrawAmount);
+    if (isNaN(inputAmt) || inputAmt <= 0) {
+      setWithdrawError('Please enter a valid amount.');
+      return;
+    }
+
+    const baseAmt = currency === 'USD' ? inputAmt * 196 : inputAmt;
+    if (baseAmt < 200) {
+      setWithdrawError(currency === 'USD'
+        ? 'The minimum withdrawal amount is $1.02 (200 ETB).'
+        : 'The minimum withdrawal amount is 200 ETB.'
+      );
       return;
     }
 
     const isTelebirr = withdrawBank.toLowerCase().includes('telebirr');
     const maxWithdraw = isTelebirr ? 75000 : 300000;
-    if (amt > maxWithdraw) {
-      setWithdrawError(`The maximum withdrawal amount for ${withdrawBank} is ${maxWithdraw.toLocaleString()} ETB.`);
+    if (baseAmt > maxWithdraw) {
+      setWithdrawError(`The maximum withdrawal amount for ${withdrawBank} is ${formatPrice(maxWithdraw)}.`);
       return;
     }
 
-    if (amt > currentUser.walletBalance) {
-      setWithdrawError(`Insufficient balance. Maximum withdrawable is ${currentUser.walletBalance} ETB.`);
+    if (baseAmt > currentUser.walletBalance) {
+      setWithdrawError(`Insufficient balance. Maximum withdrawable is ${formatPrice(currentUser.walletBalance)}.`);
       return;
     }
 
@@ -247,9 +437,9 @@ function AppContent() {
       return;
     }
 
-    const res = await withdraw(amt, withdrawBank, withdrawAccNo);
+    const res = await withdraw(baseAmt, withdrawBank, withdrawAccNo);
     if (res.success) {
-      setLastWithdrawInfo({ amount: amt, bank: withdrawBank, accNo: withdrawAccNo });
+      setLastWithdrawInfo({ amount: baseAmt, bank: withdrawBank, accNo: withdrawAccNo });
       setWithdrawSuccess(true);
       setWithdrawAmount('');
       setWithdrawAccNo('');
@@ -285,13 +475,14 @@ function AppContent() {
         <h1 className="text-base font-black tracking-widest uppercase text-white">
           GOM
         </h1>
-        <div className="flex items-center">
+        <div className="flex items-center gap-2">
           <button
-            onClick={() => setLanguage(language === 'en' ? 'am' : 'en')}
+            onClick={() => setCurrency(currency === 'ETB' ? 'USD' : 'ETB')}
             className="bg-[#051F10] border border-emerald-800/80 text-[10px] font-black text-white rounded-xl px-3 py-1.5 cursor-pointer hover:bg-emerald-900 transition-colors shadow-inner flex items-center gap-1"
           >
-            {language === 'en' ? '🇺🇸 EN' : '🇪🇹 አማ'}
+            🪙 {currency}
           </button>
+          <LanguageSelector />
         </div>
       </header>
 
@@ -474,26 +665,130 @@ function AppContent() {
                       <motion.div
                         initial={{ opacity: 0, y: -8 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className="absolute left-0 right-0 mt-1.5 bg-white border border-slate-200/80 rounded-2xl shadow-xl z-30 max-h-48 overflow-y-auto p-1.5 divide-y divide-slate-50"
+                        className="absolute left-0 right-0 mt-1.5 bg-white border border-slate-200/80 rounded-2xl shadow-xl z-30 max-h-56 overflow-y-auto p-1.5 space-y-2.5"
                       >
-                        {rechargeAccounts && rechargeAccounts.map((acc, index) => (
-                          <button
-                            key={acc.id || index}
-                            type="button"
-                            onClick={() => {
-                              setRechargeBank(acc.bank);
-                              setShowChannelDropdown(false);
-                            }}
-                            className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-between hover:bg-slate-50 ${
-                              rechargeBank === acc.bank ? 'text-bronze bg-amber-50/40' : 'text-slate-600'
-                            }`}
-                          >
-                            <div className="flex items-center gap-3">
-                              <span>{acc.bank}</span>
-                            </div>
-                            {rechargeBank === acc.bank && <Check size={14} className="text-bronze shrink-0" />}
-                          </button>
-                        ))}
+                        {/* LOCAL METHODS GROUP */}
+                        <div className="space-y-1">
+                          <div className="px-2.5 py-1 text-[9px] font-extrabold text-slate-400 uppercase tracking-widest bg-slate-50 rounded-lg">
+                            📍 Local Payment Methods
+                          </div>
+                          
+                          {/* Ethiopia Local Accounts */}
+                          {rechargeAccounts && rechargeAccounts.map((acc, index) => {
+                            const isAvailable = isEth;
+                            return (
+                              <button
+                                key={`eth-local-${acc.id || index}`}
+                                type="button"
+                                onClick={() => {
+                                  if (!isAvailable) {
+                                    alert('Ethiopian local accounts are only available to users in Ethiopia.');
+                                    return;
+                                  }
+                                  setRechargeBank(acc.bank);
+                                  setShowChannelDropdown(false);
+                                }}
+                                className={`w-full text-left px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-between hover:bg-slate-50 ${
+                                  rechargeBank === acc.bank ? 'text-bronze bg-amber-50/40 font-black' : 'text-slate-600'
+                                } ${!isAvailable ? 'opacity-40 cursor-not-allowed' : ''}`}
+                              >
+                                <div className="flex items-center gap-2">
+                                  <span>🇪🇹 {acc.bank}</span>
+                                  {!isAvailable && (
+                                    <span className="text-[7px] font-extrabold bg-red-50 text-red-600 border border-red-200/50 px-1 py-0.5 rounded">
+                                      Restricted
+                                    </span>
+                                  )}
+                                </div>
+                                {rechargeBank === acc.bank && <Check size={13} className="text-bronze shrink-0" />}
+                              </button>
+                            );
+                          })}
+
+                          {/* Other Country Local Accounts */}
+                          {COUNTRY_LOCAL_METHODS.map((method, index) => {
+                            const userCountry = getUserCountry(currentUser?.phoneNumber);
+                            const isAvailable = userCountry?.code === method.countryCode;
+                            const isUnavailableForEth = isEth;
+
+                            return (
+                              <button
+                                key={`other-local-${index}`}
+                                type="button"
+                                onClick={() => {
+                                  if (isEth) {
+                                    alert('Unavailable for Ethiopia. Ethiopia has its own local payment methods (CBE/Telebirr).');
+                                    return;
+                                  }
+                                  if (!isAvailable) {
+                                    alert(`This method is restricted to users in ${method.countryName}.`);
+                                    return;
+                                  }
+                                  setRechargeBank(method.bank);
+                                  setShowChannelDropdown(false);
+                                }}
+                                className={`w-full text-left px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-between hover:bg-slate-50 ${
+                                  rechargeBank === method.bank ? 'text-bronze bg-amber-50/40 font-black' : 'text-slate-600'
+                                } ${isUnavailableForEth || !isAvailable ? 'opacity-40 cursor-not-allowed' : ''}`}
+                              >
+                                <div className="flex items-center gap-2">
+                                  <span>{method.flag} {method.bank}</span>
+                                  {isUnavailableForEth ? (
+                                    <span className="text-[7px] font-extrabold bg-red-50 text-red-600 border border-red-200/50 px-1 py-0.5 rounded">
+                                      Unavailable for Ethiopia
+                                    </span>
+                                  ) : !isAvailable ? (
+                                    <span className="text-[7px] font-extrabold bg-slate-50 text-slate-500 border border-slate-200/50 px-1 py-0.5 rounded">
+                                      Restricted
+                                    </span>
+                                  ) : (
+                                    <span className="text-[7px] font-extrabold bg-emerald-50 text-emerald-600 border border-emerald-200/50 px-1 py-0.5 rounded">
+                                      Local
+                                    </span>
+                                  )}
+                                </div>
+                                {rechargeBank === method.bank && <Check size={13} className="text-bronze shrink-0" />}
+                              </button>
+                            );
+                          })}
+                        </div>
+
+                        {/* INTERNATIONAL METHODS GROUP */}
+                        <div className="space-y-1 pt-1.5 border-t border-slate-100">
+                          <div className="px-2.5 py-1 text-[9px] font-extrabold text-slate-400 uppercase tracking-widest bg-slate-50 rounded-lg">
+                            🌐 International Payment Methods
+                          </div>
+                          {INT_RECHARGE_METHODS.map((method, index) => {
+                            const isAvailable = !isEth;
+                            return (
+                              <button
+                                key={`int-${index}`}
+                                type="button"
+                                onClick={() => {
+                                  if (!isAvailable) {
+                                    alert('International payment methods are unavailable for users in Ethiopia. Ethiopia has its own local payment options (CBE/Telebirr).');
+                                    return;
+                                  }
+                                  setRechargeBank(method.bank);
+                                  setShowChannelDropdown(false);
+                                }}
+                                className={`w-full text-left px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-between hover:bg-slate-50 ${
+                                  rechargeBank === method.bank ? 'text-bronze bg-amber-50/40 font-black' : 'text-slate-600'
+                                } ${!isAvailable ? 'opacity-40 cursor-not-allowed' : ''}`}
+                              >
+                                <div className="flex items-center gap-2">
+                                  <span>💳 {method.bank}</span>
+                                  {!isAvailable && (
+                                    <span className="text-[7px] font-extrabold bg-red-50 text-red-600 border border-red-200/50 px-1 py-0.5 rounded">
+                                      Unavailable for Ethiopia
+                                    </span>
+                                  )}
+                                </div>
+                                {rechargeBank === method.bank && <Check size={13} className="text-bronze shrink-0" />}
+                              </button>
+                            );
+                          })}
+                        </div>
                       </motion.div>
                     )}
                   </div>
@@ -536,6 +831,136 @@ function AppContent() {
                     );
                   })()}
 
+                  {/* Active selected international method details */}
+                  {INT_RECHARGE_METHODS.some(method => method.bank === rechargeBank) && (() => {
+                    const selectedMethod = INT_RECHARGE_METHODS.find(method => method.bank === rechargeBank)!;
+                    return (
+                      <motion.div
+                        key={selectedMethod.bank}
+                        initial={{ opacity: 0, scale: 0.98 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className={`p-4 rounded-2xl border ${
+                          isEth 
+                            ? 'bg-red-50/75 border-red-200/80 text-red-950' 
+                            : 'bg-gradient-to-br from-[#0F2022] via-[#162E30] to-[#0C1A1C] text-white border-emerald-950/20'
+                        } shadow-sm relative overflow-hidden`}
+                      >
+                        {isEth ? (
+                          <div className="space-y-1">
+                            <span className="block text-[11px] font-black text-red-700 uppercase tracking-wider flex items-center gap-1">
+                              ⚠️ {selectedMethod.bank} Unavailable
+                            </span>
+                            <p className="text-[10px] text-red-800 leading-relaxed font-semibold">
+                              This payment method is unavailable for users in Ethiopia. Please select local payment options like Commercial Bank of Ethiopia (CBE) or Telebirr.
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="space-y-2">
+                            <span className="block text-[11px] font-black tracking-tight text-amber-400 uppercase">
+                              🌐 {selectedMethod.bank} Gateway
+                            </span>
+                            <p className="text-[10px] text-slate-300 leading-relaxed font-bold">
+                              {selectedMethod.bank === 'Binance Pay (USDT)' 
+                                ? 'Transfer USDT directly to USDT-TRC20 Wallet Address. Verification is automated.' 
+                                : `Process via international merchant invoice. Enter your desired deposit amount below.`}
+                            </p>
+                            
+                            {selectedMethod.bank === 'Binance Pay (USDT)' && (
+                              <div className="flex justify-between items-center gap-4 mt-2.5 pt-2 border-t border-white/5">
+                                <div className="space-y-0.5">
+                                  <span className="block text-[8px] uppercase font-bold text-slate-400">USDT Address</span>
+                                  <span className="block text-xs font-mono font-bold text-amber-300 select-all">TQ7xM8yJ2r9zPqN1vK5eW4sT3dG6hB8vX2a</span>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    navigator.clipboard.writeText('TQ7xM8yJ2r9zPqN1vK5eW4sT3dG6hB8vX2a');
+                                    alert('USDT-TRC20 address copied!');
+                                  }}
+                                  className="bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/20 px-2 py-1 rounded-lg font-bold cursor-pointer transition-all text-[9px] flex items-center gap-1 shrink-0"
+                                >
+                                  <Copy size={10} />
+                                  <span>Copy</span>
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </motion.div>
+                    );
+                  })()}
+
+                  {/* Active selected other country local method details */}
+                  {COUNTRY_LOCAL_METHODS.some(method => method.bank === rechargeBank) && (() => {
+                    const selectedMethod = COUNTRY_LOCAL_METHODS.find(method => method.bank === rechargeBank)!;
+                    const userCountry = getUserCountry(currentUser?.phoneNumber);
+                    const isAvailable = userCountry?.code === selectedMethod.countryCode;
+                    const isUnavailableForEth = isEth;
+
+                    return (
+                      <motion.div
+                        key={selectedMethod.bank}
+                        initial={{ opacity: 0, scale: 0.98 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className={`p-4 rounded-2xl border ${
+                          isUnavailableForEth
+                            ? 'bg-red-50/75 border-red-200/80 text-red-950'
+                            : !isAvailable
+                            ? 'bg-slate-50 border-slate-200 text-slate-800'
+                            : 'bg-gradient-to-br from-[#0F2022] via-[#162E30] to-[#0C1A1C] text-white border-emerald-950/20 shadow-lg'
+                        } relative overflow-hidden`}
+                      >
+                        {isUnavailableForEth ? (
+                          <div className="space-y-1">
+                            <span className="block text-[11px] font-black text-red-700 uppercase tracking-wider flex items-center gap-1">
+                              ⚠️ {selectedMethod.bank} Unavailable
+                            </span>
+                            <p className="text-[10px] text-red-800 leading-relaxed font-semibold font-mono">
+                              Unavailable for Ethiopia. Ethiopia has its own local method.
+                            </p>
+                          </div>
+                        ) : !isAvailable ? (
+                          <div className="space-y-1">
+                            <span className="block text-[11px] font-black text-slate-500 uppercase tracking-wider">
+                              ⚠️ {selectedMethod.bank} Restricted
+                            </span>
+                            <p className="text-[10px] text-slate-500 leading-relaxed font-semibold">
+                              This local method is restricted to users in {selectedMethod.countryName}. Please select your own country's local method or an international payment option.
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="flex justify-between items-center gap-4">
+                            <div className="space-y-1 flex-1">
+                              <span className="block text-[11px] font-black tracking-tight text-amber-400 uppercase">
+                                {selectedMethod.flag} {selectedMethod.bank} (Local Agent)
+                              </span>
+                              <div className="space-y-0.5">
+                                <span className="block text-[8px] uppercase text-slate-400 font-bold">Transfer Account / Details</span>
+                                <span className="block text-sm font-mono font-bold text-white select-all">
+                                  {selectedMethod.accNo}
+                                </span>
+                              </div>
+                              <span className="block text-[9px] text-slate-300 font-medium mt-1">
+                                Beneficiary: {selectedMethod.accName}
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                navigator.clipboard.writeText(selectedMethod.accNo);
+                                alert(`${selectedMethod.bank} transfer details copied: ${selectedMethod.accNo}`);
+                              }}
+                              className="bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/20 px-3 py-2 rounded-xl font-bold cursor-pointer transition-all text-[10px] flex items-center gap-1 shrink-0"
+                            >
+                              <Copy size={11} />
+                              <span>Copy</span>
+                            </button>
+                          </div>
+                        )}
+                      </motion.div>
+                    );
+                  })()}
+
                   {/* Recharge Form */}
                   <form onSubmit={handleRechargeSubmit} className="space-y-4 pt-2 border-t border-slate-100">
                     {rechargeError && (
@@ -551,17 +976,22 @@ function AppContent() {
 
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-widest mb-1.5">{t('amountEtb')}</label>
+                        <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-widest mb-1.5">
+                          {currency === 'USD' ? 'Amount (USD)' : t('amountEtb')}
+                        </label>
                         <input
                           type="number"
                           required
-                          min="200"
-                          placeholder={t('min200')}
+                          step="any"
+                          min={currency === 'USD' ? "1.02" : "200"}
+                          placeholder={currency === 'USD' ? "Min $1.02" : t('min200')}
                           value={rechargeAmount}
                           onChange={(e) => setRechargeAmount(e.target.value)}
                           className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-3 py-3 text-xs text-slate-800 font-bold focus:outline-none focus:ring-2 focus:ring-bronze/40 focus:border-bronze focus:bg-white transition-all shadow-xs"
                         />
-                        <span className="text-[9px] text-slate-400 mt-1 block font-semibold">{t('minimum200Etb')}</span>
+                        <span className="text-[9px] text-slate-400 mt-1 block font-semibold">
+                          {currency === 'USD' ? 'Min: $1.02 USD (200 ETB)' : t('minimum200Etb')}
+                        </span>
                       </div>
                       <div>
                         <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-widest mb-1.5">{t('transferTxidRef')}</label>
@@ -713,7 +1143,7 @@ function AppContent() {
                   
                   <div className="space-y-1">
                     <h3 className="text-base font-black text-emerald-800">
-                      {language === 'am' ? 'የማውጣት ጥያቄ ተመዝግቧል!' : 'Withdrawal Request Submitted!'}
+                      {t('withdrawalSuccessTitle')}
                     </h3>
                     <p className="text-[11px] text-slate-500 px-4">
                       {t('withdrawalSuccessMsg')}
@@ -723,27 +1153,27 @@ function AppContent() {
                   {lastWithdrawInfo && (
                     <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 text-left space-y-2.5 max-w-xs mx-auto">
                       <div className="flex justify-between items-center pb-2 border-b border-slate-200/50">
-                        <span className="text-[10px] text-slate-400 font-bold uppercase">{language === 'am' ? 'መጠን' : 'Amount'}</span>
+                        <span className="text-[10px] text-slate-400 font-bold uppercase">{t('amountLabel')}</span>
                         <span className="text-sm font-black text-emerald-600">
                           {lastWithdrawInfo.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })} ETB
                         </span>
                       </div>
                       <div className="flex justify-between items-center text-[10px]">
-                        <span className="text-slate-400 font-bold uppercase">{language === 'am' ? 'ባንክ' : 'Bank'}</span>
+                        <span className="text-slate-400 font-bold uppercase">{t('bankLabel')}</span>
                         <span className="text-slate-700 font-extrabold text-right max-w-[150px] truncate">{lastWithdrawInfo.bank}</span>
                       </div>
                       <div className="flex justify-between items-center text-[10px]">
-                        <span className="text-slate-400 font-bold uppercase">{language === 'am' ? 'የአካውንት ቁጥር' : 'Account No'}</span>
+                        <span className="text-slate-400 font-bold uppercase">{t('accountNoLabelShort')}</span>
                         <span className="text-slate-700 font-mono font-bold">{lastWithdrawInfo.accNo}</span>
                       </div>
                       <div className="flex justify-between items-center text-[10px]">
-                        <span className="text-slate-400 font-bold uppercase">{language === 'am' ? 'ሁኔታ' : 'Status'}</span>
+                        <span className="text-slate-400 font-bold uppercase">{t('statusLabel')}</span>
                         <span className="bg-amber-100 text-amber-800 font-extrabold px-2 py-0.5 rounded-full text-[9px] uppercase tracking-wider">
-                          {language === 'am' ? 'በሂደት ላይ' : 'Pending Approval'}
+                          {t('pendingApproval')}
                         </span>
                       </div>
                       <div className="pt-1 text-[9px] text-slate-400 text-center italic">
-                        {language === 'am' ? 'ክፍያው በ24 ሰዓታት ውስጥ ይከናወናል።' : 'Payout processed within 24 hours.'}
+                        {t('payout24hNotice')}
                       </div>
                     </div>
                   )}
@@ -756,7 +1186,7 @@ function AppContent() {
                     }}
                     className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-3 px-4 rounded-xl text-xs transition-all shadow cursor-pointer mt-2"
                   >
-                    {language === 'am' ? 'ተከናውኗል' : 'Done'}
+                    {t('done')}
                   </button>
                 </div>
               ) : (
@@ -791,11 +1221,6 @@ function AppContent() {
                             </div>
                           )}
 
-                          <div className="bg-slate-50 border border-slate-100 p-3 rounded-xl flex justify-between items-center">
-                            <span className="text-[10px] font-bold text-slate-500 uppercase">{t('availableBalanceLabel')}</span>
-                            <span className="text-xs font-black text-slate-800">{currentUser.walletBalance.toLocaleString()} ETB</span>
-                          </div>
-
                           <div>
                             <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">{t('selectPayoutBank')}</label>
                             <select
@@ -804,10 +1229,81 @@ function AppContent() {
                               onChange={(e) => setWithdrawBank(e.target.value)}
                               className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-bronze disabled:opacity-50"
                             >
-                              {ETH_BANKS.map((bank, index) => (
-                                <option key={index} value={bank}>{bank}</option>
-                              ))}
+                              <optgroup label="📍 Local Payment Methods">
+                                {/* First show Ethiopian banks if user is Eth, or tag them as restricted otherwise */}
+                                {ETH_BANKS.map((bank, index) => (
+                                  <option key={`eth-${index}`} value={bank}>
+                                    🇪🇹 {bank} {!isEth ? '(Unavailable for your region)' : ''}
+                                  </option>
+                                ))}
+                                {/* Next show other countries' local methods */}
+                                {COUNTRY_LOCAL_METHODS.map((method, index) => {
+                                  const userCountry = getUserCountry(currentUser?.phoneNumber);
+                                  const isAvailable = userCountry?.code === method.countryCode;
+                                  return (
+                                    <option key={`other-local-${index}`} value={method.bank}>
+                                      {method.flag} {method.bank} {isEth ? '(Unavailable for Ethiopia)' : !isAvailable ? '(Unavailable for your region)' : '(Local)'}
+                                    </option>
+                                  );
+                                })}
+                              </optgroup>
+                              <optgroup label="🌐 International / Crypto Methods">
+                                {INT_WITHDRAW_METHODS.map((bank, index) => (
+                                  <option key={`int-${index}`} value={bank}>
+                                    💳 {bank} {isEth ? '(Unavailable for Ethiopia)' : ''}
+                                  </option>
+                                ))}
+                              </optgroup>
                             </select>
+
+                            {INT_WITHDRAW_METHODS.includes(withdrawBank) && isEth && (
+                              <div className="mt-1.5 p-2 bg-red-50 text-red-700 text-[9px] font-bold rounded-xl border border-red-100 leading-normal">
+                                ⚠️ This withdrawal method is unavailable for users in Ethiopia. Please select local options like Commercial Bank of Ethiopia (CBE) or Telebirr.
+                              </div>
+                            )}
+
+                            {INT_WITHDRAW_METHODS.includes(withdrawBank) && !isEth && (
+                              <div className="mt-1.5 p-2 bg-emerald-50 text-emerald-800 text-[9px] font-bold rounded-xl border border-emerald-100 leading-normal">
+                                🌐 Processing international payout via {withdrawBank}. Processing timeframe is 24 hours.
+                              </div>
+                            )}
+
+                            {/* If selected is a local bank for another country and user is from Ethiopia */}
+                            {COUNTRY_LOCAL_METHODS.some(m => m.bank === withdrawBank) && isEth && (
+                              <div className="mt-1.5 p-2 bg-red-50 text-red-700 text-[9px] font-bold rounded-xl border border-red-100 leading-normal">
+                                ⚠️ This local payout method is unavailable for users in Ethiopia. Ethiopia has its own local methods (CBE/Telebirr). Please select an Ethiopian Bank option.
+                              </div>
+                            )}
+
+                            {/* If selected is a local bank for another country and user is from a different non-matching country */}
+                            {(() => {
+                              const method = COUNTRY_LOCAL_METHODS.find(m => m.bank === withdrawBank);
+                              if (method && !isEth) {
+                                const userCountry = getUserCountry(currentUser?.phoneNumber);
+                                const isAvailable = userCountry?.code === method.countryCode;
+                                if (!isAvailable) {
+                                  return (
+                                    <div className="mt-1.5 p-2 bg-red-50 text-red-700 text-[9px] font-bold rounded-xl border border-red-100 leading-normal">
+                                      ⚠️ This method is restricted to users in {method.countryName}. Please select local methods for your region or international options.
+                                    </div>
+                                  );
+                                } else {
+                                  return (
+                                    <div className="mt-1.5 p-2 bg-emerald-50 text-emerald-800 text-[9px] font-bold rounded-xl border border-emerald-100 leading-normal">
+                                      📍 Processing local payout to your {method.bank} account. Processing timeframe is 24 hours.
+                                    </div>
+                                  );
+                                }
+                              }
+                              return null;
+                            })()}
+
+                            {/* If selected is an Ethiopian bank but user is from outside Ethiopia */}
+                            {ETH_BANKS.includes(withdrawBank) && !isEth && (
+                              <div className="mt-1.5 p-2 bg-red-50 text-red-700 text-[9px] font-bold rounded-xl border border-red-100 leading-normal">
+                                ⚠️ Ethiopian Bank payouts are only available for users registered in Ethiopia. Please select your own country's local method or international options.
+                              </div>
+                            )}
                           </div>
 
                           <div className="grid grid-cols-2 gap-3">
@@ -828,15 +1324,26 @@ function AppContent() {
                               <input
                                 type="number"
                                 required
-                                min="200"
-                                max={withdrawBank.toLowerCase().includes('telebirr') ? "75000" : "300000"}
+                                min={currency === 'USD' ? "1.02" : "200"}
+                                max={currency === 'USD' 
+                                  ? (withdrawBank.toLowerCase().includes('telebirr') ? (75000 / 196).toFixed(2) : (300000 / 196).toFixed(2)) 
+                                  : (withdrawBank.toLowerCase().includes('telebirr') ? "75000" : "300000")
+                                }
                                 disabled={isLocked}
-                                placeholder={withdrawBank.toLowerCase().includes('telebirr') ? "Min 200 - Max 75k" : "Min 200 - Max 300k"}
+                                placeholder={currency === 'USD' 
+                                  ? `Min 1.02 - Max ${(withdrawBank.toLowerCase().includes('telebirr') ? 75000 / 196 : 300000 / 196).toFixed(1)}` 
+                                  : (withdrawBank.toLowerCase().includes('telebirr') ? "Min 200 - Max 75k" : "Min 200 - Max 300k")
+                                }
                                 value={withdrawAmount}
                                 onChange={(e) => setWithdrawAmount(e.target.value)}
                                 className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-bronze disabled:opacity-50"
                               />
-                              <span className="text-[9px] text-slate-400 mt-1 block">Min: 200 | Max: {withdrawBank.toLowerCase().includes('telebirr') ? "75,000" : "300,000"} ETB</span>
+                              <span className="text-[9px] text-slate-400 mt-1 block leading-normal">
+                                {currency === 'USD' 
+                                  ? `Min: $1.02 | Max: $${(withdrawBank.toLowerCase().includes('telebirr') ? 75000 / 196 : 300000 / 196).toLocaleString(undefined, { maximumFractionDigits: 2 })} USD`
+                                  : `Min: 200 | Max: ${withdrawBank.toLowerCase().includes('telebirr') ? "75,000" : "300,000"} ETB`
+                                }
+                              </span>
                             </div>
                           </div>
 

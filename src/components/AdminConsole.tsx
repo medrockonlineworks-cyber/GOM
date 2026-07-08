@@ -101,7 +101,9 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
     updateBankLogo,
     updateMarketplaceLogo,
     deleteBankLogo,
-    deleteMarketplaceLogo
+    deleteMarketplaceLogo,
+    formatPrice,
+    currency
   } = useApp();
 
   const [activeAdminSubTab, setActiveAdminSubTab] = useState<'users' | 'recharges' | 'withdrawals' | 'orders' | 'announcements' | 'support' | 'reports' | 'logos'>('recharges');
@@ -767,11 +769,11 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
                   <div className="grid grid-cols-3 gap-2 text-center pt-2 border-t border-slate-100 text-[10px]">
                     <div className="bg-slate-50 p-1.5 rounded-lg">
                       <span className="block text-[8px] text-slate-400 uppercase font-bold">Balance</span>
-                      <span className="font-extrabold text-slate-700">{user.walletBalance.toLocaleString()} ETB</span>
+                      <span className="font-extrabold text-slate-700">{formatPrice(user.walletBalance)}</span>
                     </div>
                     <div className="bg-slate-50 p-1.5 rounded-lg">
                       <span className="block text-[8px] text-slate-400 uppercase font-bold">Earnings</span>
-                      <span className="font-extrabold text-slate-700">{user.totalEarnings.toLocaleString()} ETB</span>
+                      <span className="font-extrabold text-slate-700">{formatPrice(user.totalEarnings)}</span>
                     </div>
                     <div className="bg-slate-50 p-1.5 rounded-lg">
                       <span className="block text-[8px] text-slate-400 uppercase font-bold">Task Stage</span>
