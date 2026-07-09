@@ -3,25 +3,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { sha256 } from 'js-sha256';
+
 /**
- * Securely hashes a password using browser-native SHA-256
+ * Securely hashes a password using standard SHA-256 (independent of context)
  */
 export async function hashPassword(password: string): Promise<string> {
-  try {
-    const msgBuffer = new TextEncoder().encode(password);
-    const hashBuffer = await window.crypto.subtle.digest('SHA-256', msgBuffer);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-  } catch (error) {
-    // Basic fallback if crypto is not available in non-secure context
-    let hash = 0;
-    for (let i = 0; i < password.length; i++) {
-      const char = password.charCodeAt(i);
-      hash = (hash << 5) - hash + char;
-      hash = hash & hash; // Convert to 32bit integer
-    }
-    return 'fallback_' + Math.abs(hash).toString(16);
-  }
+  return sha256(password);
 }
 
 /**

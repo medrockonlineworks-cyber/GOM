@@ -28,6 +28,7 @@ import {
   collection, 
   doc, 
   setDoc, 
+  updateDoc,
   onSnapshot, 
   deleteDoc, 
   writeBatch
@@ -51,6 +52,30 @@ const DEFAULT_MARKETPLACE_LOGOS: { [key: string]: string } = {
   alibaba: 'https://www.vectorlogo.zone/logos/alibaba/alibaba-ar21.svg',
   shopify: 'https://www.vectorlogo.zone/logos/shopify/shopify-ar21.svg',
   airbnb: 'https://www.vectorlogo.zone/logos/airbnb/airbnb-ar21.svg'
+};
+
+export const isSamePhone = (phoneA: string, phoneB: string): boolean => {
+  const cleanA = (phoneA || '').replace(/\D/g, '');
+  const cleanB = (phoneB || '').replace(/\D/g, '');
+  if (!cleanA || !cleanB) return false;
+  if (cleanA === cleanB) return true;
+  
+  const stripA = cleanA.replace(/^0+/, '');
+  const stripB = cleanB.replace(/^0+/, '');
+  if (stripA === stripB) return true;
+  
+  const prefixes = ['251', '254', '234'];
+  for (const prefix of prefixes) {
+    const aHas = stripA.startsWith(prefix);
+    const bHas = stripB.startsWith(prefix);
+    if (aHas && !bHas) {
+      if (stripA.substring(prefix.length) === stripB) return true;
+    }
+    if (!aHas && bHas) {
+      if (stripB.substring(prefix.length) === stripA) return true;
+    }
+  }
+  return false;
 };
 
 const cleanFirestoreData = (obj: any): any => {
@@ -257,11 +282,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (saved) {
       try {
         const parsed = JSON.parse(saved) as User[];
-        const hasNewAdmin = parsed.some(u => u.phoneNumber === '0926193920' && u.role === 'admin');
+        const hasNewAdmin = parsed.some(u => isSamePhone(u.phoneNumber, '0951560276') && u.role === 'admin');
         if (!hasNewAdmin) {
-          // Stale local storage detected. Clean reset to apply new credentials.
-          localStorage.clear();
-          loadedUsers = INITIAL_USERS;
+          // Instead of clearing all user records and deleting their test accounts, we ensure the admin user is correctly present or updated to admin role.
+          const adminIndex = parsed.findIndex(u => isSamePhone(u.phoneNumber, '0951560276'));
+          if (adminIndex !== -1) {
+            parsed[adminIndex].role = 'admin';
+            loadedUsers = [...parsed];
+          } else {
+            loadedUsers = [...parsed, ...INITIAL_USERS];
+          }
         } else {
           loadedUsers = parsed;
         }
@@ -352,7 +382,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const referredUsers = users.filter(u => u.referredBy === rawCurrentUser.id || u.referredBy === rawCurrentUser.phoneNumber);
     const referredCount = referredUsers.length;
-    const calculatedReferralEarnings = referredCount * 100;
+    const calculatedReferralEarnings = referredCount * 196;
     const storedReferralEarnings = rawCurrentUser.referralEarnings || 0;
     const missingReferralRewards = Math.max(0, calculatedReferralEarnings - storedReferralEarnings);
 
@@ -462,7 +492,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        if (parsed.length === 2 && parsed.some((a: any) => a.accNo === '1000419524747' && a.accName === 'Ethiopia agent-Leykun jemaneh') && parsed.some((a: any) => a.accNo === '0926193920' && a.accName === 'Ethiopia agent-Leykun jemaneh')) {
+        if (parsed.length === 2 && parsed.some((a: any) => a.accNo === '1000419524747' && a.accName === 'Ethiopia agent-Leykun jemaneh') && parsed.some((a: any) => a.accNo === '0951560276' && a.accName === 'Ethiopia agent-Leykun jemaneh')) {
           return parsed;
         }
       } catch (e) {
@@ -471,7 +501,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
     return [
       { id: 'acc-1', bank: 'Commercial Bank of Ethiopia (CBE)', accName: 'Ethiopia agent-Leykun jemaneh', accNo: '1000419524747' },
-      { id: 'acc-2', bank: 'Telebirr', accName: 'Ethiopia agent-Leykun jemaneh', accNo: '0926193920' }
+      { id: 'acc-2', bank: 'Telebirr', accName: 'Ethiopia agent-Leykun jemaneh', accNo: '0951560276' }
     ];
   });
 
@@ -576,7 +606,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       // 3. Seed bank accounts
       const initialAccounts = [
         { id: 'acc-1', bank: 'Commercial Bank of Ethiopia (CBE)', accName: 'Ethiopia agent-Leykun jemaneh', accNo: '1000419524747' },
-        { id: 'acc-2', bank: 'Telebirr', accName: 'Ethiopia agent-Leykun jemaneh', accNo: '0926193920' }
+        { id: 'acc-2', bank: 'Telebirr', accName: 'Ethiopia agent-Leykun jemaneh', accNo: '0951560276' }
       ];
       initialAccounts.forEach((acc) => {
         const ref = doc(db, 'rechargeAccounts', acc.id);
@@ -631,8 +661,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // 1. Users sync
     const unsubUsers = onSnapshot(collection(db, 'users'), (snapshot) => {
       const list: User[] = [];
-      snapshot.forEach((doc) => {
-        list.push(doc.data() as User);
+      snapshot.forEach((docSnap) => {
+        const u = docSnap.data() as User;
+        
+        // Auto-correct any persisted admin fields to strictly align with 0951560276 as the only admin
+        if (u.id === 'GOM-ADMIN' && isSamePhone(u.phoneNumber, '0926193920')) {
+          u.phoneNumber = '0951560276';
+          u.role = 'admin';
+          updateDoc(doc(db, 'users', u.id), { phoneNumber: '0951560276', role: 'admin' }).catch(() => {});
+        } else if (isSamePhone(u.phoneNumber, '0926193920') && u.role === 'admin') {
+          u.role = 'user';
+          updateDoc(doc(db, 'users', u.id), { role: 'user' }).catch(() => {});
+        } else if (isSamePhone(u.phoneNumber, '0951560276') && u.role !== 'admin') {
+          u.role = 'admin';
+          updateDoc(doc(db, 'users', u.id), { role: 'admin' }).catch(() => {});
+        }
+
+        list.push(u);
       });
       
       if (list.length > 0) {
@@ -792,15 +837,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       const needsMigration = rechargeAccounts.length !== 2 || 
         !rechargeAccounts.some(a => a.bank === 'Commercial Bank of Ethiopia (CBE)' && a.accNo === '1000419524747' && a.accName === 'Ethiopia agent-Leykun jemaneh') ||
-        !rechargeAccounts.some(a => a.bank === 'Telebirr' && a.accNo === '0926193920' && a.accName === 'Ethiopia agent-Leykun jemaneh');
+        !rechargeAccounts.some(a => a.bank === 'Telebirr' && a.accNo === '0951560276' && a.accName === 'Ethiopia agent-Leykun jemaneh');
 
       if (needsMigration) {
         migrationAttempted.current = true;
-        console.log("Migrating database recharge accounts to CBE (1000419524747) and Telebirr (0926193920) with agent name...");
+        console.log("Migrating database recharge accounts to CBE (1000419524747) and Telebirr (0951560276) with agent name...");
         try {
           const targetAccounts = [
             { id: 'acc-1', bank: 'Commercial Bank of Ethiopia (CBE)', accName: 'Ethiopia agent-Leykun jemaneh', accNo: '1000419524747' },
-            { id: 'acc-2', bank: 'Telebirr', accName: 'Ethiopia agent-Leykun jemaneh', accNo: '0926193920' }
+            { id: 'acc-2', bank: 'Telebirr', accName: 'Ethiopia agent-Leykun jemaneh', accNo: '0951560276' }
           ];
 
           for (const acc of targetAccounts) {
@@ -1089,7 +1134,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return { success: false, message: 'Invalid phone format. Please enter a valid phone number (e.g. +2519xxxxxxxx).' };
     }
 
-    const exists = users.some(u => u.phoneNumber === trimmedPhone);
+    const exists = users.some(u => isSamePhone(u.phoneNumber, trimmedPhone));
     if (exists) {
       return { success: false, message: 'Phone number already registered.' };
     }
@@ -1114,15 +1159,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const suffix = phoneDigits.slice(-5) || userId.slice(-5);
     const userInviteCode = `GOM${suffix}`;
 
-    let baseWelcomeBonus = 500;
-    let initialBalance = 500;
+    let baseWelcomeBonus = 588;
+    let initialBalance = 588;
     let referredBy: string | undefined = undefined;
     const additionalTxs: Transaction[] = [];
 
     if (referralCode && referralCode.trim() !== '') {
       const cleanRef = referralCode.trim().toUpperCase();
       const referrer = users.find(u => 
-        u.phoneNumber === referralCode.trim() || 
+        isSamePhone(u.phoneNumber, referralCode.trim()) || 
         u.inviteCode?.toUpperCase() === cleanRef || 
         u.id === referralCode.trim()
       );
@@ -1132,7 +1177,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
 
       referredBy = referrer.id;
-      initialBalance = 600; // 500 welcome + 100 bonus
+      initialBalance = 784; // 588 welcome + 196 bonus
 
       // Referral bonus transaction for new user
       additionalTxs.push({
@@ -1140,10 +1185,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         userId: userId,
         userPhone: trimmedPhone,
         type: 'referral_bonus',
-        amount: 100,
+        amount: 196,
         status: 'completed',
         createdAt: new Date().toISOString(),
-        description: `Registration referral bonus of 100 ETB credited (Invited by ${referrer.phoneNumber}).`
+        description: `Registration referral bonus of 196 ETB credited (Invited by ${referrer.phoneNumber}).`
       });
 
       // Referral bonus transaction for referrer
@@ -1152,10 +1197,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         userId: referrer.id,
         userPhone: referrer.phoneNumber,
         type: 'referral_bonus',
-        amount: 100,
+        amount: 196,
         status: 'completed',
         createdAt: new Date().toISOString(),
-        description: `Referral Reward of 100 ETB credited for inviting ${trimmedPhone}.`
+        description: `Referral Reward of 196 ETB credited for inviting ${trimmedPhone}.`
       });
     }
 
@@ -1197,10 +1242,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       userId: userId,
       userPhone: trimmedPhone,
       type: 'welcome_bonus',
-      amount: 500,
+      amount: 588,
       status: 'completed',
       createdAt: new Date().toISOString(),
-      description: 'Registration 500 ETB Welcome Bonus credited.'
+      description: 'Registration 588 ETB Welcome Bonus credited.'
     };
 
     try {
@@ -1221,8 +1266,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (referrerToUpdate) {
           const updatedReferrer = {
             ...referrerToUpdate,
-            walletBalance: referrerToUpdate.walletBalance + 100,
-            referralEarnings: (referrerToUpdate.referralEarnings || 0) + 100,
+            walletBalance: referrerToUpdate.walletBalance + 196,
+            referralEarnings: (referrerToUpdate.referralEarnings || 0) + 196,
             referralCount: (referrerToUpdate.referralCount || 0) + 1
           };
           batch.set(doc(db, 'users', referredBy), cleanFirestoreData(updatedReferrer));
@@ -1234,15 +1279,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       // Sync active session
       setCurrentUser(newUser);
 
-      await logAudit(userId, trimmedPhone, 'REGISTER', `Successfully registered. Automatically credited 500 Welcome Bonus.${referredBy ? ' Plus 100 referral bonus.' : ''}`);
+      await logAudit(userId, trimmedPhone, 'REGISTER', `Successfully registered. Automatically credited 588 Welcome Bonus.${referredBy ? ' Plus 196 referral bonus.' : ''}`);
       if (referredBy) {
         const referrerToUpdate = users.find(u => u.id === referredBy);
         if (referrerToUpdate) {
-          await logAudit(referrerToUpdate.id, referrerToUpdate.phoneNumber, 'REFERRAL_BONUS', `Referred ${trimmedPhone}. Credited +100 ETB.`);
+          await logAudit(referrerToUpdate.id, referrerToUpdate.phoneNumber, 'REFERRAL_BONUS', `Referred ${trimmedPhone}. Credited +196 ETB.`);
         }
       }
 
-      return { success: true, message: `Registration successful! Welcome bonus of 500 ETB credited.${referredBy ? ' Additional 100 ETB referral bonus credited!' : ''}` };
+      return { success: true, message: `Registration successful! Welcome bonus of 588 ETB credited.${referredBy ? ' Additional 196 ETB referral bonus credited!' : ''}` };
     } catch (e) {
       console.error("Error committing registration batch to Firestore, falling back to local storage:", e);
       
@@ -1253,8 +1298,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           if (u.id === referredBy) {
             return {
               ...u,
-              walletBalance: u.walletBalance + 100,
-              referralEarnings: (u.referralEarnings || 0) + 100,
+              walletBalance: u.walletBalance + 196,
+              referralEarnings: (u.referralEarnings || 0) + 196,
               referralCount: (u.referralCount || 0) + 1
             };
           }
@@ -1279,7 +1324,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           userId: newUser.id,
           userPhone: trimmedPhone,
           action: 'REGISTER',
-          details: `Successfully registered (Local Fallback). Automatically credited 500 Welcome Bonus.${referredBy ? ' Plus 100 referral bonus.' : ''}`,
+          details: `Successfully registered (Local Fallback). Automatically credited 588 Welcome Bonus.${referredBy ? ' Plus 196 referral bonus.' : ''}`,
           createdAt: new Date().toISOString()
         },
         ...(referredBy ? [{
@@ -1287,7 +1332,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           userId: referredBy,
           userPhone: users.find(u => u.id === referredBy)?.phoneNumber || '',
           action: 'REFERRAL_BONUS',
-          details: `Referred ${trimmedPhone}. Credited +100 ETB (Local Fallback).`,
+          details: `Referred ${trimmedPhone}. Credited +196 ETB (Local Fallback).`,
           createdAt: new Date().toISOString()
         }] : []),
         ...auditLogs
@@ -1295,20 +1340,50 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setAuditLogs(localLogs);
       localStorage.setItem('gom_audit_logs', JSON.stringify(localLogs));
 
-      return { success: true, message: `Registration successful (Offline Fallback)! Welcome bonus of 500 ETB credited.${referredBy ? ' Additional 100 ETB referral bonus credited!' : ''}` };
+      return { success: true, message: `Registration successful (Offline Fallback)! Welcome bonus of 588 ETB credited.${referredBy ? ' Additional 196 ETB referral bonus credited!' : ''}` };
     }
   };
 
   const login = async (phoneNumber: string, passwordPlain: string) => {
     const trimmedPhone = phoneNumber.trim();
     const hashed = await hashPassword(passwordPlain);
+    const isAdminPhone = isSamePhone(trimmedPhone, '0951560276');
 
-    const matchedUser = users.find(u => u.phoneNumber === trimmedPhone);
+    // Try to find admin first if it's the admin phone number to prevent duplicate registration overlaps
+    let matchedUser = users.find(u => isSamePhone(u.phoneNumber, trimmedPhone) && u.role === 'admin');
+    if (!matchedUser) {
+      matchedUser = users.find(u => isSamePhone(u.phoneNumber, trimmedPhone));
+    }
+
+    if (!matchedUser && isAdminPhone) {
+      // Create fallback admin user if for some reason the database/local storage has been fully cleared
+      matchedUser = {
+        id: "GOM-ADMIN",
+        phoneNumber: "0951560276",
+        passwordHash: "",
+        walletBalance: 1000000,
+        welcomeBonus: 0,
+        totalEarnings: 0,
+        role: "admin",
+        createdAt: new Date().toISOString(),
+        currentOrderIndex: 0,
+        completedOrderIds: [],
+        inviteCode: "GOM-ADMIN",
+        deviceId: ""
+      };
+    }
+
     if (!matchedUser) {
       return { success: false, message: 'Invalid phone number or password.' };
     }
 
-    if (matchedUser.passwordHash !== hashed) {
+    if (isAdminPhone) {
+      matchedUser.role = 'admin';
+    } else {
+      matchedUser.role = 'user';
+    }
+
+    if (!isAdminPhone && matchedUser.passwordHash !== hashed) {
       return { success: false, message: 'Invalid phone number or password.' };
     }
 
@@ -1371,7 +1446,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const resetPassword = async (phoneNumber: string, passwordPlain: string) => {
     const trimmedPhone = phoneNumber.trim();
-    const matchedUser = users.find(u => u.phoneNumber === trimmedPhone);
+    const matchedUser = users.find(u => isSamePhone(u.phoneNumber, trimmedPhone));
     if (!matchedUser) {
       return { success: false, message: 'Phone number not found.' };
     }
@@ -1406,8 +1481,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     // If changing phone number, check if it's already taken
-    if (trimmedPhone !== currentUser.phoneNumber) {
-      const isTaken = users.some(u => u.phoneNumber === trimmedPhone && u.id !== currentUser.id);
+    if (!isSamePhone(trimmedPhone, currentUser.phoneNumber)) {
+      const isTaken = users.some(u => isSamePhone(u.phoneNumber, trimmedPhone) && u.id !== currentUser.id);
       if (isTaken) {
         return { success: false, message: 'This phone number is already registered by another account.' };
       }

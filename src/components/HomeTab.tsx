@@ -171,6 +171,22 @@ const generateRandomWithdrawal = () => {
   return { phone, amount };
 };
 
+export const TELEGRAM_COUNTRIES = [
+  { country: 'Ethiopia', flag: '🇪🇹', prefix: '+251', code: '251', channel: 'GOM_Ethiopia_Official', support: 'gom_support_et' },
+  { country: 'Kenya', flag: '🇰🇪', prefix: '+254', code: '254', channel: 'GOM_Kenya', support: 'GOM_Kenya_Support' },
+  { country: 'Nigeria', flag: '🇳🇬', prefix: '+234', code: '234', channel: 'GOM_Nigeria', support: 'GOM_Nigeria_Support' },
+  { country: 'Djibouti', flag: '🇩🇯', prefix: '+253', code: '253', channel: 'GOM_Djibouti', support: 'GOM_Djibouti_Support' },
+  { country: 'Somalia', flag: '🇸🇴', prefix: '+252', code: '252', channel: 'GOM_Somalia', support: 'GOM_Somalia_Support' },
+  { country: 'Eritrea', flag: '🇪🇷', prefix: '+291', code: '291', channel: 'GOM_Eritrea', support: 'GOM_Eritrea_Support' },
+  { country: 'South Sudan', flag: '🇸🇸', prefix: '+211', code: '211', channel: 'GOM_South_Sudan', support: 'GOM_South_Sudan_Support' },
+  { country: 'Sudan', flag: '🇸🇩', prefix: '+249', code: '249', channel: 'GOM_Sudan', support: 'GOM_Sudan_Support' },
+  { country: 'UAE', flag: '🇦🇪', prefix: '+971', code: '971', channel: 'GOM_UAE', support: 'GOM_UAE_Support' },
+  { country: 'Saudi Arabia', flag: '🇸🇦', prefix: '+966', code: '966', channel: 'GOM_Saudi_Arabia', support: 'GOM_Saudi_Arabia_Support' },
+  { country: 'USA/Canada', flag: '🇺🇸', prefix: '+1', code: '1', channel: 'GOM_US_Canada', support: 'GOM_US_Canada_Support' },
+  { country: 'UK', flag: '🇬🇧', prefix: '+44', code: '44', channel: 'GOM_UK', support: 'GOM_UK_Support' },
+  { country: 'China', flag: '🇨🇳', prefix: '+86', code: '86', channel: 'GOM_China', support: 'GOM_China_Support' }
+];
+
 interface HomeTabProps {
   onNavigateToOrders: () => void;
   onOpenRechargeModal: () => void;
@@ -201,6 +217,26 @@ export const HomeTab: React.FC<HomeTabProps> = ({
   const [isTelegramOpen, setIsTelegramOpen] = useState(false);
   const [isTeamOpen, setIsTeamOpen] = useState(false);
   const [copiedField, setCopiedField] = useState<'none' | 'code' | 'link'>('none');
+  const [telegramCountryIndex, setTelegramCountryIndex] = useState(0);
+  const [slideDirection, setSlideDirection] = useState<'left' | 'right'>('right');
+  const [copiedTelegramName, setCopiedTelegramName] = useState<string | null>(null);
+
+  // Sync active country index with user's phone on opening
+  useEffect(() => {
+    if (isTelegramOpen && currentUser) {
+      const phone = currentUser.phoneNumber || '';
+      const cleanPhone = phone.trim().replace(/\s+/g, '');
+      let matchedIndex = 0;
+      for (let i = 0; i < TELEGRAM_COUNTRIES.length; i++) {
+        const tc = TELEGRAM_COUNTRIES[i];
+        if (cleanPhone.startsWith(tc.prefix) || cleanPhone.startsWith(tc.code)) {
+          matchedIndex = i;
+          break;
+        }
+      }
+      setTelegramCountryIndex(matchedIndex);
+    }
+  }, [isTelegramOpen, currentUser]);
 
   if (!currentUser) return null;
 
@@ -410,19 +446,19 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                 if (ann.id === 'ann-1' || ann.title?.includes('Welcome to GOM')) {
                   return t('welcomeGomTitle');
                 }
-                if (ann.id === 'ann-2' || ann.title?.includes('Supported Ethiopian Banks')) {
+                if (ann.id === 'ann-2' || ann.title?.includes('Supported Ethiopian Banks') || ann.title?.includes('Supported Payment Methods')) {
                   return t('supportedBanksTitle');
                 }
                 return ann.title;
               })()}
             </h4>
-            <p className="text-[11px] text-slate-300 leading-relaxed font-medium">
+            <p className="text-[11px] text-slate-300 leading-relaxed font-medium whitespace-pre-line">
               {(() => {
                 const ann = announcements[announcementIndex];
-                if (ann.id === 'ann-1' || ann.content?.includes('thrilled to launch')) {
-                  return t('welcomeGomContent');
+                if (ann.id === 'ann-1' || ann.content?.includes('thrilled to launch') || ann.content?.includes('excited to introduce')) {
+                  return t('welcomeGomContent', { reward: formatPrice(588) });
                 }
-                if (ann.id === 'ann-2' || ann.content?.includes('processed within 1-2 hours')) {
+                if (ann.id === 'ann-2' || ann.content?.includes('processed within 1-2 hours') || ann.content?.includes('secure deposit and withdrawal')) {
                   return t('supportedBanksContent');
                 }
                 return ann.content;
@@ -474,13 +510,20 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                   <p className="text-xs leading-relaxed font-medium text-slate-200">
                     {t('profilePara3')}
                   </p>
-                  <p className="text-xs leading-relaxed font-medium text-slate-200">
-                    {t('profilePara4')}
-                  </p>
+                  {t('profilePara4') && (
+                    <p className="text-xs leading-relaxed font-medium text-slate-200">
+                      {t('profilePara4')}
+                    </p>
+                  )}
+                  {t('profilePara5') && (
+                    <p className="text-xs leading-relaxed font-medium text-slate-200">
+                      {t('profilePara5')}
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-3.5">
-                  <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-wider">{t('howGomWorksInEthiopia')}</h4>
+                  <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-wider">{t('howGomWorks')}</h4>
                   
                   <div className="bg-black border border-white/10 p-4 rounded-2xl flex items-start gap-3 shadow-xs">
                     <div className="w-8 h-8 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-400 shrink-0 font-black text-xs">1</div>
@@ -522,83 +565,220 @@ export const HomeTab: React.FC<HomeTabProps> = ({
               </div>
             </motion.div>
           </div>
-        )}        {isTelegramOpen && (
-          <div className="fixed inset-0 bg-slate-900/60 flex items-end justify-center z-50 backdrop-blur-sm p-0">
-            <motion.div
-              initial={{ y: '100%' }}
-              animate={{ y: 0 }}
-              exit={{ y: '100%' }}
-              transition={{ type: 'spring', damping: 25 }}
-              className="bg-white rounded-t-[32px] w-full max-w-md h-[70vh] flex flex-col overflow-hidden shadow-2xl border-t border-slate-100 text-left"
-            >
-              <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center shrink-0 bg-slate-50">
-                <div>
-                  <h3 className="text-sm font-black text-slate-800 uppercase tracking-wide">
-                    {t('telegramChannels')}
-                  </h3>
-                </div>
-                <button
-                  onClick={() => setIsTelegramOpen(false)}
-                  className="w-8 h-8 rounded-full bg-slate-200/70 hover:bg-slate-200 flex items-center justify-center text-slate-500 hover:text-slate-800 transition-all"
-                >
-                  <X size={16} />
-                </button>
-              </div>
+        )}        {isTelegramOpen && (() => {
+          const phone = currentUser?.phoneNumber || '';
+          const cleanPhone = phone.trim().replace(/\s+/g, '');
+          let registeredCountry = 'Ethiopia';
+          for (const cc of TELEGRAM_COUNTRIES) {
+            if (cleanPhone.startsWith(cc.prefix) || cleanPhone.startsWith(cc.code)) {
+              registeredCountry = cc.country;
+              break;
+            }
+          }
 
-              <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-slate-50/50">
-                <div className="space-y-3">
-                  <div className="bg-white border border-slate-200 rounded-2xl p-4 space-y-3 shadow-xs">
-                    <div>
-                      <span className="bg-sky-100 text-sky-950 text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full inline-block">{t('officialChannel')}</span>
-                      <h4 className="text-xs font-black text-slate-800 mt-1">{t('gomEthiopiaAnnChannel')}</h4>
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => window.open('https://t.me/GOM_Ethiopia_Official', '_blank')}
-                        className="flex-1 bg-sky-500 hover:bg-sky-600 text-white font-black text-[10px] uppercase tracking-wider py-2 rounded-xl text-center shadow-xs cursor-pointer"
-                      >
-                        {t('joinChannel')}
-                      </button>
-                      <button
-                        onClick={() => {
-                          navigator.clipboard.writeText('@GOM_Ethiopia_Official');
-                          alert(t('copied') || 'Username @GOM_Ethiopia_Official copied!');
-                        }}
-                        className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-black text-[10px] uppercase tracking-wider px-3.5 py-2 rounded-xl flex items-center gap-1 cursor-pointer"
-                      >
-                        <Copy size={11} /> {t('copy')}
-                      </button>
-                    </div>
-                  </div>
+          const activeCountryObj = TELEGRAM_COUNTRIES[telegramCountryIndex] || TELEGRAM_COUNTRIES[0];
+          const isRestricted = activeCountryObj.country !== registeredCountry;
 
-                  <div className="bg-white border border-slate-200 rounded-2xl p-4 space-y-3 shadow-xs">
-                    <div>
-                      <span className="bg-emerald-100 text-emerald-950 text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full inline-block">{t('supportDesk')}</span>
-                      <h4 className="text-xs font-black text-slate-800 mt-1">{t('gomOnlineTelegramAssistant')}</h4>
-                    </div>
-                    <div className="flex gap-2">
+          const slideVariants = {
+            enter: (direction: 'left' | 'right') => ({
+              x: direction === 'right' ? 100 : -100,
+              opacity: 0
+            }),
+            center: {
+              x: 0,
+              opacity: 1,
+              transition: { type: 'spring', stiffness: 300, damping: 25 }
+            },
+            exit: (direction: 'left' | 'right') => ({
+              x: direction === 'right' ? -100 : 100,
+              opacity: 0,
+              transition: { duration: 0.15 }
+            })
+          };
+
+          return (
+            <div className="fixed inset-0 bg-slate-900/60 flex items-end justify-center z-50 backdrop-blur-sm p-0">
+              <motion.div
+                initial={{ y: '100%' }}
+                animate={{ y: 0 }}
+                exit={{ y: '100%' }}
+                transition={{ type: 'spring', damping: 25 }}
+                className="bg-white rounded-t-[32px] w-full max-w-md h-[70vh] flex flex-col overflow-hidden shadow-2xl border-t border-slate-100 text-left"
+              >
+                <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center shrink-0 bg-slate-50">
+                  <div>
+                    <h3 className="text-sm font-black text-slate-800 uppercase tracking-wide">
+                      {t('telegramChannels')} ({activeCountryObj.country})
+                    </h3>
+                  </div>
+                  <button
+                    onClick={() => setIsTelegramOpen(false)}
+                    className="w-8 h-8 rounded-full bg-slate-200/70 hover:bg-slate-200 flex items-center justify-center text-slate-500 hover:text-slate-800 transition-all"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+
+                {/* Country Pills Selector */}
+                <div className="px-6 py-3 bg-slate-50 border-b border-slate-100 flex gap-2 overflow-x-auto no-scrollbar shrink-0">
+                  {TELEGRAM_COUNTRIES.map((tc, index) => {
+                    const isSelected = index === telegramCountryIndex;
+                    const isUserCountry = tc.country === registeredCountry;
+                    return (
                       <button
-                        onClick={() => window.open('https://t.me/gom_support_et', '_blank')}
-                        className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[10px] uppercase tracking-wider py-2 rounded-xl text-center shadow-xs cursor-pointer"
-                      >
-                        {t('messageSupport')}
-                      </button>
-                      <button
+                        key={tc.country}
                         onClick={() => {
-                          navigator.clipboard.writeText('@gom_support_et');
-                          alert(t('copied') || 'Username @gom_support_et copied!');
+                          setSlideDirection(index > telegramCountryIndex ? 'right' : 'left');
+                          setTelegramCountryIndex(index);
                         }}
-                        className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-black text-[10px] uppercase tracking-wider px-3.5 py-2 rounded-xl flex items-center gap-1 cursor-pointer"
+                        className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
+                          isSelected
+                            ? 'bg-sky-500 text-white shadow-sm'
+                            : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
+                        }`}
                       >
-                        <Copy size={11} /> {t('copy')}
+                        <span>{tc.flag}</span>
+                        <span>{tc.country}</span>
+                        {isUserCountry && (
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        )}
                       </button>
-                    </div>
+                    );
+                  })}
+                </div>
+
+                <div className="flex-1 relative flex overflow-hidden bg-slate-50/50">
+                  {/* Left Chevron Button */}
+                  <button
+                    onClick={() => {
+                      setSlideDirection('left');
+                      setTelegramCountryIndex((prev) => (prev - 1 + TELEGRAM_COUNTRIES.length) % TELEGRAM_COUNTRIES.length);
+                    }}
+                    className="absolute left-2.5 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-white shadow-md border border-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-800 transition-all cursor-pointer"
+                  >
+                    <ChevronLeft size={16} />
+                  </button>
+
+                  {/* Right Chevron Button */}
+                  <button
+                    onClick={() => {
+                      setSlideDirection('right');
+                      setTelegramCountryIndex((prev) => (prev + 1) % TELEGRAM_COUNTRIES.length);
+                    }}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-white shadow-md border border-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-800 transition-all cursor-pointer"
+                  >
+                    <ChevronRight size={16} />
+                  </button>
+
+                  {/* Sliding Cards Area */}
+                  <div className="flex-1 px-11 py-5 overflow-y-auto">
+                    <AnimatePresence mode="wait" custom={slideDirection}>
+                      <motion.div
+                        key={telegramCountryIndex}
+                        custom={slideDirection}
+                        variants={slideVariants}
+                        initial="enter"
+                        animate="center"
+                        exit="exit"
+                        className="space-y-4"
+                      >
+                        {/* Access Warning if Restricted removed as per user request */}
+
+                        {/* Official Channel Card */}
+                        <div className="bg-white border border-slate-200/80 rounded-2xl p-4 space-y-3.5 shadow-2xs">
+                          <div>
+                            <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full inline-block ${
+                              isRestricted ? 'bg-slate-100 text-slate-400' : 'bg-sky-100 text-sky-950'
+                            }`}>
+                              {t('officialChannel')}
+                            </span>
+                            <h4 className={`text-xs font-black mt-1 ${isRestricted ? 'text-slate-400' : 'text-slate-800'}`}>
+                              GOM {activeCountryObj.country} Channel
+                            </h4>
+                          </div>
+
+                          <div className="flex gap-2">
+                            {isRestricted ? (
+                              <button
+                                disabled
+                                className="flex-1 bg-slate-100 text-slate-400 font-black text-[10px] uppercase tracking-wider py-2 rounded-xl text-center shadow-xs cursor-not-allowed flex items-center justify-center gap-1.5"
+                              >
+                                <X size={11} /> {t('cantJoinChannel')}
+                              </button>
+                            ) : (
+                              <>
+                                <button
+                                  onClick={() => window.open(`https://t.me/${activeCountryObj.channel}`, '_blank')}
+                                  className="flex-1 bg-sky-500 hover:bg-sky-600 text-white font-black text-[10px] uppercase tracking-wider py-2 rounded-xl text-center shadow-xs cursor-pointer"
+                                >
+                                  {t('joinChannel')}
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(`@${activeCountryObj.channel}`);
+                                    setCopiedTelegramName('channel');
+                                    setTimeout(() => setCopiedTelegramName(null), 2000);
+                                  }}
+                                  className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-black text-[10px] uppercase tracking-wider px-3.5 py-2 rounded-xl flex items-center gap-1 cursor-pointer"
+                                >
+                                  <Copy size={11} /> {copiedTelegramName === 'channel' ? (t('copied') || 'Copied!') : t('copy')}
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Support Desk Card */}
+                        <div className="bg-white border border-slate-200/80 rounded-2xl p-4 space-y-3.5 shadow-2xs">
+                          <div>
+                            <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full inline-block ${
+                              isRestricted ? 'bg-slate-100 text-slate-400' : 'bg-emerald-100 text-emerald-950'
+                            }`}>
+                              {t('supportDesk')}
+                            </span>
+                            <h4 className={`text-xs font-black mt-1 ${isRestricted ? 'text-slate-400' : 'text-slate-800'}`}>
+                              GOM {activeCountryObj.country} Support
+                            </h4>
+                          </div>
+
+                          <div className="flex gap-2">
+                            {isRestricted ? (
+                              <button
+                                disabled
+                                className="flex-1 bg-slate-100 text-slate-400 font-black text-[10px] uppercase tracking-wider py-2 rounded-xl text-center shadow-xs cursor-not-allowed flex items-center justify-center gap-1.5"
+                              >
+                                <X size={11} /> {t('cantContactSupport')}
+                              </button>
+                            ) : (
+                              <>
+                                <button
+                                  onClick={() => window.open(`https://t.me/${activeCountryObj.support}`, '_blank')}
+                                  className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[10px] uppercase tracking-wider py-2 rounded-xl text-center shadow-xs cursor-pointer"
+                                >
+                                  {t('messageSupport')}
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(`@${activeCountryObj.support}`);
+                                    setCopiedTelegramName('support');
+                                    setTimeout(() => setCopiedTelegramName(null), 2000);
+                                  }}
+                                  className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-black text-[10px] uppercase tracking-wider px-3.5 py-2 rounded-xl flex items-center gap-1 cursor-pointer"
+                                >
+                                  <Copy size={11} /> {copiedTelegramName === 'support' ? (t('copied') || 'Copied!') : t('copy')}
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </motion.div>
+                    </AnimatePresence>
                   </div>
                 </div>
-              </div>
-            </motion.div>
-          </div>
-        )}
+              </motion.div>
+            </div>
+          );
+        })()}
 
         {isTeamOpen && (
           <div className="fixed inset-0 bg-slate-900/60 flex items-end justify-center z-50 backdrop-blur-sm p-0">
@@ -634,7 +814,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                     <span className="text-[9px] text-amber-900 font-extrabold uppercase tracking-widest bg-amber-200/50 px-2 py-0.5 rounded-full inline-block">{t('gomReferralRewards')}</span>
                     <h4 className="text-xs font-black text-slate-800 mt-1.5 font-sans">{t('earnExtraBonusMatch')}</h4>
                     <p className="text-[11px] text-slate-500 font-semibold leading-relaxed mt-1">
-                      {t('inviteFriendsDesc')}
+                      {t('inviteFriendsDesc', { reward: formatPrice(196) })}
                     </p>
                   </div>
 

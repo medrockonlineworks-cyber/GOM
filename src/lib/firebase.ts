@@ -1,5 +1,7 @@
 import { initializeApp } from 'firebase/app';
-import { initializeFirestore } from 'firebase/firestore';
+import { initializeFirestore, setLogLevel } from 'firebase/firestore';
+
+setLogLevel('error');
 
 const firebaseConfig = {
   apiKey: "AIzaSyBUhJx3uCQqiAXrtj_pOkcL7tY5cjKE1So",

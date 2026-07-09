@@ -190,25 +190,25 @@ export const INITIAL_ANNOUNCEMENTS: Announcement[] = [
   {
     id: "ann-1",
     title: "✨ Welcome to GOM!",
-    content: "We are thrilled to launch our advanced order matching and scaling system. Register today to receive an instant 500 ETB Welcome Bonus! Complete 15 daily tasks to maximize your commissions.",
+    content: "We are excited to introduce our global e-commerce optimization and smart marketing platform. Join GOM today and receive an instant $3 Welcome Reward after successful registration.\n\nComplete available marketing tasks, support merchant product promotion, and earn rewards through our intelligent task system. Start your journey with GOM and participate in digital commerce opportunities across supported countries worldwide.",
     createdAt: new Date().toISOString()
   },
   {
     id: "ann-2",
-    title: "🏦 Supported Ethiopian Banks Updated",
-    content: "All deposits and withdrawals are processed within 1-2 hours. Supported banks include: Commercial Bank of Ethiopia (CBE), Dashen Bank, Awash Bank, and Bank of Abyssinia. Standard bank transfer receipts are fully secure.",
+    title: "🏦 Supported Payment Methods",
+    content: "GOM provides secure deposit and withdrawal options through trusted payment partners available in each supported country and region. Processing times and available payment methods may vary depending on local financial systems and regulations.\n\nUsers can complete transactions through supported local banks, digital payment services, and other approved payment channels available in their country. All payment records and transaction confirmations are handled through secure verification processes to ensure a reliable experience for the global GOM community.",
     createdAt: new Date(Date.now() - 86400000).toISOString()
   }
 ];
 
 // Default accounts
-export const DEFAULT_ADMIN_PASS_HASH = "cf689676bf2c5be633961d2659ecc8212c900a35eb3235a80f59a061b98ab938"; // SHA-256 for '193920'
+export const DEFAULT_ADMIN_PASS_HASH = "2b03c89806148889482ecec643b5d0e5fcf3b7b7c87ae5d8b6bfa34e84e1768a"; // SHA-256 for '852121'
 export const DEFAULT_USER_PASS_HASH = "5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8"; // SHA-256 for 'Password123'
 
 export const INITIAL_USERS: User[] = [
   {
     id: "GOM-ADMIN",
-    phoneNumber: "0926193920",
+    phoneNumber: "0951560276",
     passwordHash: DEFAULT_ADMIN_PASS_HASH,
     walletBalance: 1000000,
     welcomeBonus: 0,

@@ -684,8 +684,8 @@ export const MyTab: React.FC<MyTabProps> = ({
                         </div>
 
                         <div className="text-[10px] text-emerald-300 leading-relaxed font-medium space-y-1 pt-1">
-                          <p>• {t('youGet100Etb')}</p>
-                          <p>• {t('yourFriendGets100Etb')}</p>
+                          <p>• {t('youGet100Etb', { reward: formatPrice(196) })}</p>
+                          <p>• {t('yourFriendGets100Etb', { reward: formatPrice(196) })}</p>
                         </div>
                       </div>
 
@@ -713,7 +713,7 @@ export const MyTab: React.FC<MyTabProps> = ({
                       <ol className="text-[10px] text-slate-500 space-y-1.5 list-decimal list-inside font-medium leading-relaxed font-sans">
                         <li>{t('shareUniqueInvitation')}</li>
                         <li>{t('whenTheyComplete')}</li>
-                        <li>{t('instantCashBonus')}</li>
+                        <li>{t('instantCashBonus', { reward: formatPrice(196) })}</li>
                       </ol>
                     </div>
                   </div>

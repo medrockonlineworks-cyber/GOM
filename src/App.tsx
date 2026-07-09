@@ -7,6 +7,7 @@ import React, { useState } from 'react';
 import { AppProvider, useApp, EXCHANGE_RATES } from './context/AppContext';
 import { useTranslation } from './utils/translations';
 import LanguageSelector from './components/LanguageSelector';
+import CurrencySelector from './components/CurrencySelector';
 import { MobileFrame } from './components/MobileFrame';
 import { AuthScreens } from './components/AuthScreens';
 import { HomeTab } from './components/HomeTab';
@@ -476,12 +477,7 @@ function AppContent() {
           GOM
         </h1>
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => setCurrency(currency === 'ETB' ? 'USD' : 'ETB')}
-            className="bg-[#051F10] border border-emerald-800/80 text-[10px] font-black text-white rounded-xl px-3 py-1.5 cursor-pointer hover:bg-emerald-900 transition-colors shadow-inner flex items-center gap-1"
-          >
-            🪙 {currency}
-          </button>
+          <CurrencySelector />
           <LanguageSelector />
         </div>
       </header>

@@ -15,6 +15,7 @@ type AuthView = 'login' | 'register' | 'forgot';
 const COUNTRIES = [
   { code: '+251', name: 'Ethiopia (+251)', flag: '🇪🇹' },
   { code: '+254', name: 'Kenya (+254)', flag: '🇰🇪' },
+  { code: '+234', name: 'Nigeria (+234)', flag: '🇳🇬' },
   { code: '+253', name: 'Djibouti (+253)', flag: '🇩🇯' },
   { code: '+252', name: 'Somalia (+252)', flag: '🇸🇴' },
   { code: '+291', name: 'Eritrea (+291)', flag: '🇪🇷' },
@@ -27,6 +28,19 @@ const COUNTRIES = [
   { code: '+86', name: 'China (+86)', flag: '🇨🇳' },
   { code: '', name: 'Local / Admin', flag: '📱' },
 ];
+
+const getFlagEmoji = (countryCode: string): string => {
+  if (!countryCode) return '📍';
+  const codePoints = countryCode
+    .toUpperCase()
+    .split('')
+    .map(char => 127397 + char.charCodeAt(0));
+  try {
+    return String.fromCodePoint(...codePoints);
+  } catch (e) {
+    return '📍';
+  }
+};
 
 const getFullPhoneNumber = (code: string, rawPhone: string) => {
   let clean = rawPhone.trim().replace(/\s+/g, '');
@@ -78,6 +92,162 @@ export const AuthScreens: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  // Country Geolocation Detection
+  const [detectedCountry, setDetectedCountry] = useState<{ iso: string; name: string; flag: string; phoneCode: string } | null>(null);
+  const [isDetecting, setIsDetecting] = useState(false);
+
+  React.useEffect(() => {
+    const fetchCountry = async () => {
+      setIsDetecting(true);
+      
+      const apis = [
+        {
+          url: 'https://ipwho.is/',
+          parse: (data: any) => {
+            if (data && data.country_code) {
+              const iso = data.country_code.toUpperCase();
+              return {
+                iso,
+                name: data.country || '',
+                phoneCode: data.country_phone ? (data.country_phone.startsWith('+') ? data.country_phone : '+' + data.country_phone) : '',
+              };
+            }
+            return null;
+          }
+        },
+        {
+          url: 'https://freeipapi.com/api/json',
+          parse: (data: any) => {
+            if (data && data.countryCode) {
+              const iso = data.countryCode.toUpperCase();
+              const phoneCodes: Record<string, string> = { ET: '+251', KE: '+254', NG: '+234' };
+              return {
+                iso,
+                name: data.countryName || '',
+                phoneCode: phoneCodes[iso] || '',
+              };
+            }
+            return null;
+          }
+        },
+        {
+          url: 'https://api.country.is',
+          parse: (data: any) => {
+            if (data && data.country) {
+              const iso = data.country.toUpperCase();
+              const phoneCodes: Record<string, string> = { ET: '+251', KE: '+254', NG: '+234' };
+              const names: Record<string, string> = { ET: 'Ethiopia', KE: 'Kenya', NG: 'Nigeria' };
+              return {
+                iso,
+                name: names[iso] || data.country,
+                phoneCode: phoneCodes[iso] || '',
+              };
+            }
+            return null;
+          }
+        },
+        {
+          url: 'https://ipapi.co/json/',
+          parse: (data: any) => {
+            if (data && data.country_code) {
+              const iso = data.country_code.toUpperCase();
+              return {
+                iso,
+                name: data.country_name || '',
+                phoneCode: data.country_calling_code || '',
+              };
+            }
+            return null;
+          }
+        }
+      ];
+
+      let detectedInfo: { iso: string; name: string; flag: string; phoneCode: string } | null = null;
+
+      for (const api of apis) {
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 2500); // 2.5s timeout per request
+          const res = await fetch(api.url, { signal: controller.signal });
+          clearTimeout(timeoutId);
+          
+          if (res.ok) {
+            const data = await res.json();
+            const parsed = api.parse(data);
+            if (parsed) {
+              detectedInfo = {
+                ...parsed,
+                flag: getFlagEmoji(parsed.iso)
+              };
+              break;
+            }
+          }
+        } catch (e) {
+          // Suppress errors entirely for sequential fallbacks to keep the console pristine
+        }
+      }
+
+      if (detectedInfo) {
+        setDetectedCountry(detectedInfo);
+        const iso = detectedInfo.iso;
+        if (iso === 'ET') {
+          setRegisterCountryCode('+251');
+        } else if (iso === 'KE') {
+          setRegisterCountryCode('+254');
+        } else if (iso === 'NG') {
+          setRegisterCountryCode('+234');
+        }
+      } else {
+        // Ultimate Timezone-based Fallback (completely offline/failsafe)
+        const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        let info = { iso: 'ET', name: 'Ethiopia', flag: '🇪🇹', phoneCode: '+251' };
+        let isSupported = true;
+        if (tz.includes('Addis_Ababa')) {
+          info = { iso: 'ET', name: 'Ethiopia', flag: '🇪🇹', phoneCode: '+251' };
+        } else if (tz.includes('Nairobi')) {
+          info = { iso: 'KE', name: 'Kenya', flag: '🇰🇪', phoneCode: '+254' };
+        } else if (tz.includes('Lagos')) {
+          info = { iso: 'NG', name: 'Nigeria', flag: '🇳🇬', phoneCode: '+234' };
+        } else {
+          info = { iso: 'US', name: 'United States', flag: '🇺🇸', phoneCode: '+1' };
+          isSupported = false;
+        }
+        setDetectedCountry(info);
+        if (isSupported) {
+          setRegisterCountryCode(info.phoneCode);
+        }
+      }
+      setIsDetecting(false);
+    };
+
+    fetchCountry();
+  }, []);
+
+  const getCountryMismatchError = () => {
+    if (!detectedCountry) return null;
+    
+    const supportedISOs = ['ET', 'KE', 'NG'];
+    if (!supportedISOs.includes(detectedCountry.iso)) {
+      return null; // Handled by separate isUnsupported block
+    }
+
+    const isoToCode: Record<string, string> = {
+      ET: '+251',
+      KE: '+254',
+      NG: '+234',
+    };
+
+    const expectedCode = isoToCode[detectedCountry.iso];
+    if (registerCountryCode !== expectedCode) {
+      const selectedCountryObj = COUNTRIES.find(c => c.code === registerCountryCode);
+      const selectedName = selectedCountryObj ? selectedCountryObj.name.split(' (')[0] : 'another country';
+      
+      return `We detected that your current location is ${detectedCountry.name}, but you selected ${selectedName}. You cannot register for a different location. Please register using your current country.`;
+    }
+
+    return null;
+  };
 
   const resetState = (targetView?: AuthView) => {
     const remember = localStorage.getItem('gom_remember_me') !== 'false';
@@ -131,6 +301,18 @@ export const AuthScreens: React.FC = () => {
     e.preventDefault();
     setError(null);
     setSuccess(null);
+
+    const isUnsupported = detectedCountry ? !['ET', 'KE', 'NG'].includes(detectedCountry.iso) : false;
+    if (isUnsupported) {
+      setError('GOM is currently unavailable in your country. Registration has not yet opened for your location. Please wait until GOM officially launches in your country.');
+      return;
+    }
+
+    const mismatchError = getCountryMismatchError();
+    if (mismatchError) {
+      setError(mismatchError);
+      return;
+    }
 
     if (password.length < 6) {
       setError('Password must be at least 6 characters long.');
@@ -207,14 +389,14 @@ export const AuthScreens: React.FC = () => {
           <div className="absolute inset-0 bg-[linear-gradient(45deg,transparent_25%,rgba(255,255,255,0.02)_50%,transparent_75%)] bg-[length:250px_250px] animate-[pulse_6s_infinite_alternate]" />
           
           {/* Floating Language Changer for non-authenticated users */}
-          <div className="absolute top-4 right-4 z-20">
+          <div className="absolute top-4 right-4 z-20 flex items-center gap-1.5">
             <LanguageSelector />
           </div>
 
           <h1 className="text-3.5xl font-black uppercase tracking-[0.25em] text-white">GOM</h1>
           <div className="h-[2px] w-12 bg-gradient-to-r from-transparent via-bronze to-transparent my-2" />
           <p className="text-amber-400/95 text-[9px] uppercase tracking-[0.18em] text-center font-extrabold">
-            Authorized Matching Terminal
+            {t('authorizedTerminal')}
           </p>
         </div>
 
@@ -267,7 +449,7 @@ export const AuthScreens: React.FC = () => {
                         <input
                           type="text"
                           required
-                          placeholder={loginCountryCode === '+251' ? "e.g. 09xxxxxxxx" : "e.g. Phone number"}
+                          placeholder={loginCountryCode === '+251' ? t('ethiopianPhonePlaceholder') : t('phonePlaceholder')}
                           value={phoneNumber}
                           onChange={(e) => setPhoneNumber(e.target.value)}
                           className="w-full bg-slate-50 text-slate-800 text-sm pl-10 pr-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-bronze/40 focus:border-bronze focus:bg-white transition-all font-medium placeholder-slate-400/80 shadow-xs"
@@ -350,29 +532,99 @@ export const AuthScreens: React.FC = () => {
           )}
 
           {/* REGISTER VIEW */}
-          {view === 'register' && (
-            <motion.div
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -15 }}
-              className="flex-1 flex flex-col justify-between"
-            >
-              <div>
-                <div className="mb-6">
-                  <h2 className="text-xl font-black tracking-tight text-slate-800">{t('createNewAccount')}</h2>
-                </div>
+          {view === 'register' && (() => {
+            const mismatchError = getCountryMismatchError();
+            const isUnsupported = detectedCountry ? !['ET', 'KE', 'NG'].includes(detectedCountry.iso) : false;
+            return (
+              <motion.div
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -15 }}
+                className="flex-1 flex flex-col justify-between"
+              >
+                <div>
+                  <div className="mb-6">
+                    <h2 className="text-xl font-black tracking-tight text-slate-800">{t('createNewAccount')}</h2>
+                  </div>
 
-                <form onSubmit={handleRegister} className="space-y-4">
-                  {error && (
+                  {/* Geolocation Status Message */}
+                  {isDetecting ? (
+                    <div className="bg-slate-50 border border-slate-100 rounded-2xl p-3 mb-4 flex items-center justify-between shadow-xs text-left">
+                      <div className="flex items-center gap-2">
+                        <div className="w-4 h-4 border-2 border-slate-300 border-t-bronze rounded-full animate-spin" />
+                        <span className="text-xs font-bold text-slate-500">{t('detectingLocation')}</span>
+                      </div>
+                    </div>
+                  ) : detectedCountry ? (
+                    <div className="bg-slate-50 border border-slate-100 rounded-2xl p-3.5 mb-4 flex items-center justify-between shadow-xs text-left">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xl leading-none">{detectedCountry.flag}</span>
+                        <div>
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('detectedCountry')}</p>
+                          <p className="text-xs font-black text-slate-800">{detectedCountry.name}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        {isUnsupported ? (
+                          <span className="bg-red-50 text-red-600 text-[9px] font-black uppercase px-2.5 py-1 rounded-full border border-red-100">
+                            {t('locationUnavailable')}
+                          </span>
+                        ) : mismatchError ? (
+                          <span className="bg-amber-50 text-amber-600 text-[9px] font-black uppercase px-2.5 py-1 rounded-full border border-amber-100 animate-pulse">
+                            {t('locationMismatch')}
+                          </span>
+                        ) : (
+                          <span className="bg-emerald-50 text-emerald-600 text-[9px] font-black uppercase px-2.5 py-1 rounded-full border border-emerald-100">
+                            {t('locationMatched')}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {/* Unsupported country blocking message */}
+                  {isUnsupported && detectedCountry && (
                     <motion.div 
                       initial={{ scale: 0.95, opacity: 0 }}
                       animate={{ scale: 1, opacity: 1 }}
-                      className="p-3 bg-red-50 text-red-600 rounded-xl text-xs font-semibold border border-red-100 flex items-center gap-2"
+                      className="p-4 bg-red-50 text-red-600 rounded-2xl text-xs font-semibold border border-red-100 flex flex-col gap-1.5 mb-4 shadow-xs text-left animate-pulse"
                     >
-                      <span className="w-1.5 h-1.5 bg-red-500 rounded-full shrink-0" />
-                      <span>{error}</span>
+                      <span className="font-black text-xs text-red-700 flex items-center gap-1.5 uppercase tracking-wide">
+                        🚫 {t('locationRestricted')}
+                      </span>
+                      <p className="text-red-600 font-bold leading-relaxed">
+                        {t('gomUnavailableCountry')}
+                      </p>
                     </motion.div>
                   )}
+
+                  {/* Mismatch error messaging */}
+                  {mismatchError && (
+                    <motion.div 
+                      initial={{ scale: 0.95, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      className="p-4 bg-red-50 text-red-600 rounded-2xl text-xs font-semibold border border-red-100 flex flex-col gap-1.5 mb-4 shadow-xs text-left"
+                    >
+                      <span className="font-black text-xs text-red-700 flex items-center gap-1.5 uppercase tracking-wide">
+                        ⚠️ {t('registrationFailed')}
+                      </span>
+                      <p className="text-red-600 font-bold leading-relaxed">
+                        {mismatchError}
+                      </p>
+                    </motion.div>
+                  )}
+
+                  <form onSubmit={handleRegister} className="space-y-4">
+                    {error && !mismatchError && !isUnsupported && (
+                      <motion.div 
+                        initial={{ scale: 0.95, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        className="p-3 bg-red-50 text-red-600 rounded-xl text-xs font-semibold border border-red-100 flex items-center gap-2 text-left"
+                      >
+                        <span className="w-1.5 h-1.5 bg-red-500 rounded-full shrink-0" />
+                        <span>{error}</span>
+                      </motion.div>
+                    )}
 
                   {success && (
                     <motion.div 
@@ -406,7 +658,7 @@ export const AuthScreens: React.FC = () => {
                         <input
                           type="text"
                           required
-                          placeholder={registerCountryCode === '+251' ? "e.g. 09xxxxxxxx" : "e.g. Phone number"}
+                          placeholder={registerCountryCode === '+251' ? t('ethiopianPhonePlaceholder') : t('phonePlaceholder')}
                           value={phoneNumber}
                           onChange={(e) => setPhoneNumber(e.target.value)}
                           className="w-full bg-slate-50 text-slate-800 text-sm pl-10 pr-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-bronze/40 focus:border-bronze focus:bg-white transition-all font-medium placeholder-slate-400/80 shadow-xs"
@@ -469,7 +721,7 @@ export const AuthScreens: React.FC = () => {
 
                   <button
                     type="submit"
-                    disabled={isLoading}
+                    disabled={isLoading || isUnsupported || !!mismatchError}
                     className="w-full bg-gradient-to-r from-bronze to-bronze-hover hover:from-bronze-hover hover:to-bronze text-white font-extrabold py-3.5 px-4 rounded-xl shadow-[0_4px_14px_rgba(212,163,89,0.3)] hover:shadow-[0_6px_20px_rgba(212,163,89,0.4)] active:scale-[0.98] transition-all flex items-center justify-center text-sm gap-2 mt-2 disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
                   >
                     {isLoading ? (
@@ -493,7 +745,8 @@ export const AuthScreens: React.FC = () => {
                 </div>
               </div>
             </motion.div>
-          )}
+            );
+          })()}
 
           {/* FORGOT PASSWORD VIEW */}
           {view === 'forgot' && (
@@ -561,7 +814,7 @@ export const AuthScreens: React.FC = () => {
                         <input
                           type="text"
                           required
-                          placeholder={forgotCountryCode === '+251' ? "e.g. 09xxxxxxxx" : "e.g. Phone number"}
+                          placeholder={forgotCountryCode === '+251' ? t('ethiopianPhonePlaceholder') : t('phonePlaceholder')}
                           value={phoneNumber}
                           onChange={(e) => setPhoneNumber(e.target.value)}
                           className="w-full bg-slate-50 text-slate-800 text-sm pl-10 pr-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-bronze/40 focus:border-bronze focus:bg-white transition-all font-medium placeholder-slate-400/80 shadow-xs"

@@ -29,7 +29,100 @@ import {
   Edit
 } from 'lucide-react';
 
-import { formatUserPhoneId } from '../utils/translations';
+import { formatUserPhoneId, useTranslation } from '../utils/translations';
+import { sha256 } from 'js-sha256';
+
+const securityTranslations: Record<string, {
+  gateTitle: string;
+  gateSubtitle: string;
+  passwordLabel: string;
+  passwordPlaceholder: string;
+  unlockBtn: string;
+  cancelBtn: string;
+  errorInvalid: string;
+}> = {
+  en: {
+    gateTitle: "Administrative Security Gate",
+    gateSubtitle: "This area contains restricted global market operational tools. Please re-authenticate by entering your administrator password to proceed.",
+    passwordLabel: "Admin Password",
+    passwordPlaceholder: "Enter admin password",
+    unlockBtn: "Unlock Console",
+    cancelBtn: "Cancel & Exit",
+    errorInvalid: "Invalid administrator password. Access denied.",
+  },
+  am: {
+    gateTitle: "የአስተዳዳሪ ደህንነት በር",
+    gateSubtitle: "ይህ ክፍል የተገደቡ የአለም አቀፍ ገበያ ማስኬጃ መሳሪያዎችን ይዟል። እባክዎን ለመቀጠል የአስተዳዳሪ የይለፍ ቃልዎን ያስገቡ።",
+    passwordLabel: "የአስተዳዳሪ ይለፍ ቃል",
+    passwordPlaceholder: "የአስተዳዳሪ ይለፍ ቃል ያስገቡ",
+    unlockBtn: "ቁልፍ ክፈት",
+    cancelBtn: "ሰርዝ እና ውጣ",
+    errorInvalid: "የተሳሳተ የአስተዳዳሪ ይለፍ ቃል። መዳረሻ ተከልክሏል።",
+  },
+  ar: {
+    gateTitle: "بوابة الأمان الإدارية",
+    gateSubtitle: "تحتوي هذه المنطقة على أدوات تشغيلية مقيدة لسوق الإنترنت العالمي. يرجى إعادة المصادقة بإدخال كلمة مرور المسؤول للمتابعة.",
+    passwordLabel: "كلمة مرور المسؤول",
+    passwordPlaceholder: "أدخل كلمة مرور المسؤول",
+    unlockBtn: "إلغاء قفل اللوحة",
+    cancelBtn: "إلغاء وخروج",
+    errorInvalid: "كلمة مرور المسؤول غير صالحة. تم رفض الوصول.",
+  },
+  zh: {
+    gateTitle: "系统管理员安全网关",
+    gateSubtitle: "此区域包含受限的全球市场运营工具。请重新输入管理员密码以继续访问。",
+    passwordLabel: "管理员密码",
+    passwordPlaceholder: "输入管理员密码",
+    unlockBtn: "解锁控制台",
+    cancelBtn: "取消并退出",
+    errorInvalid: "管理员密码不正确。拒绝访问。",
+  },
+  es: {
+    gateTitle: "Puerta de Seguridad Administrativa",
+    gateSubtitle: "Esta área contiene herramientas operativas restringidas del mercado global. Vuelva a autenticarse ingresando su contraseña de administrador para continuar.",
+    passwordLabel: "Contraseña de Administrador",
+    passwordPlaceholder: "Ingrese la contraseña de administrador",
+    unlockBtn: "Desbloquear Consola",
+    cancelBtn: "Cancelar y Salir",
+    errorInvalid: "Contraseña de administrador no válida. Acceso denegado.",
+  },
+  fr: {
+    gateTitle: "Portail de Sécurité Administratif",
+    gateSubtitle: "Cette zone contient des outils opérationnels restreints du marché mondial. Veuillez vous réauthentifier en saisissant votre mot de passe administrateur pour continuer.",
+    passwordLabel: "Mot de passe Administrateur",
+    passwordPlaceholder: "Saisir le mot de passe",
+    unlockBtn: "Déverrouiller la Console",
+    cancelBtn: "Annuler et Quitter",
+    errorInvalid: "Mot de passe administrateur incorrect. Accès refusé.",
+  },
+  sw: {
+    gateTitle: "Lango la Usalama la Utawala",
+    gateSubtitle: "Eneo hili lina zana za uendeshaji zilizozuiliwa za soko la kimataifa. Tafadhali thibitisha upya kwa kuingiza nenosiri lako la usimamizi ili kuendelea.",
+    passwordLabel: "Nenosiri la Usimamizi",
+    passwordPlaceholder: "Weka nenosiri la usimamizi",
+    unlockBtn: "Fungua Jopo",
+    cancelBtn: "Ghairi na Toka",
+    errorInvalid: "Nenosiri la usimamizi si sahihi. Ufikiaji umekataliwa.",
+  },
+  so: {
+    gateTitle: "Albaabka Amniga Maamulka",
+    gateSubtitle: "Goobtan waxay ka kooban tahay qalab hawleed xaddidan oo suuqa caalamiga ah. Fadlan mar kale is-xaqiiji adigoo gelaya eraygaaga sirta ah ee maamulka si aad u sii waddo.",
+    passwordLabel: "Erayga Sirta ah ee Maamulaha",
+    passwordPlaceholder: "Geli erayga sirta ah ee maamulka",
+    unlockBtn: "Furo Guddiga",
+    cancelBtn: "Jooji & Kabax",
+    errorInvalid: "Erayga sirta ah ee maamulaha waa khalad. Helitaanka waa la diiday.",
+  },
+  pt: {
+    gateTitle: "Portal de Segurança Administrativa",
+    gateSubtitle: "Esta área contém ferramentas operacionais restritas do mercado global. Por favor, reautentique-se digitando sua senha de administrador para continuar.",
+    passwordLabel: "Senha do Administrador",
+    passwordPlaceholder: "Digite a senha do administrador",
+    unlockBtn: "Desbloquear Painel",
+    cancelBtn: "Cancelar e Sair",
+    errorInvalid: "Senha de administrador inválida. Acesso negado.",
+  }
+};
 
 interface AdminConsoleProps {
   onExit?: () => void;
@@ -103,8 +196,30 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
     deleteBankLogo,
     deleteMarketplaceLogo,
     formatPrice,
-    currency
+    currency,
+    currentUser,
+    language
   } = useApp();
+
+  const { t } = useTranslation(language);
+  const [isAuthorized, setIsAuthorized] = useState(false);
+  const [passwordInput, setPasswordInput] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
+
+  const handleAuthorize = (e: React.FormEvent) => {
+    e.preventDefault();
+    const hashed = sha256(passwordInput);
+    // Explicitly require the admin-specific console password '852121'
+    const targetHash = "2b03c89806148889482ecec643b5d0e5fcf3b7b7c87ae5d8b6bfa34e84e1768a";
+    
+    if (hashed === targetHash) {
+      setIsAuthorized(true);
+      setErrorMsg('');
+    } else {
+      const st = securityTranslations[language] || securityTranslations.en;
+      setErrorMsg(st.errorInvalid);
+    }
+  };
 
   const [activeAdminSubTab, setActiveAdminSubTab] = useState<'users' | 'recharges' | 'withdrawals' | 'orders' | 'announcements' | 'support' | 'reports' | 'logos'>('recharges');
   const [activeScreenshot, setActiveScreenshot] = useState<string | null>(null);
@@ -158,6 +273,93 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
     }
     cancelForm();
   };
+
+  if (!isAuthorized) {
+    const st = securityTranslations[language] || securityTranslations.en;
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center bg-slate-950 p-6 min-h-[400px]">
+        <motion.div 
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+          className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-2xl text-center"
+        >
+          {/* Logo / Lock Indicator */}
+          <div className="flex justify-center mb-6">
+            <div className="w-16 h-16 bg-amber-500/10 border border-amber-500/20 rounded-full flex items-center justify-center shadow-lg relative">
+              <motion.div 
+                animate={{ scale: [1, 1.05, 1] }}
+                transition={{ duration: 3, repeat: Infinity }}
+                className="absolute inset-0 bg-amber-500/5 rounded-full"
+              />
+              <ShieldCheck size={32} className="text-amber-500" />
+            </div>
+          </div>
+
+          <h2 className="text-lg font-black uppercase tracking-wider text-slate-100 mb-2">
+            {st.gateTitle}
+          </h2>
+          <p className="text-xs text-slate-400 leading-relaxed mb-6">
+            {st.gateSubtitle}
+          </p>
+
+          <form onSubmit={handleAuthorize} className="space-y-4">
+            <div className="text-left">
+              <label className="block text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1.5 pl-1">
+                {st.passwordLabel}
+              </label>
+              <div className="relative">
+                <input
+                  type="password"
+                  value={passwordInput}
+                  onChange={(e) => {
+                    setPasswordInput(e.target.value);
+                    if (errorMsg) setErrorMsg('');
+                  }}
+                  placeholder={st.passwordPlaceholder}
+                  className="w-full bg-slate-950 text-white placeholder-slate-600 border border-slate-800 focus:border-amber-500/50 rounded-2xl px-4 py-3.5 text-sm outline-none transition-all pr-12 font-mono"
+                  autoFocus
+                />
+                <div className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-600">
+                  <Terminal size={16} />
+                </div>
+              </div>
+            </div>
+
+            {errorMsg && (
+              <motion.p 
+                initial={{ opacity: 0, y: -5 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="text-[11px] font-bold text-rose-500 pl-1 text-left flex items-center gap-1.5"
+              >
+                ⚠️ {errorMsg}
+              </motion.p>
+            )}
+
+            <div className="flex flex-col gap-2.5 pt-2">
+              <button
+                type="submit"
+                disabled={!passwordInput.trim()}
+                className="w-full bg-amber-500 hover:bg-amber-600 disabled:opacity-50 disabled:hover:bg-amber-500 text-slate-950 font-black text-xs uppercase tracking-widest py-3.5 rounded-2xl cursor-pointer transition-all hover:scale-[1.01] active:scale-[0.99] shadow-md shadow-amber-500/5 flex items-center justify-center gap-2"
+              >
+                <ShieldCheck size={14} /> {st.unlockBtn}
+              </button>
+
+              {onExit && (
+                <button
+                  type="button"
+                  onClick={onExit}
+                  className="w-full bg-transparent hover:bg-slate-800 text-slate-400 hover:text-slate-200 font-bold text-[10px] uppercase tracking-wider py-2.5 rounded-2xl cursor-pointer transition-all border border-transparent hover:border-slate-800"
+                >
+                  {st.cancelBtn}
+                </button>
+              )}
+            </div>
+          </form>
+        </motion.div>
+      </div>
+    );
+  }
 
   const pendingRecharges = transactions.filter(t => t.type === 'recharge' && t.status === 'pending');
   const approvedRecharges = transactions.filter(t => t.type === 'recharge' && t.status === 'approved');
@@ -789,7 +991,7 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
                     <div className="flex gap-2">
                       <input
                         type="number"
-                        placeholder="Amount in ETB (e.g. 500)"
+                        placeholder="Amount in ETB (e.g. 588)"
                         value={adjustAmounts[user.id] || ''}
                         onChange={(e) => setAdjustAmounts(prev => ({ ...prev, [user.id]: e.target.value }))}
                         className="flex-1 min-w-0 bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-bronze"
