@@ -45,6 +45,216 @@ import {
   Coins
 } from 'lucide-react';
 
+const rechargeSuggestionTranslations: Record<string, {
+  suggestTitle: string;
+  suggestDesc: string;
+  useAmountBtn: string;
+}> = {
+  en: {
+    suggestTitle: "Transfer Recommendation",
+    suggestDesc: "To ensure fast verification, we recommend transferring the rounded-up amount of {rounded} {currency} instead of {exact} {currency}.",
+    useAmountBtn: "Use {rounded} {currency}",
+  },
+  am: {
+    suggestTitle: "የማስተላለፊያ ምክረ ሃሳብ",
+    suggestDesc: "ፈጣን ማረጋገጫ ለማግኘት፣ ከ {exact} {currency} ይልቅ ወደ ላይ የተጠጋጋውን {rounded} {currency} እንዲያስተላልፉ እንመክራለን።",
+    useAmountBtn: "{rounded} {currency} ተጠቀም",
+  },
+  ar: {
+    suggestTitle: "توصية التحويل",
+    suggestDesc: "لضمان التحقق السريع، نوصي بتحويل المبلغ المقرب لأعلى {rounded} {currency} بدلاً من {exact} {currency}.",
+    useAmountBtn: "استخدم {rounded} {currency}",
+  },
+  zh: {
+    suggestTitle: "转账建议",
+    suggestDesc: "为确保快速审核，建议您转账向上取整的金额 {rounded} {currency}，而非精确的 {exact} {currency}。",
+    useAmountBtn: "使用 {rounded} {currency}",
+  },
+  es: {
+    suggestTitle: "Recomendación de Transferencia",
+    suggestDesc: "Para garantizar una verificación rápida, recomendamos transferir el monto redondeado de {rounded} {currency} en lugar de {exact} {currency}.",
+    useAmountBtn: "Usar {rounded} {currency}",
+  },
+  fr: {
+    suggestTitle: "Recommandation de Transfert",
+    suggestDesc: "Pour garantir une vérification rapide, nous vous recommandons de transférer le montant arrondi de {rounded} {currency} au lieu de {exact} {currency}.",
+    useAmountBtn: "Utiliser {rounded} {currency}",
+  },
+  sw: {
+    suggestTitle: "Pendekezo la Uhamisho",
+    suggestDesc: "Ili kuhakikisha uthibitishaji wa haraka, tunapendekeza uhamishe kiasi kilichofanyiwa makadirio ya juu cha {rounded} {currency} badala ya {exact} {currency}.",
+    useAmountBtn: "Tumia {rounded} {currency}",
+  },
+  so: {
+    suggestTitle: "Talo ku saabsan xawaaladda",
+    suggestDesc: "Si loo xaqiijiyo hubin degdeg ah, waxaan kugula talineynaa inaad wareejiso cadadka la soo koobay ee {rounded} {currency} bedelkii {exact} {currency}.",
+    useAmountBtn: "Isticmaal {rounded} {currency}",
+  },
+  pt: {
+    suggestTitle: "Recomendação de Transferência",
+    suggestDesc: "Para garantir uma verificação rápida, recomendamos transferir o valor arredondado de {rounded} {currency} em vez de {exact} {currency}.",
+    useAmountBtn: "Usar {rounded} {currency}",
+  }
+};
+
+const txidGuideTranslations: Record<string, {
+  cbe: string;
+  telebirr: string;
+  binance: string;
+  other: string;
+}> = {
+  en: {
+    cbe: "CBE Tip: CBE transaction reference codes are exactly 12 characters/digits (e.g., FTxxxxxxxxxx). Double check your receipt or SMS.",
+    telebirr: "Telebirr Tip: Telebirr transaction IDs are exactly 10 characters/digits (e.g., PPxxxxxxxxx). Check your SMS or confirmation screen.",
+    binance: "Binance Tip: Enter your TRC-20 TxID (Transaction Hash) to ensure rapid, automated transaction matching.",
+    other: "Please copy and paste the exact transaction ID, reference number, or transaction hash from your receipt."
+  },
+  am: {
+    cbe: "የCBE ጠቃሚ ምክር፡ የCBE ማጣቀሻ ኮዶች በትክክል 12 ቁምፊዎች/አሃዞች ናቸው (ምሳሌ፡ FTxxxxxxxxxx)። እባክዎ ደረሰኝዎን ወይም SMSዎን ደግመው ያረጋግጡ።",
+    telebirr: "የቴሌብር ጠቃሚ ምክር፡ የቴሌብር ግብይት መለያዎች በትክክል 10 ቁምፊዎች/አሃዞች ናቸው (ምሳሌ፡ PPxxxxxxxxx)። እባክዎ SMSዎን ወይም ማረጋገጫዎን ያረጋግጡ።",
+    binance: "የቢናንስ ጠቃሚ ምክር፡ ፈጣን እና አውቶማቲክ ግብይትን ለማረጋገጥ የእርስዎን የTRC-20 TxID (የግብይት ሃሽ) ያስገቡ።",
+    other: "እባክዎን ከደረሰኝዎ ላይ ትክክለኛውን የግብይት መለያ፣ የማጣቀሻ ቁጥር ወይም የግብይት ሃሽ ኮፒ አድርገው እዚህ ይለጥፉ።"
+  },
+  ar: {
+    cbe: "نصيحة CBE: رموز مرجع معاملات البنك التجاري الإثيوبي تتكون من 12 رقمًا/حرفًا (مثل FTxxxxxxxxxx). تحقق من الإيصال أو الرسالة النصية.",
+    telebirr: "نصيحة Telebirr: رموز مرجع معاملات تيلبير تتكون من 10 أرقام/أحرف (مثل PPxxxxxxxxx). تحقق من الرسالة النصية أو شاشة التأكيد.",
+    binance: "نصيحة Binance: أدخل رمز TxID (هاش المعاملة) الخاص بـ TRC-20 لضمان مطابقة المعاملة التلقائية السريعة.",
+    other: "يرجى نسخ ولصق رمز مرجع المعاملة بدقة من إيصال الدفع الخاص بك."
+  },
+  es: {
+    cbe: "Consejo de CBE: Los códigos de referencia de CBE tienen exactamente 12 caracteres/dígitos (ej. FTxxxxxxxxxx). Verifique su recibo o SMS.",
+    telebirr: "Consejo de Telebirr: Los ID de transacción de Telebirr tienen exactamente 10 caracteres/dígitos (ej. PPxxxxxxxxx). Verifique su SMS.",
+    binance: "Consejo de Binance: Ingrese su TxID de TRC-20 (Hash de transacción) para asegurar una verificación rápida y automatizada.",
+    other: "Copie y pegue el ID de transacción, código de referencia o hash exacto de su recibo."
+  },
+  so: {
+    cbe: "Talo CBE: Lambarada tixraaca ee CBE waa sax 12 xaraf/lambar (tusaale, FTxxxxxxxxxx). Hubi rasiidhkaaga ama SMS-ka.",
+    telebirr: "Talo Telebirr: ID-yada Telebirr waa sax 10 xaraf/lambar (tusaale, PPxxxxxxxxx). Hubi SMS-kaaga ama shaashadda xaqiijinta.",
+    binance: "Talo Binance: Geli TxID-gaaga TRC-20 si loo xaqiijiyo xawaalad degdeg ah oo toos ah.",
+    other: "Fadlan koobi garee oo halkan ku dheji lambarka saxda ah ee tixraaca ama ID-ga xawaaladda ee rasiidhkaaga."
+  },
+  sw: {
+    cbe: "Ushauri wa CBE: Misimbo ya marejeleo ya CBE ina herufi/nambari 12 haswa (mfano, FTxxxxxxxxxx). Hakiki risiti au SMS yako.",
+    telebirr: "Ushauri wa Telebirr: Misimbo ya muamala wa Telebirr ina herufi/nambari 10 haswa (mfano, PPxxxxxxxxx). Hakiki SMS au skrini yako.",
+    binance: "Ushauri wa Binance: Weka TxID yako ya TRC-20 ili kuhakikisha uthibitishaji wa haraka na otomatiki.",
+    other: "Tafadhali nakili na uweke msimbo kamili wa marejeleo ya muamala au TXID kutoka kwenye risiti yako."
+  },
+  fr: {
+    cbe: "Conseil CBE : Les codes de référence CBE font exactement 12 caractères/chiffres (ex. FTxxxxxxxxxx). Vérifiez votre reçu ou SMS.",
+    telebirr: "Conseil Telebirr : Les identifiants Telebirr font exactement 10 caractères/chiffres (ex. PPxxxxxxxxx). Vérifiez votre SMS.",
+    binance: "Conseil Binance : Saisissez votre TxID TRC-20 (Hash de transaction) pour un rapprochement rapide et automatisé.",
+    other: "Veuillez copier et coller l'identifiant de transaction, le code de référence ou le hash exact de votre reçu."
+  },
+  pt: {
+    cbe: "Dica CBE: Os códigos de referência CBE têm exatamente 12 caracteres/dígitos (ex. FTxxxxxxxxxx). Verifique seu recibo ou SMS.",
+    telebirr: "Dica Telebirr: Os IDs de transação Telebirr têm exatamente 10 caracteres/dígitos (ex. PPxxxxxxxxx). Verifique seu SMS.",
+    binance: "Dica Binance: Insira seu TxID de TRC-20 (Hash de transação) para garantir uma verificação rápida e automatizada.",
+    other: "Copie e cole o ID de transação, código de referência ou hash exato do seu recibo."
+  },
+  zh: {
+    cbe: "CBE 提示：CBE 交易参考代码正好为 12 位字符/数字（例如 FTxxxxxxxxxx）。请仔细核对您的收据或短信。",
+    telebirr: "Telebirr 提示：Telebirr 交易 ID 正好为 10 位字符/数字（例如 PPxxxxxxxxx）。请核对您的短信或确认屏幕。",
+    binance: "Binance 提示：输入您的 TRC-20 TxID（交易哈希）以确保快速、自动化的对账审核。",
+    other: "请复制并粘贴您收据上的准确交易 ID、参考号或交易哈希。"
+  }
+};
+
+const paymentGuideTranslations: Record<string, {
+  cbeTitle: string;
+  cbeSteps: string[];
+  telebirrTitle: string;
+  telebirrSteps: string[];
+  binanceTitle: string;
+  binanceSteps: string[];
+  intTitle: string;
+  intSteps: string[];
+  otherTitle: string;
+  otherSteps: string[];
+}> = {
+  en: {
+    cbeTitle: "Commercial Bank of Ethiopia (CBE) - Step-by-Step Guide",
+    cbeSteps: [
+      "Copy our official CBE Account Number shown above: 1000419524747.",
+      "Open your CBE Birr app, CBE Mobile Banking app, or dial *847#.",
+      "Transfer your desired recharge amount to Ethiopia agent-Leykun jemaneh.",
+      "Copy the 12-digit transaction reference ID (usually starts with 'FT' or is purely numeric) from your confirmation SMS/receipt.",
+      "Enter that exact 12-digit reference ID in the field below, upload the transfer receipt screenshot, and click 'Submit'."
+    ],
+    telebirrTitle: "Telebirr Mobile Money - Step-by-Step Guide",
+    telebirrSteps: [
+      "Copy our official Telebirr Number shown above: 0951560276.",
+      "Open your Telebirr app or dial *127# on your phone.",
+      "Select 'Send Money', choose 'To mobile number', and enter our agent number.",
+      "Send the desired recharge amount to Ethiopia agent-Leykun jemaneh.",
+      "Copy the 10-digit transaction ID from your confirmation SMS/receipt (usually starts with 'PP' or 'TX').",
+      "Enter the exact 10-digit ID in the field below, upload your receipt screenshot, and click 'Submit'."
+    ],
+    binanceTitle: "Binance Pay (USDT) - Crypto Transfer Guide",
+    binanceSteps: [
+      "Copy our official USDT-TRC20 wallet address shown above.",
+      "Open your Binance app or preferred crypto wallet, and select 'Withdraw' or 'Pay'.",
+      "Send your desired deposit amount in USDT on the Tron (TRC-20) network.",
+      "After the transfer succeeds, copy the Transaction Hash (TxID) from your transaction details.",
+      "Paste the TxID in the reference field below, upload a screenshot of your successful transaction, and click 'Submit'."
+    ],
+    intTitle: "International Gateways - Step-by-Step Guide",
+    intSteps: [
+      "We will issue a secure checkout link or invoice for your chosen amount.",
+      "Complete the payment using your Visa, Mastercard, or PayPal account.",
+      "Note down the receipt number, payment email, or reference code.",
+      "Enter the reference details below, upload a screenshot of the payment page, and click 'Submit'."
+    ],
+    otherTitle: "Local Mobile Money & Bank Agents - Step-by-Step Guide",
+    otherSteps: [
+      "Copy our local agent account number or transfer details shown above.",
+      "Send your desired deposit amount using your local mobile money (e.g., M-Pesa, EVC) or local bank app.",
+      "Copy the exact transaction reference number or transaction ID from your provider's SMS or receipt.",
+      "Enter the reference number below, upload the confirmation screenshot, and click 'Submit' for manual verification."
+    ]
+  },
+  am: {
+    cbeTitle: "የኢትዮጵያ ንግድ ባንክ (CBE) - የደረጃ በደረጃ መመሪያ",
+    cbeSteps: [
+      "ከላይ የሚታየውን ይፋዊ የCBE አካውንት ቁጥራችንን ይቅዱ፡ 1000419524747።",
+      "የሲቢኢ ብር (CBE Birr) መተግበሪያን፣ የCBE ሞባይል ባንኪንግ መተግበሪያን ይክፈቱ ወይም *847# ይደውሉ።",
+      "የሚፈልጉትን የማስቀመጫ መጠን ወደ Ethiopia agent-Leykun jemaneh ያስተላልፉ።",
+      "ከተላከ በኋላ ከክፍያ ማረጋገጫ አጭር መልእክት (SMS) ወይም ደረሰኝ ላይ ባለ 12-ባህሪ የማጣቀሻ መለያውን (በ 'FT' የሚጀምር ወይም ሙሉ ቁጥር) ይቅዱ።",
+      "ያንን ትክክለኛ ባለ 12-ባህሪ የማጣቀሻ መለያ ከታች ባለው ቦታ ላይ ያስገቡ፣ የደረሰኙን ፎቶ ይጫኑ እና 'Submit' የሚለውን በመጫን ይላኩ።"
+    ],
+    telebirrTitle: "የቴሌብር ሞባይል ገንዘብ - የደረጃ በደረጃ መመሪያ",
+    telebirrSteps: [
+      "ከላይ የሚታየውን ይፋዊ የቴሌብር ቁጥራችንን ይቅዱ፡ 0951560276።",
+      "የቴሌብር (telebirr) መተግበሪያዎን ይክፈቱ ወይም በስልክዎ ላይ *127# ይደውሉ።",
+      "'Send Money' የሚለውን ይምረጡ፣ በመቀጠል 'To mobile number' መርጠው የኛን ወኪል ቁጥር ያስገቡ።",
+      "የሚፈልጉትን የገንዘብ መጠን ወደ Ethiopia agent-Leykun jemaneh ያስተላልፉ።",
+      "ከክፍያ ማረጋገጫ አጭር መልእክት (SMS) ወይም ከደረሰኙ ላይ ባለ 10-ባህሪ የግብይት መለያውን (በ 'PP' ወይም 'TX' የሚጀምር) ይቅዱ።",
+      "ያንን ትክክለኛ ባለ 10-ባህሪ የግብይት መለያ ከታች ያስገቡ፣ የደረሰኙን ፎቶ ይጫኑ እና 'Submit' የሚለውን በመጫን ይላኩ።"
+    ],
+    binanceTitle: "Binance Pay (USDT) - የክሪፕቶ ማስተላለፊያ መመሪያ",
+    binanceSteps: [
+      "ከላይ የሚታየውን ይፋዊ የUSDT-TRC20 የክሪፕቶ አድራሻችንን ይቅዱ።",
+      "የቢናንስ (Binance) መተግበሪያን ወይም የክሪፕቶ ቦርሳዎን ይክፈቱ እና 'Withdraw' eller 'Pay' የሚለውን ይምረጡ።",
+      "በ Tron (TRC-20) ኔትወርክ ላይ የሚፈልጉትን የUSDT መጠን ያስተላልፉ።",
+      "የማስተላለፍ ሂደቱ ሲጠናቀቅ የግብይት ሃሽ (TxID) ኮዱን ከግብይት ዝርዝሮችዎ ላይ ይቅዱ።",
+      "ያንን የTxID ኮድ ከታች በማጣቀሻ ቦታው ላይ ይለጥፉ፣ የተሳካ ማስተላለፍዎን ፎቶ ያንሱና ይጫኑ፣ ከዚያ 'Submit' የሚለውን ይጫኑ።"
+    ],
+    intTitle: "አለም አቀፍ የክፍያ አማራጮች - የደረጃ በደረጃ መመሪያ",
+    intSteps: [
+      "ለገለጹት መጠን አስተማማኝ የክፍያ መጠየቂያ ደረሰኝ ወይም ሊንክ እንሰጥዎታለን።",
+      "ቪዛ (Visa)፣ ማስተርካርድ (Mastercard) ወይም ፔይፓል (PayPal) አካውንት በመጠቀም ክፍያውን ይፈጽሙ።",
+      "የደረሰኝ ቁጥሩን፣ የከፈሉበትን ኢሜል ወይም የማጣቀሻ ኮዱን ይያዙ።",
+      "የማጣቀሻ መረጃውን ከታች ያስገቡ፣ የተሳካ ክፍያ ፎቶ ይጫኑ እና 'Submit' የሚለውን ይጫኑ።"
+    ],
+    otherTitle: "የሀገር ውስጥ ሞባይል ገንዘብ እና ባንኮች - የደረጃ በደረጃ መመሪያ",
+    otherSteps: [
+      "ከላይ የሚታየውን የሀገር ውስጥ ወኪላችንን ሂሳብ ወይም የማስተላለፊያ መረጃ ይቅዱ።",
+      "የአካባቢዎን የሞባይል ገንዘብ (ለምሳሌ M-Pesa, EVC) ወይም ባንክ መተግበሪያ በመጠቀም ገንዘቡን ያስተላልፉ።",
+      "ከአቅራቢዎ የክፍያ ማረጋገጫ አጭር መልእክት (SMS) ወይም ደረሰኝ ላይ የማጣቀሻ ቁጥሩን ወይም የግብይት መለያውን ይቅዱ።",
+      "የማጣቀሻ ቁጥሩን ከታች ያስገቡ፣ የማረጋገጫ ፎቶውን ይጫኑ እና በእጅ እንዲረጋገጥ 'Submit' የሚለውን ይጫኑ።"
+    ]
+  }
+};
+
 const COUNTRIES = [
   { code: '+251', name: 'Ethiopia (+251)', flag: '🇪🇹' },
   { code: '+254', name: 'Kenya (+254)', flag: '🇰🇪' },
@@ -348,14 +558,19 @@ function AppContent() {
       return;
     }
 
-    const baseAmt = currency === 'USD' ? inputAmt * 196 : inputAmt;
-    if (baseAmt < 200) {
-      setRechargeError(currency === 'USD'
-        ? 'The minimum recharge amount is $1.02 (200 ETB).'
-        : 'The minimum recharge amount is 200 ETB.'
-      );
-      return;
+    if (currency === 'USD') {
+      if (inputAmt < 1) {
+        setRechargeError('The minimum recharge amount is $1.00 USD.');
+        return;
+      }
+    } else {
+      if (inputAmt < 200) {
+        setRechargeError('The minimum recharge amount is 200 ETB.');
+        return;
+      }
     }
+
+    const baseAmt = currency === 'USD' ? inputAmt * 196 : inputAmt;
 
     if (!rechargeRef.trim()) {
       setRechargeError('Please provide the transaction reference number (TXID) or transfer ID.');
@@ -632,8 +847,52 @@ function AppContent() {
                     </span>
                     <ul className="list-decimal list-inside space-y-1 text-slate-700">
                       <li>{t('step1ChooseBank')}</li>
-                      <li>{t('step2CopyAccount')}</li>
+                      <li>
+                        {(() => {
+                          let minText = currency === 'USD' ? '$1.00 USD' : '200 ETB';
+                          if (rechargeBank === 'Binance Pay (USDT)') {
+                            minText = '1.00 USDT';
+                          }
+                          
+                          let original = t('step2CopyAccount');
+                          if (original && original.includes('200 ETB')) {
+                            return original.replace('200 ETB', minText);
+                          }
+                          return original;
+                        })()}
+                      </li>
                       <li>{t('step3PasteId')}</li>
+                      {(() => {
+                        const currentAmountNum = parseFloat(rechargeAmount);
+                        const isDecimal = !isNaN(currentAmountNum) && currentAmountNum > 0 && (currentAmountNum % 1 !== 0);
+                        
+                        let tipText = "";
+                        if (language === 'am') {
+                          tipText = `ማሳሰቢያ፡ የማስተላለፊያ መጠንዎ አስርዮሽ (decimal) ከሆነ፣ ፈጣን ማረጋገጫ ለማግኘት ወደ ላይ የተጠጋጋውን ሙሉ ቁጥር እንዲያስተላልፉ እንመክራለን (ምሳሌ፡ 293.78 ከሆነ 294 ያስተላልፉ)።`;
+                        } else if (language === 'ar') {
+                          tipText = `توصية: إذا كان مبلغ التحويل يحتوي على كسور عشرية، نوصي بتحويل المبلغ المقرب لأعلى (مثال: إذا كان 293.78 مطلوباً، قم بتحويل 294) لضمان التحقق السريع.`;
+                        } else if (language === 'zh') {
+                          tipText = `建议：如果您的转账金额有小数，建议您转账向上取整的整数（例如：若需要 293.78，请转账 294）以确保快速审核。`;
+                        } else if (language === 'es') {
+                          tipText = `Recomendación: Si el monto de su transferencia tiene decimales, recomendamos transferir el número entero redondeado hacia arriba (ej. si requiere 293.78, transfiera 294) para una verificación rápida.`;
+                        } else if (language === 'fr') {
+                          tipText = `Recommandation : Si le montant de votre transfert comporte des décimales, nous vous recommandons de transférer le nombre entier arrondi vers le haut (ex. si 293.78 est requis, transférez 294) pour une vérification rapide.`;
+                        } else if (language === 'sw') {
+                          tipText = `Ushauri: Ikiwa kiasi cha uhamisho kina desimali, tunapendekeza uhamishe nambari kamili iliyokadiriwa juu (mfano: kama unahitaji 293.78, hamisha 294) kwa uthibitishaji wa haraka.`;
+                        } else if (language === 'so') {
+                          tipText = `Talo: Haddii cadadka xawaaladdaada uu leeyahay jajab tobanle, waxaan kugula talineynaa inaad wareejiso lambarka guud ee kor loo soo koobay (tusaale: haddii la rabo 293.78, wareeji 294) si loo xaqiijiyo hubin degdeg ah.`;
+                        } else if (language === 'pt') {
+                          tipText = `Recomendação: Se o valor da transferência tiver decimais, recomendamos transferir o número inteiro arredondado para cima (ex: se for necessário 293.78, transfira 294) para uma verificação rápida.`;
+                        } else {
+                          tipText = `Recommendation: If your transfer amount contains decimals, we highly recommend transferring the rounded-up integer (e.g., if 293.78 is required, transfer 294) to ensure rapid verification.`;
+                        }
+
+                        return (
+                          <li className={`transition-all duration-300 ${isDecimal ? 'text-amber-600 font-extrabold animate-[pulse_2s_infinite]' : 'text-slate-500'}`}>
+                            {tipText}
+                          </li>
+                        );
+                      })()}
                     </ul>
                   </div>
 
@@ -957,6 +1216,71 @@ function AppContent() {
                     );
                   })()}
 
+                  {/* Dynamic Payment Method Guide */}
+                  {(() => {
+                    const g = paymentGuideTranslations[language] || paymentGuideTranslations.en;
+                    let title = "";
+                    let steps: string[] = [];
+
+                    if (rechargeBank === 'Commercial Bank of Ethiopia (CBE)' || rechargeBank.includes('CBE') || rechargeBank.toLowerCase().includes('commercial bank')) {
+                      title = g.cbeTitle;
+                      steps = g.cbeSteps;
+                    } else if (rechargeBank === 'Telebirr' || rechargeBank.toLowerCase().includes('telebirr')) {
+                      title = g.telebirrTitle;
+                      steps = g.telebirrSteps;
+                    } else if (rechargeBank === 'Binance Pay (USDT)') {
+                      title = g.binanceTitle;
+                      steps = g.binanceSteps;
+                    } else if (INT_RECHARGE_METHODS.some(method => method.bank === rechargeBank)) {
+                      title = g.intTitle;
+                      steps = g.intSteps;
+                    } else {
+                      title = g.otherTitle;
+                      steps = g.otherSteps;
+                    }
+
+                    return (
+                      <motion.div
+                        key={`guide-${rechargeBank}`}
+                        initial={{ opacity: 0, y: 4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.3 }}
+                        className="bg-slate-50/70 border border-slate-200/80 rounded-2xl p-4 space-y-3 shadow-xs"
+                      >
+                        <div className="flex items-center gap-2 border-b border-slate-200/50 pb-2">
+                          <div className="w-5 h-5 rounded-full bg-bronze/10 flex items-center justify-center text-bronze text-xs font-bold shrink-0">
+                            💡
+                          </div>
+                          <span className="text-xs font-extrabold text-slate-800 tracking-tight">
+                            {title}
+                          </span>
+                        </div>
+                        
+                        <div className="space-y-2.5">
+                          {steps.map((step, idx) => (
+                            <div key={idx} className="flex gap-2.5 items-start text-[10.5px] leading-relaxed text-slate-600 font-medium">
+                              <span className="w-4 h-4 rounded-full bg-slate-200/80 text-slate-700 font-bold text-[8.5px] flex items-center justify-center shrink-0 mt-0.5 shadow-2xs">
+                                {idx + 1}
+                              </span>
+                              <p className="flex-1">
+                                {step}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+
+                        <div className="pt-2 border-t border-slate-200/40 text-[9px] text-slate-400 font-semibold flex items-center gap-1.5">
+                          <span>✨</span>
+                          <span>
+                            {language === 'am' 
+                              ? 'ጠቃሚ ማሳሰቢያ፡ አንዴ ክፍያውን ከጨረሱና ከታች ካስገቡ በኋላ በ5-10 ደቂቃዎች ውስጥ ሂሳብዎ ላይ ይጨመራል።' 
+                              : 'Important: Your deposit will be credited to your account balance within 5-10 minutes after submission.'}
+                          </span>
+                        </div>
+                      </motion.div>
+                    );
+                  })()}
+
                   {/* Recharge Form */}
                   <form onSubmit={handleRechargeSubmit} className="space-y-4 pt-2 border-t border-slate-100">
                     {rechargeError && (
@@ -979,14 +1303,14 @@ function AppContent() {
                           type="number"
                           required
                           step="any"
-                          min={currency === 'USD' ? "1.02" : "200"}
-                          placeholder={currency === 'USD' ? "Min $1.02" : t('min200')}
+                          min={currency === 'USD' ? "1" : "200"}
+                          placeholder={currency === 'USD' ? "Min $1.00" : t('min200')}
                           value={rechargeAmount}
                           onChange={(e) => setRechargeAmount(e.target.value)}
                           className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-3 py-3 text-xs text-slate-800 font-bold focus:outline-none focus:ring-2 focus:ring-bronze/40 focus:border-bronze focus:bg-white transition-all shadow-xs"
                         />
                         <span className="text-[9px] text-slate-400 mt-1 block font-semibold">
-                          {currency === 'USD' ? 'Min: $1.02 USD (200 ETB)' : t('minimum200Etb')}
+                          {currency === 'USD' ? 'Min: $1.00 USD (196 ETB)' : t('minimum200Etb')}
                         </span>
                       </div>
                       <div>
@@ -999,9 +1323,79 @@ function AppContent() {
                           onChange={(e) => setRechargeRef(e.target.value)}
                           className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-3 py-3 text-xs text-slate-800 font-bold focus:outline-none focus:ring-2 focus:ring-bronze/40 focus:border-bronze focus:bg-white transition-all shadow-xs"
                         />
-                        <span className="text-[9px] text-slate-400 mt-1 block font-semibold">{t('referenceCodeOrTxid')}</span>
+                        {(() => {
+                          const tg = txidGuideTranslations[language] || txidGuideTranslations.en;
+                          let tip = tg.other;
+                          let isSpecial = false;
+
+                          if (rechargeBank === 'Commercial Bank of Ethiopia (CBE)' || rechargeBank.includes('CBE') || rechargeBank.toLowerCase().includes('commercial bank')) {
+                            tip = tg.cbe;
+                            isSpecial = true;
+                          } else if (rechargeBank === 'Telebirr' || rechargeBank.toLowerCase().includes('telebirr')) {
+                            tip = tg.telebirr;
+                            isSpecial = true;
+                          } else if (rechargeBank === 'Binance Pay (USDT)') {
+                            tip = tg.binance;
+                            isSpecial = true;
+                          }
+
+                          return (
+                            <div className="mt-1.5 space-y-1.5">
+                              <span className="text-[9px] text-slate-400 block font-semibold">{t('referenceCodeOrTxid')}</span>
+                              {isSpecial && (
+                                <motion.div
+                                  initial={{ opacity: 0, y: -2 }}
+                                  animate={{ opacity: 1, y: 0 }}
+                                  className="text-[9.5px] text-amber-900 font-semibold leading-relaxed bg-amber-50 border border-amber-200/60 p-2.5 rounded-xl space-y-1"
+                                >
+                                  <div className="flex items-center gap-1 text-amber-950 font-bold uppercase tracking-wider text-[8px]">
+                                    <span>💡 Suggestion</span>
+                                  </div>
+                                  <p>{tip}</p>
+                                </motion.div>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </div>
                     </div>
+
+                    {(() => {
+                      const currentAmountNum = parseFloat(rechargeAmount);
+                      const isDecimal = !isNaN(currentAmountNum) && currentAmountNum > 0 && (currentAmountNum % 1 !== 0);
+                      const roundedUp = isDecimal ? Math.ceil(currentAmountNum) : 0;
+                      const stSuggestion = rechargeSuggestionTranslations[language] || rechargeSuggestionTranslations.en;
+                      if (!isDecimal) return null;
+
+                      return (
+                        <motion.div
+                          initial={{ opacity: 0, y: -4 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className="p-3 bg-amber-50 border border-amber-200 rounded-2xl text-[10px] text-amber-900 leading-relaxed font-semibold space-y-2"
+                        >
+                          <div className="flex items-center gap-1.5 text-amber-950 font-black uppercase tracking-wider text-[9px]">
+                            <Info size={12} className="text-amber-600 shrink-0" />
+                            <span>{stSuggestion.suggestTitle}</span>
+                          </div>
+                          <p>
+                            {stSuggestion.suggestDesc
+                              .replace("{exact}", rechargeAmount)
+                              .replace("{rounded}", roundedUp.toString())
+                              .replace(/{currency}/g, currency === 'USD' ? 'USD' : 'ETB')}
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => setRechargeAmount(roundedUp.toString())}
+                            className="bg-amber-500 hover:bg-amber-600 active:scale-95 text-slate-950 font-black text-[9px] uppercase tracking-wider px-3 py-1.5 rounded-xl cursor-pointer transition-all shadow-xs inline-flex items-center gap-1"
+                          >
+                            <Coins size={10} />
+                            {stSuggestion.useAmountBtn
+                              .replace("{rounded}", roundedUp.toString())
+                              .replace("{currency}", currency === 'USD' ? 'USD' : 'ETB')}
+                          </button>
+                        </motion.div>
+                      );
+                    })()}
 
                     {/* Payment Screenshot Upload */}
                     <div className="space-y-1.5">
