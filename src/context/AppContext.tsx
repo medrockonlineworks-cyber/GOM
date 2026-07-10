@@ -211,6 +211,7 @@ interface AppContextProps {
   logout: () => void;
   resetPassword: (phoneNumber: string, passwordPlain: string) => Promise<{ success: boolean; message: string }>;
   updateAccountDetails: (phoneNumber: string, passwordPlain?: string) => Promise<{ success: boolean; message: string }>;
+  registerWithdrawalAccount: (bankName: string, accNo: string) => Promise<{ success: boolean; message: string }>;
 
   // Wallet actions
   deposit: (amount: number, bankName: string, refCode: string, screenshot?: string) => void;
@@ -274,7 +275,6 @@ export const CURRENCY_SYMBOLS: Record<Currency, string> = {
 };
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const migrationAttempted = useRef(false);
   // Load or initialize state from localStorage with migration check
   const [users, setUsers] = useState<User[]>(() => {
     const saved = localStorage.getItem('gom_users');
@@ -492,7 +492,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        if (parsed.length === 2 && parsed.some((a: any) => a.accNo === '1000419524747' && a.accName === 'Ethiopia agent-Leykun jemaneh') && parsed.some((a: any) => a.accNo === '0951560276' && a.accName === 'Ethiopia agent-Leykun jemaneh')) {
+        if (parsed.length === 2 && parsed.some((a: any) => a.accNo === '1000419524747' && a.accName === 'Ethiopia agent-Leykun jemaneh') && parsed.some((a: any) => a.accNo === '0926193920' && a.accName === 'Ethiopia agent-Leykun jemaneh')) {
           return parsed;
         }
       } catch (e) {
@@ -501,7 +501,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
     return [
       { id: 'acc-1', bank: 'Commercial Bank of Ethiopia (CBE)', accName: 'Ethiopia agent-Leykun jemaneh', accNo: '1000419524747' },
-      { id: 'acc-2', bank: 'Telebirr', accName: 'Ethiopia agent-Leykun jemaneh', accNo: '0951560276' }
+      { id: 'acc-2', bank: 'Telebirr', accName: 'Ethiopia agent-Leykun jemaneh', accNo: '0926193920' }
     ];
   });
 
@@ -606,7 +606,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       // 3. Seed bank accounts
       const initialAccounts = [
         { id: 'acc-1', bank: 'Commercial Bank of Ethiopia (CBE)', accName: 'Ethiopia agent-Leykun jemaneh', accNo: '1000419524747' },
-        { id: 'acc-2', bank: 'Telebirr', accName: 'Ethiopia agent-Leykun jemaneh', accNo: '0951560276' }
+        { id: 'acc-2', bank: 'Telebirr', accName: 'Ethiopia agent-Leykun jemaneh', accNo: '0926193920' }
       ];
       initialAccounts.forEach((acc) => {
         const ref = doc(db, 'rechargeAccounts', acc.id);
@@ -830,22 +830,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Auto-migrate bank accounts to CBE and Telebirr if old accounts are present
   useEffect(() => {
-    if (migrationAttempted.current) return;
-
     const migrateBankAccounts = async () => {
       if (rechargeAccounts.length === 0) return;
 
       const needsMigration = rechargeAccounts.length !== 2 || 
         !rechargeAccounts.some(a => a.bank === 'Commercial Bank of Ethiopia (CBE)' && a.accNo === '1000419524747' && a.accName === 'Ethiopia agent-Leykun jemaneh') ||
-        !rechargeAccounts.some(a => a.bank === 'Telebirr' && a.accNo === '0951560276' && a.accName === 'Ethiopia agent-Leykun jemaneh');
+        !rechargeAccounts.some(a => a.bank === 'Telebirr' && a.accNo === '0926193920' && a.accName === 'Ethiopia agent-Leykun jemaneh');
 
       if (needsMigration) {
-        migrationAttempted.current = true;
-        console.log("Migrating database recharge accounts to CBE (1000419524747) and Telebirr (0951560276) with agent name...");
+        console.log("Migrating database recharge accounts to CBE (1000419524747) and Telebirr (0926193920) with agent name...");
         try {
           const targetAccounts = [
             { id: 'acc-1', bank: 'Commercial Bank of Ethiopia (CBE)', accName: 'Ethiopia agent-Leykun jemaneh', accNo: '1000419524747' },
-            { id: 'acc-2', bank: 'Telebirr', accName: 'Ethiopia agent-Leykun jemaneh', accNo: '0951560276' }
+            { id: 'acc-2', bank: 'Telebirr', accName: 'Ethiopia agent-Leykun jemaneh', accNo: '0926193920' }
           ];
 
           for (const acc of targetAccounts) {
@@ -865,8 +862,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         } catch (error) {
           console.error("Failed to migrate recharge accounts in Firestore:", error);
         }
-      } else {
-        migrationAttempted.current = true;
       }
     };
 
@@ -1507,6 +1502,41 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       localStorage.setItem('gom_users', JSON.stringify(updatedUsers));
       setCurrentUser(updatedUser);
       return { success: true, message: 'Account details updated successfully (Offline Fallback).' };
+    }
+  };
+
+  const registerWithdrawalAccount = async (bankName: string, accNo: string) => {
+    if (!currentUser) {
+      return { success: false, message: 'No user is currently logged in.' };
+    }
+
+    const trimmedBank = bankName.trim();
+    const trimmedAccNo = accNo.trim();
+    if (!trimmedBank || !trimmedAccNo) {
+      return { success: false, message: 'Bank name and account number cannot be empty.' };
+    }
+
+    const updatedUser = { 
+      ...currentUser, 
+      withdrawalBank: trimmedBank, 
+      withdrawalAccNo: trimmedAccNo 
+    };
+
+    try {
+      await setDoc(doc(db, 'users', currentUser.id), cleanFirestoreData(updatedUser));
+      setCurrentUser(updatedUser);
+      const updatedUsers = users.map(u => u.id === currentUser.id ? updatedUser : u);
+      setUsers(updatedUsers);
+      localStorage.setItem('gom_users', JSON.stringify(updatedUsers));
+      await logAudit(currentUser.id, currentUser.phoneNumber, 'REGISTER_WITHDRAWAL_ACCOUNT', `Registered withdrawal account: ${trimmedBank} (${trimmedAccNo})`);
+      return { success: true, message: 'Withdrawal account registered successfully.' };
+    } catch (e) {
+      console.error("Error registering withdrawal account, falling back to local storage:", e);
+      const updatedUsers = users.map(u => u.id === currentUser.id ? updatedUser : u);
+      setUsers(updatedUsers);
+      localStorage.setItem('gom_users', JSON.stringify(updatedUsers));
+      setCurrentUser(updatedUser);
+      return { success: true, message: 'Withdrawal account registered successfully (Offline Fallback).' };
     }
   };
 
@@ -2207,6 +2237,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       logout,
       resetPassword,
       updateAccountDetails,
+      registerWithdrawalAccount,
       deposit,
       withdraw,
       approveTransaction,

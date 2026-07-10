@@ -25,6 +25,8 @@ export interface User {
   cycleProductOverrides?: { id: number; productName: string; productImage: string }[];
   lastOrderCompletedAt?: string; // ISO string representing when the last order task was completed
   deviceId?: string; // unique device identifier to prevent multiple accounts per device
+  withdrawalBank?: string; // Registered withdrawal bank name
+  withdrawalAccNo?: string; // Registered withdrawal account number
 }
 
 export type TransactionType = 'recharge' | 'withdraw' | 'payment' | 'reward' | 'welcome_bonus' | 'referral_bonus';

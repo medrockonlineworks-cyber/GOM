@@ -42,7 +42,8 @@ import {
   FileText,
   Check,
   AlertCircle,
-  Coins
+  Coins,
+  Landmark
 } from 'lucide-react';
 
 const rechargeSuggestionTranslations: Record<string, {
@@ -175,14 +176,14 @@ const paymentGuideTranslations: Record<string, {
     cbeTitle: "Commercial Bank of Ethiopia (CBE) - Step-by-Step Guide",
     cbeSteps: [
       "Copy our official CBE Account Number shown above: 1000419524747.",
-      "Open your CBE Birr app, CBE Mobile Banking app, or dial *847#.",
+      "Open your CBE Mobile Banking app, or dial *889#.",
       "Transfer your desired recharge amount to Ethiopia agent-Leykun jemaneh.",
       "Copy the 12-digit transaction reference ID (usually starts with 'FT' or is purely numeric) from your confirmation SMS/receipt.",
       "Enter that exact 12-digit reference ID in the field below, upload the transfer receipt screenshot, and click 'Submit'."
     ],
     telebirrTitle: "Telebirr Mobile Money - Step-by-Step Guide",
     telebirrSteps: [
-      "Copy our official Telebirr Number shown above: 0951560276.",
+      "Copy our official Telebirr Number shown above: 0926193920.",
       "Open your Telebirr app or dial *127# on your phone.",
       "Select 'Send Money', choose 'To mobile number', and enter our agent number.",
       "Send the desired recharge amount to Ethiopia agent-Leykun jemaneh.",
@@ -216,14 +217,14 @@ const paymentGuideTranslations: Record<string, {
     cbeTitle: "የኢትዮጵያ ንግድ ባንክ (CBE) - የደረጃ በደረጃ መመሪያ",
     cbeSteps: [
       "ከላይ የሚታየውን ይፋዊ የCBE አካውንት ቁጥራችንን ይቅዱ፡ 1000419524747።",
-      "የሲቢኢ ብር (CBE Birr) መተግበሪያን፣ የCBE ሞባይል ባንኪንግ መተግበሪያን ይክፈቱ ወይም *847# ይደውሉ።",
+      "የCBE ሞባይል ባንኪንግ መተግበሪያን ይክፈቱ ወይም *889# ይደውሉ።",
       "የሚፈልጉትን የማስቀመጫ መጠን ወደ Ethiopia agent-Leykun jemaneh ያስተላልፉ።",
       "ከተላከ በኋላ ከክፍያ ማረጋገጫ አጭር መልእክት (SMS) ወይም ደረሰኝ ላይ ባለ 12-ባህሪ የማጣቀሻ መለያውን (በ 'FT' የሚጀምር ወይም ሙሉ ቁጥር) ይቅዱ።",
       "ያንን ትክክለኛ ባለ 12-ባህሪ የማጣቀሻ መለያ ከታች ባለው ቦታ ላይ ያስገቡ፣ የደረሰኙን ፎቶ ይጫኑ እና 'Submit' የሚለውን በመጫን ይላኩ።"
     ],
     telebirrTitle: "የቴሌብር ሞባይል ገንዘብ - የደረጃ በደረጃ መመሪያ",
     telebirrSteps: [
-      "ከላይ የሚታየውን ይፋዊ የቴሌብር ቁጥራችንን ይቅዱ፡ 0951560276።",
+      "ከላይ የሚታየውን ይፋዊ የቴሌብር ቁጥራችንን ይቅዱ፡ 0926193920።",
       "የቴሌብር (telebirr) መተግበሪያዎን ይክፈቱ ወይም በስልክዎ ላይ *127# ይደውሉ።",
       "'Send Money' የሚለውን ይምረጡ፣ በመቀጠል 'To mobile number' መርጠው የኛን ወኪል ቁጥር ያስገቡ።",
       "የሚፈልጉትን የገንዘብ መጠን ወደ Ethiopia agent-Leykun jemaneh ያስተላልፉ።",
@@ -256,18 +257,19 @@ const paymentGuideTranslations: Record<string, {
 };
 
 const COUNTRIES = [
+  { code: '+86', name: 'China (+86)', flag: '🇨🇳' },
+  { code: '+253', name: 'Djibouti (+253)', flag: '🇩🇯' },
+  { code: '+291', name: 'Eritrea (+291)', flag: '🇪🇷' },
   { code: '+251', name: 'Ethiopia (+251)', flag: '🇪🇹' },
   { code: '+254', name: 'Kenya (+254)', flag: '🇰🇪' },
-  { code: '+253', name: 'Djibouti (+253)', flag: '🇩🇯' },
+  { code: '+234', name: 'Nigeria (+234)', flag: '🇳🇬' },
+  { code: '+966', name: 'Saudi Arabia (+966)', flag: '🇸🇦' },
   { code: '+252', name: 'Somalia (+252)', flag: '🇸🇴' },
-  { code: '+291', name: 'Eritrea (+291)', flag: '🇪🇷' },
   { code: '+211', name: 'South Sudan (+211)', flag: '🇸🇸' },
   { code: '+249', name: 'Sudan (+249)', flag: '🇸🇩' },
   { code: '+971', name: 'UAE (+971)', flag: '🇦🇪' },
-  { code: '+966', name: 'Saudi Arabia (+966)', flag: '🇸🇦' },
-  { code: '+1', name: 'USA/Canada (+1)', flag: '🇺🇸' },
   { code: '+44', name: 'UK (+44)', flag: '🇬🇧' },
-  { code: '+86', name: 'China (+86)', flag: '🇨🇳' },
+  { code: '+1', name: 'USA/Canada (+1)', flag: '🇺🇸' },
   { code: '', name: 'Local / Admin', flag: '📱' },
 ];
 
@@ -328,7 +330,7 @@ const getUserCountry = (phone?: string) => {
 type UserTab = 'home' | 'orders' | 'my';
 
 function AppContent() {
-  const { currentUser, deposit, withdraw, addSupportTicket, rechargeAccounts, language, setLanguage, currency, setCurrency, formatPrice } = useApp();
+  const { currentUser, deposit, withdraw, transactions, addSupportTicket, rechargeAccounts, language, setLanguage, currency, setCurrency, formatPrice } = useApp();
   const { t } = useTranslation(language);
 
   const isEthiopianUser = currentUser && (
@@ -465,13 +467,19 @@ function AppContent() {
       setWithdrawError('');
       setWithdrawSuccess(false);
       setLastWithdrawInfo(null);
-      if (isEth) {
-        setWithdrawBank('Commercial Bank of Ethiopia (CBE)');
+      if (currentUser?.withdrawalBank && currentUser?.withdrawalAccNo) {
+        setWithdrawBank(currentUser.withdrawalBank);
+        setWithdrawAccNo(currentUser.withdrawalAccNo);
       } else {
-        setWithdrawBank('Mastercard');
+        if (isEth) {
+          setWithdrawBank('Commercial Bank of Ethiopia (CBE)');
+        } else {
+          setWithdrawBank('Mastercard');
+        }
+        setWithdrawAccNo('');
       }
     }
-  }, [withdrawModalOpen, isEth]);
+  }, [withdrawModalOpen, isEth, currentUser]);
 
   // Auto-close recharge modal when success is triggered
   React.useEffect(() => {
@@ -639,7 +647,27 @@ function AppContent() {
     const isTelebirr = withdrawBank.toLowerCase().includes('telebirr');
     const maxWithdraw = isTelebirr ? 75000 : 300000;
     if (baseAmt > maxWithdraw) {
-      setWithdrawError(`The maximum withdrawal amount for ${withdrawBank} is ${formatPrice(maxWithdraw)}.`);
+      setWithdrawError(`The maximum withdrawal amount per single order for ${withdrawBank} is ${formatPrice(maxWithdraw)}.`);
+      return;
+    }
+
+    const dailyLimit = isTelebirr ? 150000 : 300000;
+    const withdrawnToday = (transactions || []).filter(t => {
+      if (t.userId !== currentUser?.id || t.type !== 'withdraw' || t.status === 'rejected') {
+        return false;
+      }
+      try {
+        const txDate = new Date(t.createdAt);
+        const today = new Date();
+        return txDate.toDateString() === today.toDateString();
+      } catch (e) {
+        return false;
+      }
+    }).reduce((sum, t) => sum + t.amount, 0);
+
+    if (withdrawnToday + baseAmt > dailyLimit) {
+      const remainingLimit = Math.max(0, dailyLimit - withdrawnToday);
+      setWithdrawError(`This request exceeds your remaining daily limit of ${formatPrice(remainingLimit)}.`);
       return;
     }
 
@@ -837,63 +865,6 @@ function AppContent() {
                     <div>
                       <h3 className="text-base font-black text-slate-800 tracking-tight">{t('ethiopianBankDeposit')}</h3>
                     </div>
-                  </div>
-
-                  {/* Step instructions */}
-                  <div className="bg-amber-50/40 p-3.5 rounded-2xl border border-amber-500/10 text-[10px] text-bronze/90 font-medium space-y-2 leading-relaxed shadow-xs">
-                    <span className="font-extrabold text-amber-950 flex items-center gap-1.5">
-                      <Info size={12} />
-                      <span>{t('manualDepositGuideline')}</span>
-                    </span>
-                    <ul className="list-decimal list-inside space-y-1 text-slate-700">
-                      <li>{t('step1ChooseBank')}</li>
-                      <li>
-                        {(() => {
-                          let minText = currency === 'USD' ? '$1.00 USD' : '200 ETB';
-                          if (rechargeBank === 'Binance Pay (USDT)') {
-                            minText = '1.00 USDT';
-                          }
-                          
-                          let original = t('step2CopyAccount');
-                          if (original && original.includes('200 ETB')) {
-                            return original.replace('200 ETB', minText);
-                          }
-                          return original;
-                        })()}
-                      </li>
-                      <li>{t('step3PasteId')}</li>
-                      {(() => {
-                        const currentAmountNum = parseFloat(rechargeAmount);
-                        const isDecimal = !isNaN(currentAmountNum) && currentAmountNum > 0 && (currentAmountNum % 1 !== 0);
-                        
-                        let tipText = "";
-                        if (language === 'am') {
-                          tipText = `ማሳሰቢያ፡ የማስተላለፊያ መጠንዎ አስርዮሽ (decimal) ከሆነ፣ ፈጣን ማረጋገጫ ለማግኘት ወደ ላይ የተጠጋጋውን ሙሉ ቁጥር እንዲያስተላልፉ እንመክራለን (ምሳሌ፡ 293.78 ከሆነ 294 ያስተላልፉ)።`;
-                        } else if (language === 'ar') {
-                          tipText = `توصية: إذا كان مبلغ التحويل يحتوي على كسور عشرية، نوصي بتحويل المبلغ المقرب لأعلى (مثال: إذا كان 293.78 مطلوباً، قم بتحويل 294) لضمان التحقق السريع.`;
-                        } else if (language === 'zh') {
-                          tipText = `建议：如果您的转账金额有小数，建议您转账向上取整的整数（例如：若需要 293.78，请转账 294）以确保快速审核。`;
-                        } else if (language === 'es') {
-                          tipText = `Recomendación: Si el monto de su transferencia tiene decimales, recomendamos transferir el número entero redondeado hacia arriba (ej. si requiere 293.78, transfiera 294) para una verificación rápida.`;
-                        } else if (language === 'fr') {
-                          tipText = `Recommandation : Si le montant de votre transfert comporte des décimales, nous vous recommandons de transférer le nombre entier arrondi vers le haut (ex. si 293.78 est requis, transférez 294) pour une vérification rapide.`;
-                        } else if (language === 'sw') {
-                          tipText = `Ushauri: Ikiwa kiasi cha uhamisho kina desimali, tunapendekeza uhamishe nambari kamili iliyokadiriwa juu (mfano: kama unahitaji 293.78, hamisha 294) kwa uthibitishaji wa haraka.`;
-                        } else if (language === 'so') {
-                          tipText = `Talo: Haddii cadadka xawaaladdaada uu leeyahay jajab tobanle, waxaan kugula talineynaa inaad wareejiso lambarka guud ee kor loo soo koobay (tusaale: haddii la rabo 293.78, wareeji 294) si loo xaqiijiyo hubin degdeg ah.`;
-                        } else if (language === 'pt') {
-                          tipText = `Recomendação: Se o valor da transferência tiver decimais, recomendamos transferir o número inteiro arredondado para cima (ex: se for necessário 293.78, transfira 294) para uma verificação rápida.`;
-                        } else {
-                          tipText = `Recommendation: If your transfer amount contains decimals, we highly recommend transferring the rounded-up integer (e.g., if 293.78 is required, transfer 294) to ensure rapid verification.`;
-                        }
-
-                        return (
-                          <li className={`transition-all duration-300 ${isDecimal ? 'text-amber-600 font-extrabold animate-[pulse_2s_infinite]' : 'text-slate-500'}`}>
-                            {tipText}
-                          </li>
-                        );
-                      })()}
-                    </ul>
                   </div>
 
                   {/* Choose Channel Selector (Combines all bank accounts into one button dropdown) */}
@@ -1600,8 +1571,36 @@ function AppContent() {
                     )}
 
                     {(() => {
-                      const completedCount = currentUser.completedOrderIds ? currentUser.completedOrderIds.length : 0;
+                      const completedCount = currentUser?.completedOrderIds ? currentUser.completedOrderIds.length : 0;
                       const isLocked = completedCount < 15;
+
+                      // Daily and single-order limit calculation
+                      const isTelebirr = withdrawBank.toLowerCase().includes('telebirr');
+                      const dailyLimitETB = isTelebirr ? 150000 : 300000;
+                      const dailyLimit = currency === 'USD' ? dailyLimitETB / 196 : dailyLimitETB;
+                      const singleOrderLimitETB = isTelebirr ? 75000 : 300000;
+                      const singleOrderLimit = currency === 'USD' ? singleOrderLimitETB / 196 : singleOrderLimitETB;
+
+                      // sum of today's withdrawals (excluding rejected ones)
+                      const withdrawnToday = (transactions || []).filter(t => {
+                        if (t.userId !== currentUser?.id || t.type !== 'withdraw' || t.status === 'rejected') {
+                          return false;
+                        }
+                        try {
+                          const txDate = new Date(t.createdAt);
+                          const today = new Date();
+                          return txDate.toDateString() === today.toDateString();
+                        } catch (e) {
+                          return false;
+                        }
+                      }).reduce((sum, t) => sum + t.amount, 0);
+
+                      const withdrawnTodayConverted = currency === 'USD' ? withdrawnToday / 196 : withdrawnToday;
+                      const attemptedAmount = Number(withdrawAmount) || 0;
+                      const totalProjected = withdrawnTodayConverted + attemptedAmount;
+                      const remainingLimit = Math.max(0, dailyLimit - withdrawnTodayConverted);
+                      const exceedsSingleOrder = attemptedAmount > singleOrderLimit;
+
                       return (
                         <>
                           {isLocked && (
@@ -1610,6 +1609,8 @@ function AppContent() {
                               <p>{t('withdrawalLockedDesc', { completedCount })}</p>
                             </div>
                           )}
+
+
 
                           <div>
                             <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">{t('selectPayoutBank')}</label>
@@ -1621,11 +1622,14 @@ function AppContent() {
                             >
                               <optgroup label="📍 Local Payment Methods">
                                 {/* First show Ethiopian banks if user is Eth, or tag them as restricted otherwise */}
-                                {ETH_BANKS.map((bank, index) => (
-                                  <option key={`eth-${index}`} value={bank}>
-                                    🇪🇹 {bank} {!isEth ? '(Unavailable for your region)' : ''}
-                                  </option>
-                                ))}
+                                {ETH_BANKS.map((bank, index) => {
+                                  const isComingSoon = ['United Bank (Hibret Bank)', 'Nib International Bank', 'Wegagen Bank'].includes(bank);
+                                  return (
+                                    <option key={`eth-${index}`} value={bank} disabled={isComingSoon}>
+                                      🇪🇹 {bank} {isComingSoon ? '(Coming Soon)' : !isEth ? '(Unavailable for your region)' : ''}
+                                    </option>
+                                  );
+                                })}
                                 {/* Next show other countries' local methods */}
                                 {COUNTRY_LOCAL_METHODS.map((method, index) => {
                                   const userCountry = getUserCountry(currentUser?.phoneNumber);
@@ -1639,8 +1643,8 @@ function AppContent() {
                               </optgroup>
                               <optgroup label="🌐 International / Crypto Methods">
                                 {INT_WITHDRAW_METHODS.map((bank, index) => (
-                                  <option key={`int-${index}`} value={bank}>
-                                    💳 {bank} {isEth ? '(Unavailable for Ethiopia)' : ''}
+                                  <option key={`int-${index}`} value={bank} disabled>
+                                    💳 {bank} (Coming Soon)
                                   </option>
                                 ))}
                               </optgroup>
@@ -1737,16 +1741,37 @@ function AppContent() {
                             </div>
                           </div>
 
+                          {/* Limit Violation Alerts */}
+                          {totalProjected > dailyLimit && (
+                            <div className="bg-red-50 text-red-700 border border-red-100 rounded-lg p-2 text-[9px] font-black flex items-center gap-1.5 leading-relaxed mb-2.5 animate-pulse">
+                              <AlertCircle size={12} className="shrink-0" />
+                              <span>This request exceeds your remaining daily limit of {formatPrice(currency === 'USD' ? remainingLimit * 196 : remainingLimit)}.</span>
+                            </div>
+                          )}
+                          {exceedsSingleOrder && !isLocked && (
+                            <div className="bg-red-50 text-red-700 border border-red-100 rounded-lg p-2 text-[9px] font-black flex items-center gap-1.5 leading-relaxed mb-2.5 animate-pulse">
+                              <AlertCircle size={12} className="shrink-0" />
+                              <span>Single order limit for {withdrawBank} is {formatPrice(singleOrderLimitETB)}.</span>
+                            </div>
+                          )}
+
                           <button
                             type="submit"
-                            disabled={isLocked}
+                            disabled={isLocked || totalProjected > dailyLimit || exceedsSingleOrder}
                             className={`w-full font-bold py-3 rounded-xl shadow transition-all text-xs cursor-pointer ${
-                              isLocked 
+                              isLocked || totalProjected > dailyLimit || exceedsSingleOrder
                                 ? 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none border border-slate-300/50' 
                                 : 'bg-bronze hover:bg-bronze-hover active:opacity-90 text-white'
                             }`}
                           >
-                            {isLocked ? t('complete10TasksToWithdraw', { completedCount }) : t('submitPayoutRequest')}
+                            {isLocked 
+                              ? t('complete10TasksToWithdraw', { completedCount }) 
+                              : totalProjected > dailyLimit 
+                                ? 'Daily Limit Exceeded' 
+                                : exceedsSingleOrder
+                                  ? 'Single Order Limit Exceeded'
+                                  : t('submitPayoutRequest')
+                            }
                           </button>
                         </>
                       );

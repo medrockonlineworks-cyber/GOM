@@ -13,19 +13,19 @@ import { Phone, Lock, Eye, EyeOff, KeyRound, ShoppingBag, Landmark, ArrowLeft, C
 type AuthView = 'login' | 'register' | 'forgot';
 
 const COUNTRIES = [
+  { code: '+86', name: 'China (+86)', flag: '🇨🇳' },
+  { code: '+253', name: 'Djibouti (+253)', flag: '🇩🇯' },
+  { code: '+291', name: 'Eritrea (+291)', flag: '🇪🇷' },
   { code: '+251', name: 'Ethiopia (+251)', flag: '🇪🇹' },
   { code: '+254', name: 'Kenya (+254)', flag: '🇰🇪' },
   { code: '+234', name: 'Nigeria (+234)', flag: '🇳🇬' },
-  { code: '+253', name: 'Djibouti (+253)', flag: '🇩🇯' },
+  { code: '+966', name: 'Saudi Arabia (+966)', flag: '🇸🇦' },
   { code: '+252', name: 'Somalia (+252)', flag: '🇸🇴' },
-  { code: '+291', name: 'Eritrea (+291)', flag: '🇪🇷' },
   { code: '+211', name: 'South Sudan (+211)', flag: '🇸🇸' },
   { code: '+249', name: 'Sudan (+249)', flag: '🇸🇩' },
   { code: '+971', name: 'UAE (+971)', flag: '🇦🇪' },
-  { code: '+966', name: 'Saudi Arabia (+966)', flag: '🇸🇦' },
-  { code: '+1', name: 'USA/Canada (+1)', flag: '🇺🇸' },
   { code: '+44', name: 'UK (+44)', flag: '🇬🇧' },
-  { code: '+86', name: 'China (+86)', flag: '🇨🇳' },
+  { code: '+1', name: 'USA/Canada (+1)', flag: '🇺🇸' },
   { code: '', name: 'Local / Admin', flag: '📱' },
 ];
 
