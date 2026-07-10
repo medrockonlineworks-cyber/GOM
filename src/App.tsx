@@ -435,8 +435,6 @@ function AppContent() {
   const [rechargeRef, setRechargeRef] = useState('');
   const [rechargeError, setRechargeError] = useState('');
   const [rechargeSuccess, setRechargeSuccess] = useState(false);
-  const [rechargeScreenshot, setRechargeScreenshot] = useState('');
-  const [isDragActive, setIsDragActive] = useState(false);
   const [showChannelDropdown, setShowChannelDropdown] = useState(false);
   const [lastSubmittedRecharge, setLastSubmittedRecharge] = useState<{ amount: number; bank: string; ref: string } | null>(null);
 
@@ -446,9 +444,7 @@ function AppContent() {
       setRechargeSuccess(false);
       setLastSubmittedRecharge(null);
       setRechargeError('');
-      setRechargeScreenshot('');
       setShowChannelDropdown(false);
-      setIsDragActive(false);
       if (isEth) {
         if (rechargeAccounts && rechargeAccounts.length > 0) {
           setRechargeBank(rechargeAccounts[0].bank);
@@ -588,17 +584,11 @@ function AppContent() {
       return;
     }
 
-    if (!rechargeScreenshot) {
-      setRechargeError('Please upload a screenshot of your payment receipt.');
-      return;
-    }
-
-    deposit(baseAmt, rechargeBank, rechargeRef, rechargeScreenshot);
+    deposit(baseAmt, rechargeBank, rechargeRef);
     setLastSubmittedRecharge({ amount: baseAmt, bank: rechargeBank, ref: rechargeRef });
     setRechargeSuccess(true);
     setRechargeRef('');
     setRechargeAmount('');
-    setRechargeScreenshot('');
   };
 
   const handleWithdrawSubmit = async (e: React.FormEvent) => {
@@ -1377,97 +1367,7 @@ function AppContent() {
                       );
                     })()}
 
-                    {/* Payment Screenshot Upload */}
-                    <div className="space-y-1.5">
-                      <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-widest">
-                        {t('uploadPaymentScreenshot')}
-                      </label>
-                      
-                      {!rechargeScreenshot ? (
-                        <div
-                          onDragOver={(e) => {
-                            e.preventDefault();
-                            setIsDragActive(true);
-                          }}
-                          onDragLeave={() => setIsDragActive(false)}
-                          onDrop={(e) => {
-                            e.preventDefault();
-                            setIsDragActive(false);
-                            const files = e.dataTransfer.files;
-                            if (files && files[0]) {
-                              const file = files[0];
-                              if (file.type.startsWith('image/')) {
-                                const reader = new FileReader();
-                                reader.onload = () => {
-                                  setRechargeScreenshot(reader.result as string);
-                                };
-                                reader.readAsDataURL(file);
-                              } else {
-                                alert('Please select an image file (PNG, JPG, JPEG).');
-                              }
-                            }
-                          }}
-                          className={`border-2 border-dashed rounded-2xl p-5 text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-2 group ${
-                            isDragActive
-                              ? 'border-bronze bg-amber-50/20'
-                              : 'border-slate-200 bg-slate-50 hover:bg-slate-100/50 hover:border-slate-300'
-                          }`}
-                          onClick={() => {
-                            const fileInput = document.getElementById('screenshot-upload-input');
-                            fileInput?.click();
-                          }}
-                        >
-                          <input
-                            type="file"
-                            id="screenshot-upload-input"
-                            accept="image/*"
-                            className="hidden"
-                            onChange={(e) => {
-                              const files = e.target.files;
-                              if (files && files[0]) {
-                                const file = files[0];
-                                const reader = new FileReader();
-                                reader.onload = () => {
-                                  setRechargeScreenshot(reader.result as string);
-                                };
-                                reader.readAsDataURL(file);
-                              }
-                            }}
-                          />
-                          <div className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors ${
-                            isDragActive ? 'bg-bronze/10 text-bronze' : 'bg-slate-200/50 text-slate-400 group-hover:bg-slate-200/80 group-hover:text-slate-600'
-                          }`}>
-                            <UploadCloud size={18} />
-                          </div>
-                          <div>
-                            <p className="text-xs font-extrabold text-slate-700">{t('dragDropReceipt')}</p>
-                            <p className="text-[10px] text-slate-400 font-medium mt-0.5">{t('clickToBrowse')}</p>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="bg-slate-50 border border-slate-200 p-3 rounded-2xl flex items-center justify-between gap-3 shadow-xs">
-                          <div className="flex items-center gap-2.5 overflow-hidden">
-                            <div className="w-12 h-12 rounded-xl border border-slate-200/80 bg-white overflow-hidden shrink-0 flex items-center justify-cover shadow-xs">
-                              <img src={rechargeScreenshot} alt="Uploaded Receipt Preview" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                            </div>
-                            <div className="overflow-hidden">
-                              <span className="block text-xs font-bold text-slate-700 truncate">payment_receipt.png</span>
-                              <span className="block text-[9px] text-emerald-600 font-bold flex items-center gap-1 mt-0.5">
-                                <CheckCircle2 size={10} /> {t('readyToVerify')}
-                              </span>
-                            </div>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => setRechargeScreenshot('')}
-                            className="p-2 bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 rounded-xl transition-all cursor-pointer"
-                            title="Remove screenshot"
-                          >
-                            <Trash2 size={15} />
-                          </button>
-                        </div>
-                      )}
-                    </div>
+                    {/* No screenshot upload required as per user feedback */}
 
                     <button
                       type="submit"

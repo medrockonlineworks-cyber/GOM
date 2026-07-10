@@ -683,6 +683,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (list.length > 0) {
         setUsers(list);
         localStorage.setItem('gom_users', JSON.stringify(list));
+        
+        // Sync rawCurrentUser with the updated data from database
+        setRawCurrentUser(prev => {
+          if (!prev) return null;
+          const match = list.find(u => u.id === prev.id);
+          if (!match) return prev;
+          if (
+            match.walletBalance !== prev.walletBalance ||
+            match.role !== prev.role ||
+            JSON.stringify(match.completedOrderIds) !== JSON.stringify(prev.completedOrderIds)
+          ) {
+            const updated = { ...prev, ...match };
+            localStorage.setItem('gom_current_user', JSON.stringify(updated));
+            return updated;
+          }
+          return prev;
+        });
       } else {
         // If Firestore is empty, seed it
         seedInitialData();
@@ -1563,6 +1580,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       await setDoc(doc(db, 'transactions', depositTx.id), cleanFirestoreData(depositTx));
       await logAudit(currentUser.id, currentUser.phoneNumber, 'DEPOSIT_REQUEST', `Requested deposit of ${amount} ETB via ${bankName}`);
+      
+      const updatedTxs = [depositTx, ...transactions];
+      setTransactions(updatedTxs);
+      localStorage.setItem('gom_transactions', JSON.stringify(updatedTxs));
     } catch (e) {
       console.error("Error requesting deposit, falling back to local storage:", e);
       const updatedTxs = [depositTx, ...transactions];
@@ -1614,6 +1635,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       await batch.commit();
 
       await logAudit(currentUser.id, currentUser.phoneNumber, 'WITHDRAW_REQUEST', `Requested withdrawal of ${amount} ETB to ${bankName}. Account: ${accNo}${finalAccName ? ` (Holder: ${finalAccName})` : ''}`);
+
+      const updatedUsers = users.map(u => u.id === currentUser.id ? updatedUser : u);
+      setUsers(updatedUsers);
+      localStorage.setItem('gom_users', JSON.stringify(updatedUsers));
+      setCurrentUser(updatedUser);
+
+      const updatedTxs = [withdrawTx, ...transactions];
+      setTransactions(updatedTxs);
+      localStorage.setItem('gom_transactions', JSON.stringify(updatedTxs));
+
       return { success: true, message: 'Withdrawal request submitted! Pending admin approval.' };
     } catch (e) {
       console.error("Error requesting withdrawal, falling back to local storage:", e);
@@ -1654,6 +1685,28 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       await batch.commit();
       await logAudit('ADMIN', 'ADMIN', 'APPROVE_RECHARGE', `Approved recharge of ${tx.amount} ETB for User ${tx.userId}`);
+
+      // Instantly update local state for real-time reactivity and consistency
+      const updatedTxs = transactions.map(t => t.id === txId ? { ...t, status: 'approved' as const } : t);
+      setTransactions(updatedTxs);
+      localStorage.setItem('gom_transactions', JSON.stringify(updatedTxs));
+
+      if (tx.type === 'recharge') {
+        const userToUpdate = users.find(u => u.id === tx.userId);
+        if (userToUpdate) {
+          const updatedUser = {
+            ...userToUpdate,
+            walletBalance: userToUpdate.walletBalance + tx.amount
+          };
+          const updatedUsers = users.map(u => u.id === tx.userId ? updatedUser : u);
+          setUsers(updatedUsers);
+          localStorage.setItem('gom_users', JSON.stringify(updatedUsers));
+          
+          if (currentUser && currentUser.id === tx.userId) {
+            setRawCurrentUser(updatedUser);
+          }
+        }
+      }
     } catch (e) {
       console.error("Error approving transaction, falling back to local storage:", e);
       
@@ -1702,6 +1755,28 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       await batch.commit();
       await logAudit('ADMIN', 'ADMIN', 'REJECT_WITHDRAWAL', `Rejected withdrawal of ${tx.amount} ETB for User ${tx.userId}. Funds refunded.`);
+
+      // Instantly update local state for real-time reactivity and consistency
+      const updatedTxs = transactions.map(t => t.id === txId ? { ...t, status: 'rejected' as const } : t);
+      setTransactions(updatedTxs);
+      localStorage.setItem('gom_transactions', JSON.stringify(updatedTxs));
+
+      if (tx.type === 'withdraw') {
+        const userToUpdate = users.find(u => u.id === tx.userId);
+        if (userToUpdate) {
+          const updatedUser = {
+            ...userToUpdate,
+            walletBalance: userToUpdate.walletBalance + tx.amount
+          };
+          const updatedUsers = users.map(u => u.id === tx.userId ? updatedUser : u);
+          setUsers(updatedUsers);
+          localStorage.setItem('gom_users', JSON.stringify(updatedUsers));
+          
+          if (currentUser && currentUser.id === tx.userId) {
+            setRawCurrentUser(updatedUser);
+          }
+        }
+      }
     } catch (e) {
       console.error("Error rejecting transaction, falling back to local storage:", e);
       
@@ -1798,6 +1873,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       await batch.commit();
 
       await logAudit(currentUser.id, currentUser.phoneNumber, 'COMPLETE_ORDER', `Completed Order ${orderId}. Commission: ${reward} ETB.`);
+
+      const updatedUsers = users.map(u => u.id === currentUser.id ? updatedUser : u);
+      setUsers(updatedUsers);
+      localStorage.setItem('gom_users', JSON.stringify(updatedUsers));
+      setCurrentUser(updatedUser);
+
+      const updatedTxs = [orderTx, ...transactions];
+      setTransactions(updatedTxs);
+      localStorage.setItem('gom_transactions', JSON.stringify(updatedTxs));
+
       return { success: true, message: `Order ${orderId} successfully completed! ${reward} ETB commission added to your wallet.` };
     } catch (e) {
       console.error("Error submitting order, falling back to local storage:", e);
