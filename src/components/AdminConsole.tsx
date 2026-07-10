@@ -880,6 +880,19 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
                           <span className="text-slate-400 font-medium mr-1">Withdrawal Account Number:</span>
                           <span className="font-black text-amber-900 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200/50">{tx.accountNumberOrRef}</span>
                         </div>
+                        {(() => {
+                          const matchedUser = users.find(u => u.id === tx.userId);
+                          const holderName = tx.accountHolderName || matchedUser?.withdrawalAccName;
+                          if (holderName) {
+                            return (
+                              <div>
+                                <span className="text-slate-400 font-medium mr-1">Account Holder Name:</span>
+                                <span className="font-black text-emerald-800 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200/30">{holderName}</span>
+                              </div>
+                            );
+                          }
+                          return null;
+                        })()}
                         <div>
                           <span className="text-slate-400 font-medium mr-1">User Phone (Raw):</span>
                           <span className="font-bold text-slate-800">{tx.userPhone}</span>
@@ -982,6 +995,29 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
                       <span className="font-extrabold text-bronze">Order {Math.min(15, user.currentOrderIndex + 1)}/15</span>
                     </div>
                   </div>
+
+                  {/* Registered Withdrawal Account details */}
+                  {user.withdrawalAccNo && (
+                    <div className="bg-slate-50 border border-slate-200/60 rounded-xl p-2.5 text-[10px] text-slate-600 space-y-1">
+                      <span className="text-[8px] font-black text-slate-400 uppercase tracking-wider block">
+                        💳 Registered Withdrawal Account
+                      </span>
+                      <div>
+                        <span className="text-slate-400 font-medium mr-1">Bank:</span>
+                        <span className="font-extrabold text-slate-800">{user.withdrawalBank}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 font-medium mr-1">Account Number:</span>
+                        <span className="font-mono font-extrabold text-amber-900 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200/30">{user.withdrawalAccNo}</span>
+                      </div>
+                      {user.withdrawalAccName && (
+                        <div>
+                          <span className="text-slate-400 font-medium mr-1">Account Holder Name:</span>
+                          <span className="font-extrabold text-slate-800">{user.withdrawalAccName}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {/* Manual Balance Adjustment */}
                   <div className="bg-amber-100/10 border border-amber-200/40 rounded-xl p-2.5 flex flex-col gap-1.5">

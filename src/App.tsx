@@ -470,6 +470,7 @@ function AppContent() {
       if (currentUser?.withdrawalBank && currentUser?.withdrawalAccNo) {
         setWithdrawBank(currentUser.withdrawalBank);
         setWithdrawAccNo(currentUser.withdrawalAccNo);
+        setWithdrawAccName(currentUser.withdrawalAccName || '');
       } else {
         if (isEth) {
           setWithdrawBank('Commercial Bank of Ethiopia (CBE)');
@@ -477,6 +478,7 @@ function AppContent() {
           setWithdrawBank('Mastercard');
         }
         setWithdrawAccNo('');
+        setWithdrawAccName('');
       }
     }
   }, [withdrawModalOpen, isEth, currentUser]);
@@ -494,6 +496,7 @@ function AppContent() {
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [withdrawBank, setWithdrawBank] = useState('Commercial Bank of Ethiopia (CBE)');
   const [withdrawAccNo, setWithdrawAccNo] = useState('');
+  const [withdrawAccName, setWithdrawAccName] = useState('');
   const [withdrawError, setWithdrawError] = useState('');
   const [withdrawSuccess, setWithdrawSuccess] = useState(false);
   const [lastWithdrawInfo, setLastWithdrawInfo] = useState<{ amount: number; bank: string; accNo: string } | null>(null);
@@ -676,17 +679,23 @@ function AppContent() {
       return;
     }
 
+    if (!withdrawAccName.trim()) {
+      setWithdrawError('Please enter the bank account holder name.');
+      return;
+    }
+
     if (!withdrawAccNo.trim()) {
       setWithdrawError('Please enter your secure bank account number.');
       return;
     }
 
-    const res = await withdraw(baseAmt, withdrawBank, withdrawAccNo);
+    const res = await withdraw(baseAmt, withdrawBank, withdrawAccNo, withdrawAccName);
     if (res.success) {
       setLastWithdrawInfo({ amount: baseAmt, bank: withdrawBank, accNo: withdrawAccNo });
       setWithdrawSuccess(true);
       setWithdrawAmount('');
       setWithdrawAccNo('');
+      setWithdrawAccName('');
     } else {
       setWithdrawError(res.message);
     }
@@ -1698,6 +1707,19 @@ function AppContent() {
                                 ⚠️ Ethiopian Bank payouts are only available for users registered in Ethiopia. Please select your own country's local method or international options.
                               </div>
                             )}
+                          </div>
+
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">{t('accountHolder') || 'Account Holder Name'}</label>
+                            <input
+                              type="text"
+                              required
+                              disabled={isLocked}
+                              placeholder="e.g. John Doe"
+                              value={withdrawAccName}
+                              onChange={(e) => setWithdrawAccName(e.target.value)}
+                              className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-bronze disabled:opacity-50"
+                            />
                           </div>
 
                           <div className="grid grid-cols-2 gap-3">

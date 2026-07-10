@@ -93,6 +93,7 @@ export const MyTab: React.FC<MyTabProps> = ({
       noRegisteredAccount: 'No withdrawal account registered yet.',
       payoutBank: 'Payout Bank / Method',
       withdrawalAccNo: 'Withdrawal Account Number',
+      withdrawalAccName: 'Account Holder Name',
       saveAccount: 'Save Account',
       withdrawalAccountRegistered: 'Withdrawal account registered successfully!',
       comingSoon: 'Coming Soon'
@@ -116,6 +117,7 @@ export const MyTab: React.FC<MyTabProps> = ({
       noRegisteredAccount: 'እስካሁን ምንም የመውጫ ሂሳብ አልተመዘገበም።',
       payoutBank: 'የክፍያ ባንክ / ዘዴ',
       withdrawalAccNo: 'የመውጫ ሂሳብ ቁጥር',
+      withdrawalAccName: 'የአካውንት ባለቤት ስም',
       saveAccount: 'ሂሳብ አስቀምጥ',
       withdrawalAccountRegistered: 'የመውጫ ሂሳብዎ በተሳካ ሁኔታ ተመዝግቧል!',
       comingSoon: 'በቅርቡ የሚመጣ'
@@ -139,6 +141,7 @@ export const MyTab: React.FC<MyTabProps> = ({
       noRegisteredAccount: 'لم يتم تسجيل حساب سحب بعد.',
       payoutBank: 'بنك الدفع / الطريقة',
       withdrawalAccNo: 'رقم حساب السحب',
+      withdrawalAccName: 'اسم صاحب الحساب',
       saveAccount: 'حفظ الحساب',
       withdrawalAccountRegistered: 'تم تسجيل حساب السحب بنجاح!',
       comingSoon: 'قريباً'
@@ -162,6 +165,7 @@ export const MyTab: React.FC<MyTabProps> = ({
       noRegisteredAccount: '尚未注册提现账户。',
       payoutBank: '提现银行 / 方式',
       withdrawalAccNo: '提现账号',
+      withdrawalAccName: '账户持有人姓名',
       saveAccount: '保存账户',
       withdrawalAccountRegistered: '提现账户注册成功！',
       comingSoon: '即将推出'
@@ -185,6 +189,7 @@ export const MyTab: React.FC<MyTabProps> = ({
       noRegisteredAccount: 'Aún no se ha registrado ninguna cuenta de retiro.',
       payoutBank: 'Banco / Método de pago',
       withdrawalAccNo: 'Número de cuenta de retiro',
+      withdrawalAccName: 'Nombre del titular de la cuenta',
       saveAccount: 'Guardar cuenta',
       withdrawalAccountRegistered: '¡Cuenta de retiro registrada con éxito!',
       comingSoon: 'Próximamente'
@@ -208,6 +213,7 @@ export const MyTab: React.FC<MyTabProps> = ({
       noRegisteredAccount: 'Aucun compte de retrait enregistré pour le moment.',
       payoutBank: 'Banque / Méthode de paiement',
       withdrawalAccNo: 'Numéro de compte de retrait',
+      withdrawalAccName: 'Nom du titulaire du compte',
       saveAccount: 'Enregistrer le compte',
       withdrawalAccountRegistered: 'Compte de retrait enregistré avec succès !',
       comingSoon: 'Bientôt disponible'
@@ -232,6 +238,7 @@ export const MyTab: React.FC<MyTabProps> = ({
   const [withdrawalBank, setWithdrawalBank] = useState(currentUser?.withdrawalBank || 'Commercial Bank of Ethiopia (CBE)');
   const [showBankDropdown, setShowBankDropdown] = useState(false);
   const [withdrawalAccNo, setWithdrawalAccNo] = useState(currentUser?.withdrawalAccNo || '');
+  const [withdrawalAccName, setWithdrawalAccName] = useState(currentUser?.withdrawalAccName || '');
   const [withdrawalAccError, setWithdrawalAccError] = useState('');
   const [withdrawalAccSuccess, setWithdrawalAccSuccess] = useState('');
   const [withdrawalAccLoading, setWithdrawalAccLoading] = useState(false);
@@ -241,6 +248,7 @@ export const MyTab: React.FC<MyTabProps> = ({
     if (currentUser) {
       if (currentUser.withdrawalBank) setWithdrawalBank(currentUser.withdrawalBank);
       if (currentUser.withdrawalAccNo) setWithdrawalAccNo(currentUser.withdrawalAccNo);
+      if (currentUser.withdrawalAccName) setWithdrawalAccName(currentUser.withdrawalAccName);
     }
   }, [currentUser]);
 
@@ -318,7 +326,7 @@ export const MyTab: React.FC<MyTabProps> = ({
     setWithdrawalAccLoading(true);
 
     try {
-      const res = await registerWithdrawalAccount(withdrawalBank, withdrawalAccNo);
+      const res = await registerWithdrawalAccount(withdrawalBank, withdrawalAccNo, withdrawalAccName);
       if (res.success) {
         setWithdrawalAccSuccess(localT[language].withdrawalAccountRegistered || res.message);
         setTimeout(() => {
@@ -589,7 +597,7 @@ export const MyTab: React.FC<MyTabProps> = ({
                 </span>
                 {currentUser.withdrawalAccNo ? (
                   <span className="text-[10px] text-emerald-600 font-bold block mt-0.5">
-                    {currentUser.withdrawalBank}: {currentUser.withdrawalAccNo}
+                    {currentUser.withdrawalBank}: {currentUser.withdrawalAccNo} {currentUser.withdrawalAccName && `(${currentUser.withdrawalAccName})`}
                   </span>
                 ) : (
                   <span className="text-[10px] text-slate-400 font-bold block mt-0.5">
@@ -1222,6 +1230,21 @@ export const MyTab: React.FC<MyTabProps> = ({
                       ))}
                     </motion.div>
                   )}
+                </div>
+
+                {/* Account Holder Name Input */}
+                <div className="space-y-1.5">
+                  <label className="block text-[9px] font-black uppercase tracking-wider text-slate-400">
+                    {localT[language].withdrawalAccName}
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={withdrawalAccName}
+                    onChange={(e) => setWithdrawalAccName(e.target.value)}
+                    placeholder="e.g. John Doe"
+                    className="w-full bg-slate-50 border border-slate-200 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 focus:outline-none transition-all font-semibold"
+                  />
                 </div>
 
                 {/* Account Number Input */}

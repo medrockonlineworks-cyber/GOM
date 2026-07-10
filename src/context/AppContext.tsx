@@ -211,11 +211,11 @@ interface AppContextProps {
   logout: () => void;
   resetPassword: (phoneNumber: string, passwordPlain: string) => Promise<{ success: boolean; message: string }>;
   updateAccountDetails: (phoneNumber: string, passwordPlain?: string) => Promise<{ success: boolean; message: string }>;
-  registerWithdrawalAccount: (bankName: string, accNo: string) => Promise<{ success: boolean; message: string }>;
+  registerWithdrawalAccount: (bankName: string, accNo: string, accName: string) => Promise<{ success: boolean; message: string }>;
 
   // Wallet actions
   deposit: (amount: number, bankName: string, refCode: string, screenshot?: string) => void;
-  withdraw: (amount: number, bankName: string, accNo: string) => Promise<{ success: boolean; message: string }>;
+  withdraw: (amount: number, bankName: string, accNo: string, accName?: string) => Promise<{ success: boolean; message: string }>;
   
   // Admin approvals
   approveTransaction: (id: string) => void;
@@ -1505,21 +1505,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
-  const registerWithdrawalAccount = async (bankName: string, accNo: string) => {
+  const registerWithdrawalAccount = async (bankName: string, accNo: string, accName: string) => {
     if (!currentUser) {
       return { success: false, message: 'No user is currently logged in.' };
     }
 
     const trimmedBank = bankName.trim();
     const trimmedAccNo = accNo.trim();
-    if (!trimmedBank || !trimmedAccNo) {
-      return { success: false, message: 'Bank name and account number cannot be empty.' };
+    const trimmedAccName = accName.trim();
+    if (!trimmedBank || !trimmedAccNo || !trimmedAccName) {
+      return { success: false, message: 'Bank name, account number, and account holder name cannot be empty.' };
     }
 
     const updatedUser = { 
       ...currentUser, 
       withdrawalBank: trimmedBank, 
-      withdrawalAccNo: trimmedAccNo 
+      withdrawalAccNo: trimmedAccNo,
+      withdrawalAccName: trimmedAccName
     };
 
     try {
@@ -1528,7 +1530,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const updatedUsers = users.map(u => u.id === currentUser.id ? updatedUser : u);
       setUsers(updatedUsers);
       localStorage.setItem('gom_users', JSON.stringify(updatedUsers));
-      await logAudit(currentUser.id, currentUser.phoneNumber, 'REGISTER_WITHDRAWAL_ACCOUNT', `Registered withdrawal account: ${trimmedBank} (${trimmedAccNo})`);
+      await logAudit(currentUser.id, currentUser.phoneNumber, 'REGISTER_WITHDRAWAL_ACCOUNT', `Registered withdrawal account: ${trimmedBank} (${trimmedAccNo}) - Name: ${trimmedAccName}`);
       return { success: true, message: 'Withdrawal account registered successfully.' };
     } catch (e) {
       console.error("Error registering withdrawal account, falling back to local storage:", e);
@@ -1569,7 +1571,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
-  const withdraw = async (amount: number, bankName: string, accNo: string) => {
+  const withdraw = async (amount: number, bankName: string, accNo: string, accName?: string) => {
     if (!currentUser) return { success: false, message: 'Not logged in.' };
 
     const completedCount = currentUser.completedOrderIds ? currentUser.completedOrderIds.length : 0;
@@ -1589,6 +1591,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       walletBalance: currentUser.walletBalance - amount
     };
 
+    const finalAccName = accName?.trim() || currentUser.withdrawalAccName || '';
+
     const withdrawTx: Transaction = {
       id: generateId('WTH'),
       userId: currentUser.id,
@@ -1597,9 +1601,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       amount,
       bankName,
       accountNumberOrRef: accNo.trim(),
+      accountHolderName: finalAccName,
       status: 'pending',
       createdAt: new Date().toISOString(),
-      description: `Pending withdrawal of ${amount} ETB to ${bankName} (${accNo}).`
+      description: `Pending withdrawal of ${amount} ETB to ${bankName} (${accNo})${finalAccName ? ` - Name: ${finalAccName}` : ''}.`
     };
 
     try {
@@ -1608,7 +1613,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       batch.set(doc(db, 'transactions', withdrawTx.id), cleanFirestoreData(withdrawTx));
       await batch.commit();
 
-      await logAudit(currentUser.id, currentUser.phoneNumber, 'WITHDRAW_REQUEST', `Requested withdrawal of ${amount} ETB to ${bankName}. Account: ${accNo}`);
+      await logAudit(currentUser.id, currentUser.phoneNumber, 'WITHDRAW_REQUEST', `Requested withdrawal of ${amount} ETB to ${bankName}. Account: ${accNo}${finalAccName ? ` (Holder: ${finalAccName})` : ''}`);
       return { success: true, message: 'Withdrawal request submitted! Pending admin approval.' };
     } catch (e) {
       console.error("Error requesting withdrawal, falling back to local storage:", e);

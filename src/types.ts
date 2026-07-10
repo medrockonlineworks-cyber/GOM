@@ -27,6 +27,7 @@ export interface User {
   deviceId?: string; // unique device identifier to prevent multiple accounts per device
   withdrawalBank?: string; // Registered withdrawal bank name
   withdrawalAccNo?: string; // Registered withdrawal account number
+  withdrawalAccName?: string; // Registered withdrawal account holder name
 }
 
 export type TransactionType = 'recharge' | 'withdraw' | 'payment' | 'reward' | 'welcome_bonus' | 'referral_bonus';
@@ -40,6 +41,7 @@ export interface Transaction {
   amount: number; // in ETB
   bankName?: string; // CBE, Dashen, Awash, Abyssinia, etc.
   accountNumberOrRef?: string; // Bank account number for withdrawal, Reference/TXID for recharge
+  accountHolderName?: string; // Account holder name for withdrawal
   status: TransactionStatus;
   createdAt: string;
   description: string;
