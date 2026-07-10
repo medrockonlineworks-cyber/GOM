@@ -124,15 +124,39 @@ const txidGuideTranslations: Record<string, {
   },
   es: {
     cbe: "Consejo de CBE: Los códigos de referencia de CBE tienen exactamente 12 caracteres/dígitos (ej. FTxxxxxxxxxx). Verifique su recibo o SMS.",
-    telebirr: "Consejo de Telebirr: Los ID de transacción de Telebirr tienen exactamente 10 caracteres/dígitos (ej. PPxxxxxxxxx). Verifique su SMS.",
-    binance: "Consejo de Binance: Ingrese su TxID de TRC-20 (Hash de transacción) para asegurar una verificación rápida y automatizada.",
+    telebirr: "Consejo de Telebirr: Los ID de transacción de Telebirr tienen exactamente 10 caracteres/dígitos (ej. PPxxxxxxxxx). Verifique su SMS o pantalla de confirmación.",
+    binance: "Consejo de Binance: Ingrese su TxID TRC-20 (Hash de transacción) para asegurar una verificación rápida y automatizada.",
     other: "Copie y pegue el ID de transacción, código de referencia o hash exacto de su recibo."
   },
   fr: {
     cbe: "Conseil CBE : Les codes de référence CBE font exactement 12 caractères/chiffres (ex. FTxxxxxxxxxx). Vérifiez votre reçu ou SMS.",
-    telebirr: "Conseil Telebirr : Les identifiants Telebirr font exactement 10 caractères/chiffres (ex. PPxxxxxxxxx). Vérifiez votre SMS.",
+    telebirr: "Conseil Telebirr : Les identifiants Telebirr font exactement 10 caractères/chiffres (ex. PPxxxxxxxxx). Vérifiez votre SMS ou écran de confirmation.",
     binance: "Conseil Binance : Saisissez votre TxID TRC-20 (Hash de transaction) pour un rapprochement rapide et automatisé.",
     other: "Veuillez copier et coller l'identifiant de transaction, le code de référence ou le hash exact de votre reçu."
+  },
+  zh: {
+    cbe: "CBE 提示：CBE 交易参考代码正好是 12 位字符/数字（例如 FTxxxxxxxxxx）。请仔细核对您的收据或短信。",
+    telebirr: "Telebirr 提示：Telebirr 交易 ID 正好是 10 位字符/数字（例如 PPxxxxxxxxx）。请核对您的短信或确认屏幕。",
+    binance: "币安提示：请输入您的 TRC-20 TxID（交易哈希值）以确保快速、自动化的交易对账。",
+    other: "请从您的收据中复制并粘贴准确的交易 ID、参考号或交易哈希。"
+  },
+  sw: {
+    cbe: "Kidokezo cha CBE: Misimbo ya kumbukumbu ya CBE ni tarakimu 12 hasa (mfano, FTxxxxxxxxxx). Angalia tena risiti au SMS yako.",
+    telebirr: "Kidokezo cha Telebirr: ID za muamala za Telebirr ni tarakimu 10 hasa (mfano, PPxxxxxxxxx). Angalia SMS au skrini ya uthibitisho.",
+    binance: "Kidokezo cha Binance: Weka TxID yako ya TRC-20 (Transaction Hash) ili kuhakikisha muafaka wa haraka na otomatiki.",
+    other: "Tafadhali nakili na ubandike msimbo sahihi wa muamala, nambari ya marejeleo, au hash ya muamala kutoka kwenye risiti yako."
+  },
+  so: {
+    cbe: "Talo CBE: Koodhadhka tixraaca ee CBE waa sax 12 xaraf/lambar (tusaale, FTxxxxxxxxxx). Laba jeer iska hubi rasiidhkaaga ama SMS-kaaga.",
+    telebirr: "Talo Telebirr: Aqoonsiga muamala ee Telebirr waa sax 10 xaraf/lambar (tusaale, PPxxxxxxxxx). Hubi SMS-kaaga ama shaashadda xaqiijinta.",
+    binance: "Talo Binance: Geli TRC-20 TxID (Transaction Hash) si loo xaqiijiyo waafajin degdeg ah oo toos ah.",
+    other: "Fadlan koobi garee kuna dheji aqoonsiga muamala ee saxda ah, lambarka tixraaca, ama hash-ka rasiidhkaaga."
+  },
+  pt: {
+    cbe: "Dica do CBE: Os códigos de referência de transação do CBE têm exatamente 12 caracteres/dígitos (ex: FTxxxxxxxxxx). Verifique seu recibo ou SMS.",
+    telebirr: "Dica do Telebirr: Os IDs de transação do Telebirr têm exatamente 10 caracteres/dígitos (ex: PPxxxxxxxxx). Verifique seu SMS ou tela de confirmação.",
+    binance: "Dica do Binance: Insira seu TxID TRC-20 (Hash de transação) para garantir uma conciliação rápida e automatizada.",
+    other: "Copie e cole o ID de transação, número de referência ou hash exato do seu recibo."
   }
 };
 
@@ -229,8 +253,328 @@ const paymentGuideTranslations: Record<string, {
       "ከአቅራቢዎ የክፍያ ማረጋገጫ አጭር መልእክት (SMS) ወይም ደረሰኝ ላይ የማጣቀሻ ቁጥሩን ወይም የግብይት መለያውን ይቅዱ።",
       "የማጣቀሻ ቁጥሩን ከታች ያስገቡ እና በእጅ እንዲረጋገጥ 'Submit' የሚለውን ይጫኑ።"
     ]
+  },
+  ar: {
+    cbeTitle: "البنك التجاري الإثيوبي (CBE) - دليل خطوة بخطوة",
+    cbeSteps: [
+      "انسخ رقم حساب CBE الرسمي الموضح أعلاه: 1000419524747.",
+      "افتح تطبيق الخدمات المصرفية عبر الهاتف المحمول من CBE، أو اتصل بالرمز *889#.",
+      "قم بتحويل مبلغ الشحن المطلوب إلى وكيل إثيوبيا Ethiopia agent-Leykun jemaneh.",
+      "انسخ معرف مرجع المعاملة المكون من 12 رقمًا (يبدأ عادةً بـ 'FT' أو أرقام فقط) من رسالة التأكيد النصية/الإيصال.",
+      "أدخل معرف المرجع المكون من 12 رقمًا بالضبط في الحقل أدناه، وانقر فوق 'إرسال'."
+    ],
+    telebirrTitle: "تيلبير موبايل موني (Telebirr) - دليل خطوة بخطوة",
+    telebirrSteps: [
+      "انسخ رقم تيلبير الرسمي الموضح أعلاه: 0926193920.",
+      "افتح تطبيق تيلبير الخاص بك أو اتصل بالرمز *127# على هاتفك.",
+      "اختر 'إرسال الأموال'، واختر 'إلى رقم الهاتف المحمول'، وأدخل رقم وكيلنا.",
+      "أرسل مبلغ الشحن المطلوب إلى وكيل إثيوبيا Ethiopia agent-Leykun jemaneh.",
+      "انسخ معرف المعاملة المكون من 10 أرقام من رسالة التأكيد النصية/الإيصال (يبدأ عادةً بـ 'PP' أو 'TX').",
+      "أدخل المعرف المكون من 10 أرقام بالضبط في الحقل أدناه، وانقر فوق 'إرسال'."
+    ],
+    binanceTitle: "بينانس باي (Binance Pay) - دليل تحويل العملات الرقمية",
+    binanceSteps: [
+      "انسخ عنوان محفظة USDT-TRC20 الرسمية الموضحة أعلاه.",
+      "افتح تطبيق بينانس الخاص بك أو محفظة العملات الرقمية المفضلة لديك، وحدد 'سحب' أو 'دفع'.",
+      "أرسل مبلغ الإيداع المطلوب بالدولار الرقمي (USDT) عبر شبكة Tron (TRC-20).",
+      "بعد نجاح التحويل، انسخ هاش المعاملة (TxID) من تفاصيل معاملتك.",
+      "الصق الـ TxID في حقل المرجع أدناه، وانقر فوق 'إرسال'."
+    ],
+    intTitle: "البوابات الدولية - دليل خطوة بخطوة",
+    intSteps: [
+      "سنقوم بإصدار رابط دفع آمن أو فاتورة بالمبلغ الذي اخترته.",
+      "أكمل الدفع باستخدام حساب الفيزا، الماستركارد، أو الباي بال الخاص بك.",
+      "قم بتدوين رقم الإيصال، بريد الدفع الإلكتروني، أو رمز المرجع.",
+      "أدخل تفاصيل المرجع أدناه، وانقر فوق 'إرسال'."
+    ],
+    otherTitle: "الخدمات المالية المحلية ووكلاء البنوك - دليل خطوة بخطوة",
+    otherSteps: [
+      "انسخ رقم حساب وكيلنا المحلي أو تفاصيل التحويل الموضحة أعلاه.",
+      "أرسل مبلغ الإيداع المطلوب باستخدام محفظة الجوال المحلية (مثل M-Pesa، EVC) أو تطبيق البنك المحلي الخاص بك.",
+      "انسخ رقم مرجع المعاملة أو معرف المعاملة بالضبط من رسالة التأكيد أو إيصال مزود الخدمة الخاص بك.",
+      "أدخل رقم المرجع أدناه، وانقر فوق 'إرسال' للتحقق اليدوي."
+    ]
+  },
+  zh: {
+    cbeTitle: "埃塞俄比亚商业银行 (CBE) - 步骤指南",
+    cbeSteps: [
+      "复制我们上面显示的官方 CBE 账号：1000419524747。",
+      "打开您的 CBE 手机银行应用，或拨打 *889#。",
+      "将您想要充值的金额转账给埃塞俄比亚代理 Ethiopia agent-Leykun jemaneh。",
+      "从您的确认短信/收据中复制 12 位交易参考 ID（通常以 'FT' 开头或纯数字）。",
+      "在下方字段中输入准确的 12 位参考 ID，然后点击'提交'。",
+    ],
+    telebirrTitle: "Telebirr 移动货币 - 步骤指南",
+    telebirrSteps: [
+      "复制我们上面显示的官方 Telebirr 号码：0926193920。",
+      "在手机上打开您的 Telebirr 应用或拨打 *127#。",
+      "选择'发送资金'，选择'发送至手机号'，然后输入我们的代理号码。",
+      "将您想要充值的金额发送给埃塞俄比亚代理 Ethiopia agent-Leykun jemaneh。",
+      "从您的确认短信/收据中复制 10 位交易 ID（通常以 'PP' 或 'TX' 开头）。",
+      "在下方字段中输入准确的 10 位 ID，然后点击'提交'。"
+    ],
+    binanceTitle: "币安支付 (USDT) - 加密货币转账指南",
+    binanceSteps: [
+      "复制我们上面显示的官方 USDT-TRC20 钱包地址。",
+      "打开您的币安应用或首选加密钱包，选择'提现'或'支付'。",
+      "在 Tron (TRC-20) 网络上发送您想要充值的 USDT 金额。",
+      "转账成功后，从交易详情中复制交易哈希 (TxID)。",
+      "在下方参考字段中粘贴该 TxID，然后点击'提交'。"
+    ],
+    intTitle: "国际网关 - 步骤指南",
+    intSteps: [
+      "我们将为您选择的金额生成一个安全的结账链接或发票。",
+      "使用您的 Visa、Mastercard 或 PayPal 账户完成付款。",
+      "记下收据号、付款邮箱或参考代码。",
+      "在下方输入参考详情，然后点击'提交'。"
+    ],
+    otherTitle: "本地移动货币和银行代理 - 步骤指南",
+    otherSteps: [
+      "复制我们上面显示的本地代理账号或转账详情。",
+      "使用您本地的移动货币（如 M-Pesa、EVC）或本地银行应用发送您想要充值的金额。",
+      "从您的运营商短信或收据中复制准确的交易参考号或交易 ID。",
+      "在下方输入参考号，然后点击'提交'以进行人工审核。"
+    ]
+  },
+  es: {
+    cbeTitle: "Banco Comercial de Etiopía (CBE) - Guía Paso a Paso",
+    cbeSteps: [
+      "Copie nuestro número de cuenta oficial de CBE que se muestra arriba: 1000419524747.",
+      "Abra su aplicación de banca móvil de CBE, o marque *889#.",
+      "Transfiera el monto de recarga deseado al agente de Etiopía Ethiopia agent-Leykun jemaneh.",
+      "Copie el ID de referencia de transacción de 12 dígitos (generalmente comienza con 'FT' o es puramente numérico) de su SMS o recibo de confirmación.",
+      "Ingrese ese ID de referencia exacto de 12 dígitos en el campo a continuación y haga clic en 'Enviar'."
+    ],
+    telebirrTitle: "Telebirr Mobile Money - Guía Paso a Paso",
+    telebirrSteps: [
+      "Copie nuestro número oficial de Telebirr que se muestra arriba: 0926193920.",
+      "Abra su aplicación Telebirr o marque *127# en su teléfono.",
+      "Seleccione 'Enviar dinero', elija 'A número móvil' e ingrese nuestro número de agente.",
+      "Envíe el monto de recarga deseado al agente de Etiopía Ethiopia agent-Leykun jemaneh.",
+      "Copie el ID de transacción de 10 dígitos de su SMS o recibo de confirmación (generalmente comienza con 'PP' o 'TX').",
+      "Ingrese el ID exacto de 10 dígitos en el campo a continuación y haga clic en 'Enviar'."
+    ],
+    binanceTitle: "Binance Pay (USDT) - Guía de Transferencia de Criptomonedas",
+    binanceSteps: [
+      "Copie nuestra dirección de billetera oficial de USDT-TRC20 que se muestra arriba.",
+      "Abra su aplicación de Binance o billetera de criptomonedas preferida, y seleccione 'Retirar' o 'Pagar'.",
+      "Envíe el monto de depósito deseado en USDT en la red Tron (TRC-20).",
+      "Después de que la transferencia sea exitosa, copie el Hash de Transacción (TxID) de los detalles de su transacción.",
+      "Pegue el TxID en el campo de referencia a continuación y haga clic en 'Enviar'."
+    ],
+    intTitle: "Pasarelas Internacionales - Guía Paso a Paso",
+    intSteps: [
+      "Emitiremos un enlace de pago seguro o factura para el monto elegido.",
+      "Complete el pago utilizando su cuenta Visa, Mastercard o PayPal.",
+      "Anote el número de recibo, correo electrónico de pago o código de referencia.",
+      "Ingrese los detalles de referencia a continuación y haga clic en 'Enviar'."
+    ],
+    otherTitle: "Dinero Móvil Local y Agentes Bancarios - Guía Paso a Paso",
+    otherSteps: [
+      "Copie el número de cuenta de nuestro agente local o los detalles de transferencia mostrados arriba.",
+      "Envíe el monto de depósito deseado utilizando su dinero móvil local (por ejemplo, M-Pesa, EVC) o la aplicación de su banco local.",
+      "Copie el número de referencia de transacción exacto o el ID de transacción del SMS o recibo de su proveedor.",
+      "Ingrese el número de referencia a continuación y haga clic en 'Enviar' para verificación manual."
+    ]
+  },
+  fr: {
+    cbeTitle: "Banque Commerciale d'Éthiopie (CBE) - Guide Étape par Étape",
+    cbeSteps: [
+      "Copiez notre numéro de compte CBE officiel affiché ci-dessus : 1000419524747.",
+      "Ouvrez votre application de banque mobile CBE, ou composez le *889#.",
+      "Transférez le montant de recharge souhaité à l'agent d'Éthiopie Ethiopia agent-Leykun jemaneh.",
+      "Copiez l'ID de référence de transaction à 12 chiffres (commence généralement par 'FT' ou est purement numérique) à partir de votre SMS/reçu de confirmation.",
+      "Saisissez cet ID de référence exact à 12 chiffres dans le champ ci-dessous, puis cliquez sur 'Soumettre'."
+    ],
+    telebirrTitle: "Telebirr Mobile Money - Guide Étape par Étape",
+    telebirrSteps: [
+      "Copiez notre numéro Telebirr officiel affiché ci-dessus : 0926193920.",
+      "Ouvrez votre application Telebirr ou composez le *127# sur votre téléphone.",
+      "Sélectionnez 'Envoyer de l'argent', choisissez 'Vers un numéro de mobile', puis saisissez notre numéro d'agent.",
+      "Envoyez le montant de recharge souhaité à l'agent d'Éthiopie Ethiopia agent-Leykun jemaneh.",
+      "Copiez l'ID de transaction à 10 chiffres de votre SMS/reçu de confirmation (commence généralement par 'PP' ou 'TX').",
+      "Saisissez l'ID exact à 10 chiffres dans le champ ci-dessous, puis cliquez sur 'Soumettre'."
+    ],
+    binanceTitle: "Binance Pay (USDT) - Guide de Transfert Crypto",
+    binanceSteps: [
+      "Copiez notre adresse de portefeuille USDT-TRC20 officielle affichée ci-dessus.",
+      "Ouvrez votre application Binance ou votre portefeuille crypto préféré, puis sélectionnez 'Retirer' ou 'Payer'.",
+      "Envoyez le montant de dépôt souhaité en USDT sur le réseau Tron (TRC-20).",
+      "Une fois le transfert réussi, copiez le Hash de Transaction (TxID) à partir des détails de votre transaction.",
+      "Collez le TxID dans le champ de référence ci-dessous, puis cliquez sur 'Soumettre'."
+    ],
+    intTitle: "Passerelles Internationales - Guide Étape par Étape",
+    intSteps: [
+      "Nous émettrons un lien de paiement sécurisé ou une facture pour le montant choisi.",
+      "Effectuez le paiement en utilisant votre compte Visa, Mastercard ou PayPal.",
+      "Notez le numéro de reçu, l'e-mail de paiement ou le code de référence.",
+      "Saisissez les détails de référence ci-dessous, puis cliquez sur 'Soumettre'."
+    ],
+    otherTitle: "Portefeuilles Mobiles Locaux & Agents Bancaires - Guide Étape par Étape",
+    otherSteps: [
+      "Copiez le numéro de compte de notre agent local ou les détails de transfert affichés ci-dessus.",
+      "Envoyez le montant de dépôt souhaité en utilisant votre portefeuille mobile local (ex. M-Pesa, EVC) ou votre application bancaire locale.",
+      "Copiez le numéro de référence de transaction exact ou l'ID de transaction du SMS ou du reçu de votre fournisseur.",
+      "Saisissez le numéro de référence ci-dessous, puis cliquez sur 'Soumettre' pour une vérification manuelle."
+    ]
+  },
+  sw: {
+    cbeTitle: "Commercial Bank of Ethiopia (CBE) - Mwongozo wa Hatua kwa Hatua",
+    cbeSteps: [
+      "Nakili Nambari yetu rasmi ya Akaunti ya CBE iliyoonyeshwa hapo juu: 1000419524747.",
+      "Fungua programu yako ya CBE Mobile Banking, au piga *889#.",
+      "Tuma kiasi chako cha recharge unachotaka kwa msimamizi wa Ethiopia Ethiopia agent-Leykun jemaneh.",
+      "Nakili msimbo wa marejeleo wa muamala wa tarakimu 12 (kawaida huanza na 'FT' au huwa nambari tupu) kutoka kwenye SMS au risiti ya uthibitisho.",
+      "Weka msimbo huo sahihi wa marejeleo wa tarakimu 12 kwenye sehemu iliyo hapa chini, na bonyeza 'Wasilisha'."
+    ],
+    telebirrTitle: "Telebirr Mobile Money - Mwongozo wa Hatua kwa Hatua",
+    telebirrSteps: [
+      "Nakili Nambari yetu rasmi ya Telebirr iliyoonyeshwa hapo juu: 0926193920.",
+      "Fungua programu yako ya Telebirr au piga *127# kwenye simu yako.",
+      "Chagua 'Tuma Pesa', chagua 'Kwa nambari ya simu', na uweke nambari ya msimamizi wetu.",
+      "Tuma kiasi chako cha recharge unachotaka kwa msimamizi wa Ethiopia Ethiopia agent-Leykun jemaneh.",
+      "Nakili msimbo wa muamala wa tarakimu 10 kutoka kwenye SMS au risiti ya uthibitisho (kawaida huanza na 'PP' au 'TX').",
+      "Weka msimbo huo sahihi wa tarakimu 10 kwenye sehemu iliyo hapa chini, na bonyeza 'Wasilisha'."
+    ],
+    binanceTitle: "Binance Pay (USDT) - Mwongozo wa Kutuma Crypto",
+    binanceSteps: [
+      "Nakili anwani yetu rasmi ya mkoba wa USDT-TRC20 iliyoonyeshwa hapo juu.",
+      "Fungua programu yako ya Binance au mkoba wa crypto unaopendelea, na uchague 'Toa' au 'Lipa'.",
+      "Tuma kiasi unachotaka kuweka katika USDT kwenye mtandao wa Tron (TRC-20).",
+      "Baada ya uhamisho kufanikiwa, nakili Hash ya Muamala (TxID) kutoka kwenye maelezo ya muamala wako.",
+      "Bandika TxID kwenye sehemu ya marejeleo hapa chini, na bonyeza 'Wasilisha'."
+    ],
+    intTitle: "Njia za Kimataifa - Mwongozo wa Hatua kwa Hatua",
+    intSteps: [
+      "Tutatoa kiungo salama cha malipo au ankara ya kiasi ulichochagua.",
+      "Kamilisha malipo kwa kutumia akaunti yako ya Visa, Mastercard, au PayPal.",
+      "Andika nambari ya risiti, barua pepe ya malipo, au msimbo wa marejeleo.",
+      "Weka maelezo ya marejeleo hapa chini, na bonyeza 'Wasilisha'."
+    ],
+    otherTitle: "Pesa za Simu za Humu Nchini na Mawakala wa Benki - Mwongozo wa Hatua kwa Hatua",
+    otherSteps: [
+      "Nakili nambari ya akaunti ya msimamizi wetu wa nchini au maelezo ya kutuma pesa yaliyoonyeshwa hapo juu.",
+      "Tuma kiasi unachotaka kuweka ukitumia huduma ya pesa kwenye simu ya humu nchini (mfano M-Pesa, EVC) au programu ya benki ya nchini.",
+      "Nakili nambari kamili ya marejeleo ya muamala au ID ya muamala kutoka kwenye SMS au risiti ya mtoa huduma wako.",
+      "Weka nambari ya marejeleo hapa chini, na bonyeza 'Wasilisha' kwa uthibitishaji wa mikono."
+    ]
+  },
+  so: {
+    cbeTitle: "Bangiga Ganacsiga ee Itoobiya (CBE) - Hagaha Tallaabo-Tallaabo ah",
+    cbeSteps: [
+      "Koobi garee Lambarka rasmiga ah ee CBE ee kor ku xusan: 1000419524747.",
+      "Fur app-ka CBE Mobile Banking, ama wac *889#.",
+      "U wareeji lacagta aad rabto inaad ku shubato wakiilka Itoobiya Ethiopia agent-Leykun jemaneh.",
+      "Koobi garee 12-ka lambar ee tixraaca muamala-ka (badanaa wuxuu ku bilaabmaa 'FT' ama waa lambar kaliya) ee SMS-ka xaqiijinta ama rasiidhkaaga.",
+      "Geli 12-kaas lambar ee saxda ah ee tixraaca garoonka hoose, dabadeedna guji 'Gudbi'."
+    ],
+    telebirrTitle: "Telebirr Mobile Money - Hagaha Tallaabo-Tallaabo ah",
+    telebirrSteps: [
+      "Koobi garee Lambarkayaga rasmiga ah ee Telebirr ee kor ku xusan: 0926193920.",
+      "Fur app-kaaga Telebirr ama wac *127# taleefankaaga.",
+      "Dooro 'Send Money', dooro 'To mobile number', kuna qor lambarka wakiilkayaga.",
+      "U dir lacagta aad rabto inaad ku shubato wakiilka Itoobiya Ethiopia agent-Leykun jemaneh.",
+      "Koobi garee 10-ka lambar ee tixraaca ee SMS-ka xaqiijinta ama rasiidhkaaga (badanaa wuxuu ku bilaabmaa 'PP' ama 'TX').",
+      "Geli lambarkaas saxda ah ee 10-ka ah garoonka hoose, dabadeedna guji 'Gudbi'."
+    ],
+    binanceTitle: "Binance Pay (USDT) - Hagaha Wareejinta Cripto-ga",
+    binanceSteps: [
+      "Koobi garee ciwaankayaga rasmiga ah ee USDT-TRC20 ee kor ku xusan.",
+      "Fur app-kaaga Binance ama boorsada cripto ee aad doorbidayso, doorona 'Withdraw' ama 'Pay'.",
+      "Ku dir lacagta aad rabto inaad ku shubato USDT adigoo isticmaalaya shabakada Tron (TRC-20).",
+      "Ka dib marka wareejintu guulaysato, koobi garee Hash-ka Muamala-ka (TxID) ee faahfaahinta muamala-kaaga.",
+      "Ku dheji TxID garoonka tixraaca ee hoose, dabadeedna guji 'Gudbi'."
+    ],
+    intTitle: "Albaabada Caalamiga ah - Hagaha Tallaabo-Tallaabo ah",
+    intSteps: [
+      "Waxaan kuu soo saari doonaa link ammaan ah oo lacag bixinta ama qaansheegad qadarka aad dooratay.",
+      "Ku dhammee lacag bixinta adoo isticmaalaya koontadaada Visa, Mastercard, ama PayPal.",
+      "Xusuuso lambarka rasiidhka, iimaylka lacag bixinta, ama koodka tixraaca.",
+      "Geli faahfaahinta tixraaca hoose, dabadeedna guji 'Gudbi'."
+    ],
+    otherTitle: "Lacagaha Mobile-ka ee Deegaanka & Wakiilada Bangiyada - Hagaha Tallaabo-Tallaabo ah",
+    otherSteps: [
+      "Koobi garee lambarka xisaabta wakiilkayaga deegaanka ama faahfaahinta wareejinta ee kor ku xusan.",
+      "U dir qadarka aad rabto inaad ku shubato adoo isticmaalaya lacagta mobile-ka ee deegaankaaga (tusaale M-Pesa, EVC) ama app-ka bangigaaga deegaanka.",
+      "Koobi garee lambarka tixraaca muamala-ka ee saxda ah ama ID-ga muamala-ka ee ka yimid SMS-ka ama rasiidhka bixiyahaaga.",
+      "Geli lambarka tixraaca hoose, dabadeedna guji 'Gudbi' si loo xaqiijiyo gacanta."
+    ]
+  },
+  pt: {
+    cbeTitle: "Banco Comercial da Etiópia (CBE) - Guia Passo a Passo",
+    cbeSteps: [
+      "Copie nosso número de conta CBE oficial exibido acima: 1000419524747.",
+      "Abra seu aplicativo de mobile banking do CBE ou disque *889#.",
+      "Transfira o valor de recarga desejado para o agente da Etiópia Ethiopia agent-Leykun jemaneh.",
+      "Copie o ID de referência da transação de 12 dígitos (geralmente começa com 'FT' ou é puramente numérico) do seu SMS ou recibo de confirmação.",
+      "Insira o ID de referência exato de 12 dígitos no campo abaixo e clique em 'Enviar'."
+    ],
+    telebirrTitle: "Telebirr Mobile Money - Guia Passo a Passo",
+    telebirrSteps: [
+      "Copie nosso número oficial do Telebirr exibido acima: 0926193920.",
+      "Abra seu aplicativo Telebirr ou disque *127# no seu telefone.",
+      "Selecione 'Enviar Dinheiro', escolha 'Para número de celular' e insira o número do nosso agente.",
+      "Envie o valor de recarga desejado para o agente da Etiópia Ethiopia agent-Leykun jemaneh.",
+      "Copie o ID de transação de 10 dígitos do seu SMS ou recibo de confirmação (geralmente começa com 'PP' ou 'TX').",
+      "Insira o ID exato de 10 dígitos no campo abaixo e clique em 'Enviar'."
+    ],
+    binanceTitle: "Binance Pay (USDT) - Guia de Transferência de Criptomoeda",
+    binanceSteps: [
+      "Copie nosso endereço de carteira oficial de USDT-TRC20 exibido acima.",
+      "Abra seu aplicativo Binance ou carteira de criptomoeda de sua preferência e selecione 'Sacar' ou 'Pagar'.",
+      "Envie o valor de depósito desejado em USDT na rede Tron (TRC-20).",
+      "Após a transferência ser bem-sucedida, copie o Hash da Transação (TxID) dos detalhes da sua transação.",
+      "Cole o TxID no campo de referência abaixo e clique em 'Enviar'."
+    ],
+    intTitle: "Portais Internacionais - Guia Passo a Passo",
+    intSteps: [
+      "Emitiremos um link de pagamento seguro ou fatura para o valor escolhido.",
+      "Conclua o pagamento usando sua conta Visa, Mastercard ou PayPal.",
+      "Anote o número do recibo, e-mail de pagamento ou código de referência.",
+      "Insira os detalhes de referência abaixo e clique em 'Enviar'."
+    ],
+    otherTitle: "Carteiras Digitais Locais e Agentes Bancários - Guia Passo a Passo",
+    otherSteps: [
+      "Copie o número da conta do nosso agente local ou os detalhes de transferência exibidos acima.",
+      "Envie o valor de depósito desejado usando sua carteira digital local (ex: M-Pesa, EVC) ou aplicativo do seu banco local.",
+      "Copie o número de referência da transação exato ou ID da transação do SMS ou recibo do seu provedor.",
+      "Insira o número de referência abaixo e clique em 'Enviar' para verificação manual."
+    ]
   }
 };
+
+/*
+      "የቴሌብር (telebirr) መተግበሪያዎን ይክፈቱ ወይም በስልክዎ ላይ *127# ይደውሉ።",
+      "'Send Money' የሚለውን ይምረጡ፣ በመቀጠል 'To mobile number' መርጠው የኛን ወኪል ቁጥር ያስገቡ።",
+      "የሚፈልጉትን የገንዘብ መጠን ወደ Ethiopia agent-Leykun jemaneh ያስተላልፉ።",
+      "ከክፍያ ማረጋገጫ አጭር መልእክት (SMS) ወይም ከደረሰኙ ላይ ባለ 10-ባህሪ የግብይት መለያውን (በ 'PP' ወይም 'TX' የሚጀምር) ይቅዱ።",
+      "ያንን ትክክለኛ ባለ 10-ባህሪ የግብይት መለያ ከታች ያስገቡ እና 'Submit' የሚለውን በመጫን ይላኩ።"
+    ],
+    binanceTitle: "Binance Pay (USDT) - የክሪፕቶ ማስተላለፊያ መመሪያ",
+    binanceSteps: [
+      "ከላይ የሚታየውን ይፋዊ የUSDT-TRC20 የክሪፕቶ አድራሻችንን ይቅዱ።",
+      "የቢናንስ (Binance) መተግበሪያን ወይም የክሪፕቶ ቦርሳዎን ይክፈቱ እና 'Withdraw' eller 'Pay' የሚለውን ይምረጡ።",
+      "በ Tron (TRC-20) ኔትወርክ ላይ የሚፈልጉትን የUSDT መጠን ያስተላልፉ።",
+      "የማስተላለፍ ሂደቱ ሲጠናቀቅ የግብይት ሃሽ (TxID) ኮዱን ከግብይት ዝርዝሮችዎ ላይ ይቅዱ።",
+      "ያንን የTxID ኮድ ከታች በማጣቀሻ ቦታው ላይ ይለጥፉ፣ ከዚያ 'Submit' የሚለውን ይጫኑ።"
+    ],
+    intTitle: "አለም አቀፍ የክፍያ አማራጮች - የደረጃ በደረጃ መመሪያ",
+    intSteps: [
+      "ለገለጹት መጠን አስተማማኝ የክፍያ መጠየቂያ ደረሰኝ ወይም ሊንክ እንሰጥዎታለን።",
+      "ቪዛ (Visa)፣ ማስተርካርድ (Mastercard) ወይም ፔይፓል (PayPal) አካውንት በመጠቀም ክፍያውን ይፈጽሙ።",
+      "የደረሰኝ ቁጥሩን፣ የከፈሉበትን ኢሜል ወይም የማጣቀሻ ኮዱን ይያዙ።",
+      "የማጣቀሻ መረጃውን ከታች ያስገቡ እና 'Submit' የሚለውን ይጫኑ።"
+    ],
+    otherTitle: "የሀገር ውስጥ ሞባይል ገንዘብ እና ባንኮች - የደረጃ በደረጃ መመሪያ",
+    otherSteps: [
+      "ከላይ የሚታየውን የሀገር ውስጥ ወኪላችንን ሂሳብ ወይም የማስተላለፊያ መረጃ ይቅዱ።",
+      "የአካባቢዎን የሞባይል ገንዘብ (ለምሳሌ M-Pesa, EVC) ወይም ባንክ መተግበሪያ በመጠቀም ገንዘቡን ያስተላልፉ።",
+      "ከአቅራቢዎ የክፍያ ማረጋገጫ አጭር መልእክት (SMS) ወይም ደረሰኝ ላይ የማጣቀሻ ቁጥሩን ወይም የግብይት መለያውን ይቅዱ።",
+      "የማጣቀሻ ቁጥሩን ከታች ያስገቡ እና በእጅ እንዲረጋገጥ 'Submit' የሚለውን ይጫኑ።"
+    ]
+  }
+};
+*/
 
 const COUNTRIES = [
   { code: '+86', name: 'China (+86)', flag: '🇨🇳' },
@@ -1218,9 +1562,7 @@ function AppContent() {
                         <div className="pt-2 border-t border-slate-200/40 text-[9px] text-slate-400 font-semibold flex items-center gap-1.5">
                           <span>✨</span>
                           <span>
-                            {language === 'am' 
-                              ? 'ጠቃሚ ማሳሰቢያ፡ አንዴ ክፍያውን ከጨረሱና ከታች ካስገቡ በኋላ በ5-10 ደቂቃዎች ውስጥ ሂሳብዎ ላይ ይጨመራል።' 
-                              : 'Important: Your deposit will be credited to your account balance within 5-10 minutes after submission.'}
+                            {t('depositCreditedNotice')}
                           </span>
                         </div>
                       </motion.div>

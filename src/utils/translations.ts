@@ -352,7 +352,12 @@ export const translations: Record<Language, any> = {
     bonus: 'Bonus',
     registrationWelcomeBonus: 'Registration Welcome Bonus',
     referralWelcomeBonus: 'Referral Welcome Bonus',
-    adminBalanceCredit: 'Admin Balance Credit'
+    adminBalanceCredit: 'Admin Balance Credit',
+    rechargeStatus: 'Recharge Status',
+    rechargeVerificationInProgress: 'Recharge verification in progress...',
+    rechargePending: 'RECHARGE PENDING',
+    rechargePendingDesc: 'Your recharge is currently pending admin verification. Please wait.',
+    depositCreditedNotice: 'Important: Your deposit will be credited to your account balance within 5-10 minutes after submission.'
   },
   am: {
     welcomeBack: "እንኳን ደህና መጡ",
@@ -705,7 +710,12 @@ export const translations: Record<Language, any> = {
     bonus: 'ቦነስ',
     registrationWelcomeBonus: 'የምዝገባ የምስጋና ቦነስ',
     referralWelcomeBonus: 'የሪፈራል የምስጋና ቦነስ',
-    adminBalanceCredit: 'አስተዳዳሪ የጨመረው ቦነስ'
+    adminBalanceCredit: 'አስተዳዳሪ የጨመረው ቦነስ',
+    rechargeStatus: 'የሪቻርጅ ሁኔታ',
+    rechargeVerificationInProgress: 'የሪቻርጅ ማረጋገጫ በመከናወን ላይ...',
+    rechargePending: 'ሪቻርጅ በመጠባበቅ ላይ',
+    rechargePendingDesc: 'የእርስዎ ሪቻርጅ በአስተዳዳሪው በመረጋገጥ ላይ ነው። እባክዎ ይጠብቁ።',
+    depositCreditedNotice: 'ጠቃሚ ማሳሰቢያ፡ አንዴ ክፍያውን ከጨረሱና ከታች ካስገቡ በኋላ በ5-10 ደቂቃዎች ውስጥ ሂሳብዎ ላይ ይጨመራል።'
   },
   ar: {
     welcomeBack: "مرحباً بعودتك",
@@ -990,7 +1000,12 @@ export const translations: Record<Language, any> = {
     bonus: 'مكافأة',
     registrationWelcomeBonus: 'مكافأة ترحيب بالتسجيل',
     referralWelcomeBonus: 'مكافأة ترحيب بالإحالة',
-    adminBalanceCredit: 'رصيد إداري مضاف'
+    adminBalanceCredit: 'رصيد إداري مضاف',
+    rechargeStatus: 'حالة شحن الرصيد',
+    rechargeVerificationInProgress: 'التحقق من شحن الرصيد قيد التنفيذ...',
+    rechargePending: 'شحن الرصيد قيد الانتظار',
+    rechargePendingDesc: 'عملية شحن الرصيد الخاصة بك قيد التحقق من قبل المشرف حاليًا. يرجى الانتظار.',
+    depositCreditedNotice: 'تنبيه هام: سيتم إضافة مبلغ الإيداع إلى رصيد حسابك خلال 5-10 دقائق بعد الإرسال.'
   },
   zh: {
     welcomeBack: "欢迎回来",
@@ -1275,7 +1290,12 @@ export const translations: Record<Language, any> = {
     bonus: '红利',
     registrationWelcomeBonus: '注册欢迎红利',
     referralWelcomeBonus: '推荐欢迎红利',
-    adminBalanceCredit: '管理员充值余额'
+    adminBalanceCredit: '管理员充值余额',
+    rechargeStatus: '充值状态',
+    rechargeVerificationInProgress: '充值核对中...',
+    rechargePending: '充值待审核',
+    rechargePendingDesc: '您的充值目前正在等待管理员核对。请稍候。',
+    depositCreditedNotice: '重要提示：您的充值将在提交后5-10分钟内计入您的账户余额。'
   },
   es: {
     welcomeBack: "Bienvenido de nuevo",
@@ -1560,7 +1580,12 @@ export const translations: Record<Language, any> = {
     bonus: 'Bono',
     registrationWelcomeBonus: 'Bono de bienvenida de registro',
     referralWelcomeBonus: 'Bono de bienvenida de referencia',
-    adminBalanceCredit: 'Crédito de saldo de administrador'
+    adminBalanceCredit: 'Crédito de saldo de administrador',
+    rechargeStatus: 'Estado de Recarga',
+    rechargeVerificationInProgress: 'Verificación de recarga en progreso...',
+    rechargePending: 'RECARGA PENDIENTE',
+    rechargePendingDesc: 'Su recarga está actualmente pendiente de verificación por parte del administrador. Por favor, espere.',
+    depositCreditedNotice: 'Importante: Su depósito se acreditará al saldo de su cuenta dentro de 5 a 10 minutos después de enviarlo.'
   },
   fr: {
     welcomeBack: "Bon retour",
@@ -1845,7 +1870,12 @@ export const translations: Record<Language, any> = {
     bonus: 'Bonus',
     registrationWelcomeBonus: 'Bonus de bienvenue d\'inscription',
     referralWelcomeBonus: 'Bonus de bienvenue de parrainage',
-    adminBalanceCredit: 'Crédit de solde administrateur'
+    adminBalanceCredit: 'Crédit de solde administrateur',
+    rechargeStatus: 'Statut de la Recharge',
+    rechargeVerificationInProgress: 'Vérification de la recharge en cours...',
+    rechargePending: 'RECHARGE EN ATTENTE',
+    rechargePendingDesc: 'Votre recharge est actuellement en attente de vérification par l\'administrateur. Veuillez patienter.',
+    depositCreditedNotice: 'Important : Votre dépôt sera crédité sur le solde de votre compte dans les 5 à 10 minutes suivant sa soumission.'
   },
   sw: {
     welcomeBack: "Karibu Tena",
@@ -1962,6 +1992,11 @@ export const translations: Record<Language, any> = {
     welcomeGomContent: 'Tuna furaha kutambulisha jukwaa letu la kimataifa la uboreshaji wa biashara ya mtandaoni (e-commerce) na masoko mahiri. Jiunge na GOM leo na upokee Zawadi ya Karibu ya papo hapo ya {reward} baada ya kujisajili kwa mafanikio.\n\nKamilisha kazi za uuzaji zinazopatikana, saidia kukuza bidhaa za wafanyabiashara, na ujipatie zawadi kupitia mfumo wetu wa kazi mahiri. Anza safari yako na GOM na ushiriki katika fursa za biashara ya kidijitali katika nchi zinazoungwa mkono kote ulimwenguni.',
     supportedBanksTitle: '🏦 Njia za Malipo Zinazoungwa Mkono',
     supportedBanksContent: 'GOM hutoa chaguo salama za kuweka na kutoa pesa kupitia washirika wa malipo wanaoaminika wanaopatikana katika kila nchi na eneo linaloungwa mkono. Muda wa usindikaji na njia za malipo zinazopatikana zinaweza kutofautiana kulingana na mifumo na kanuni za kifedha za ndani.\n\nWatumiaji wanaweza kukamilisha miamala kupitia benki za ndani zinazoungwa mkono, huduma za malipo ya kidijitali, na njia zingine zilizoidhinishwa za malipo zinazopatikana katika nchi yao. Rekodi zote za malipo na uthibitisho wa miamala hushughulikiwa kupitia michakato salama ya uthibitishaji ili kuhakikisha uzoefu wa kuaminika kwa jumuiya ya kimataifa ya GOM.',
+    rechargeStatus: 'Hali ya Kuongeza Salio',
+    rechargeVerificationInProgress: 'Uthibitisho wa kuongeza salio unaendelea...',
+    rechargePending: 'KUONGEZA SALIO KUNASUBIRI',
+    rechargePendingDesc: 'Kuongeza salio kwako sasa kunasubiri uthibitisho wa msimamizi. Tafadhali subiri.',
+    depositCreditedNotice: 'Muhimu: Amana yako itaongezwa kwenye salio la akaunti yako ndani ya dakika 5-10 baada ya kuwasilisha.'
   },
   so: {
     welcomeBack: "Ku soo dhawaada mar kale",
@@ -2078,6 +2113,11 @@ export const translations: Record<Language, any> = {
     welcomeGomContent: 'Aad ayaan ugu faraxsanahay inaan soo bandhigno bar-barkeena caalamiga ah ee hagaajinta ganacsiga e-commerce iyo suuqgeynta casriga ah. Ku biir GOM maanta oo hel abaalmarin soo dhaweyn oo degdeg ah oo dhan {reward} ka dib marka aad si guul leh isu diiwaangeliso.\n\nDhamaystir hawlaha suuqgeynta ee la heli karo, taageer dhiirrigelinta alaabta ganacsatada, oo hel abaalmarino adoo adeegsanaya nidaamkayaga shaqo ee casriga ah. Ka bilow safarkaaga GOM oo ka qaybgal fursadaha ganacsiga dhijitaalka ah ee guud ahaan waddamada la taageero ee adduunka oo dhan.',
     supportedBanksTitle: '🏦 Hababka Lacag-bixinta ee la Taageero',
     supportedBanksContent: 'GOM waxay bixisaa doorashooyin deebaaji iyo bixitaan oo ammaan ah iyada oo loo marayo la-hawlgalayaasha lacag-bixinta ee la aamini karo ee laga heli karo waddan kasta iyo gobol kasta oo la taageero. Waqtiyada habaynta iyo hababka lacag-bixinta ee la heli karo way kala duwanaan karaan iyadoo ku xidhan nidaamyada iyo xeerarka maaliyadeed ee deegaanka.\n\nIsticmaalayaashu waxay dhamaystiri karaan miamalaadka iyagoo adeegsanaya bangiyada maxaliga ah ee la taageero, adeegyada lacag-bixinta dhijitaalka ah, iyo kanaalada kale ee lacag-bixinta ee la oggolaaday ee laga heli karo dalkooda. Dhammaan diiwaannada lacag-bixinta iyo xaqiijinta miamalaadka waxaa lagu maareeyaa habab xaqiijin oo ammaan ah si loo hubiyo khibrad la isku halleyn karo oo loogu talagalay bulshada caalamiga ah ee GOM.',
+    rechargeStatus: 'Haddada Lacag Ku Shubista',
+    rechargeVerificationInProgress: 'Xaqiijinta ku shubista lacagta ayaa socota...',
+    rechargePending: 'KU SHUBISTA LACAGTA WAA INTA SUGIDDA',
+    rechargePendingDesc: 'Lacag ku shubistaadu hadda waxay sugaysaa xaqiijinta maamulaha. Fadlan sug.',
+    depositCreditedNotice: 'Muhiim: Lacagta aad ku shubatay waxaa lagu shubi doonaa haddada koontadaada muddo 5-10 daqiiqo ah gudahood ka dib markaad soo gudbiso.'
   },
   pt: {
     welcomeBack: "Bem-vindo de volta",
@@ -2194,6 +2234,11 @@ export const translations: Record<Language, any> = {
     welcomeGomContent: 'Estamos entusiasmados em apresentar nossa plataforma global de otimização de e-commerce e marketing inteligente. Junte-se à GOM hoje e receba uma Recompensa de Boas-Vindas instantânea de {reward} após o registro bem-sucedido.\n\nConclua as tarefas de marketing disponíveis, apoie a promoção de produtos dos comerciantes e ganhe prêmios por meio de nosso sistema de tarefas inteligente. Comece sua jornada com a GOM e participe de oportunidades de comércio digital em países suportados em todo o mundo.',
     supportedBanksTitle: '🏦 Métodos de Pagamento Suportados',
     supportedBanksContent: 'A GOM oferece opções seguras de depósito e saque por meio de parceiros de pagamento confiáveis disponíveis em cada país e região suportados. Os tempos de processamento e os métodos de pagamento disponíveis podem variar dependendo dos regulamentos e sistemas financeiros locais.\n\nOs usuários podem concluir transações por meio de bancos locais suportados, serviços de pagamento digital e outros canais de pagamento aprovados disponíveis em seu país. Todos os registros de pagamento e confirmações de transações são tratados por meio de processos de verificação seguros para garantir uma experiência confiável para a comunidade global da GOM.',
+    rechargeStatus: 'Estado de Recarga',
+    rechargeVerificationInProgress: 'Verificação de recarga em andamento...',
+    rechargePending: 'RECARGA PENDENTE',
+    rechargePendingDesc: 'A sua recarga está atualmente pendente de verificação pelo administrador. Por favor, aguarde.',
+    depositCreditedNotice: 'Importante: O seu depósito será creditado no saldo da sua conta no prazo de 5 a 10 minutos após o envio.'
   }
 };
 

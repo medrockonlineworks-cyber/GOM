@@ -251,7 +251,7 @@ export const OrdersTab: React.FC<OrdersTabProps> = ({ onOpenRechargeModal }) => 
                       {formatPrice(currentUser.walletBalance)}
                     </p>
 
-                    <p className="text-[10px] font-bold">{language === 'en' ? 'Status' : 'ሁኔታ'}:</p>
+                    <p className="text-[10px] font-bold">{t('statusLabel')}:</p>
                     <p className="text-[10px] font-extrabold text-right uppercase">
                       {isCompleted ? (
                         <span className="text-emerald-600">{t('completed')}</span>
@@ -271,9 +271,9 @@ export const OrdersTab: React.FC<OrdersTabProps> = ({ onOpenRechargeModal }) => 
                         </p>
                         {hasPendingRecharge && (
                           <>
-                            <p className="text-[10px] font-bold text-amber-600">{language === 'en' ? 'Recharge Status' : 'የሪቻርጅ ሁኔታ'}:</p>
+                            <p className="text-[10px] font-bold text-amber-600">{t('rechargeStatus')}:</p>
                             <p className="text-[10px] font-black text-right text-amber-600 uppercase animate-pulse">
-                              {language === 'en' ? 'Pending Approval' : 'በመጠባበቅ ላይ'}
+                              {t('pendingApproval')}
                             </p>
                           </>
                         )}
@@ -291,7 +291,7 @@ export const OrdersTab: React.FC<OrdersTabProps> = ({ onOpenRechargeModal }) => 
                       {isCompleted 
                         ? t('earningsSettled') 
                         : hasPendingRecharge
-                        ? (language === 'en' ? 'Recharge verification in progress...' : 'የሪቻርጅ ማረጋገጫ በመከናወን ላይ...')
+                        ? t('rechargeVerificationInProgress')
                         : hasInsufficientBalance 
                         ? `${t('minRecharge')}: ${formatPrice(order.materialCost - currentUser.walletBalance)}` 
                         : t('readyToSubmit')
@@ -348,9 +348,9 @@ export const OrdersTab: React.FC<OrdersTabProps> = ({ onOpenRechargeModal }) => 
                             <div className="bg-amber-50 border border-amber-200/60 p-2.5 rounded-xl text-[10px] text-amber-700 font-medium mb-1 space-y-1">
                               <p className="font-extrabold uppercase tracking-wide flex items-center gap-1.5 text-amber-800">
                                 <RefreshCw size={11} className="animate-spin text-amber-600" style={{ animationDuration: '4s' }} /> 
-                                {language === 'en' ? 'RECHARGE PENDING' : 'ሪቻርጅ በመጠባበቅ ላይ'}
+                                {t('rechargePending')}
                               </p>
-                              <p>{language === 'en' ? 'Your recharge is currently pending admin verification. Please wait.' : 'የእርስዎ ሪቻርጅ በአስተዳዳሪው በመረጋገጥ ላይ ነው። እባክዎ ይጠብቁ።'}</p>
+                              <p>{t('rechargePendingDesc')}</p>
                             </div>
                           ) : (
                             <div className="bg-red-50 border border-red-200/60 p-2.5 rounded-xl text-[10px] text-red-700 font-medium mb-1 space-y-1">
@@ -405,10 +405,10 @@ export const OrdersTab: React.FC<OrdersTabProps> = ({ onOpenRechargeModal }) => 
           <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex flex-col gap-2 shadow-xs animate-pulse">
             <p className="text-[11px] font-bold text-amber-700 uppercase flex items-center gap-1.5">
               <RefreshCw size={11} className="animate-spin text-amber-600" style={{ animationDuration: '4s' }} />
-              {language === 'en' ? 'RECHARGE PENDING' : 'ሪቻርጅ በመጠባበቅ ላይ'}
+              {t('rechargePending')}
             </p>
             <div className="flex justify-between items-center">
-              <span className="text-xs text-amber-600 font-medium">{language === 'en' ? 'Recharge verification in progress...' : 'የሪቻርጅ ማረጋገጫ በመከናወን ላይ...'}</span>
+              <span className="text-xs text-amber-600 font-medium">{t('rechargeVerificationInProgress')}</span>
               <button 
                 disabled={true}
                 className="bg-amber-500 text-white text-[10px] font-bold px-4 py-1.5 rounded-lg uppercase transition-all flex items-center gap-1 cursor-not-allowed opacity-90"
