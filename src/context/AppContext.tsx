@@ -2281,8 +2281,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (currentUser) {
         const batch = writeBatch(db);
         
-        // Delete current user's user document
-        batch.delete(doc(db, 'users', currentUser.id));
+        // Reset current user's document details instead of deleting it
+        const userRef = doc(db, 'users', currentUser.id);
+        batch.update(userRef, {
+          walletBalance: 0,
+          welcomeBonus: 0,
+          totalEarnings: 0,
+          currentOrderIndex: 0,
+          completedOrderIds: [],
+          lastOrderCompletedAt: null
+        });
         
         // Delete current user's transactions
         const userTxs = transactions.filter(tx => tx.userId === currentUser.id);
@@ -2305,7 +2313,60 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         await batch.commit();
       }
       
-      localStorage.clear();
+      // Update local storage selectively so the session is preserved (no logout)
+      if (currentUser) {
+        const updatedCurrentUser = {
+          ...currentUser,
+          walletBalance: 0,
+          welcomeBonus: 0,
+          totalEarnings: 0,
+          currentOrderIndex: 0,
+          completedOrderIds: [],
+          lastOrderCompletedAt: undefined
+        };
+        localStorage.setItem('gom_current_user', JSON.stringify(updatedCurrentUser));
+        
+        // Update users array in local storage
+        const savedUsers = localStorage.getItem('gom_users');
+        if (savedUsers) {
+          try {
+            const parsedUsers = JSON.parse(savedUsers) as User[];
+            const updatedUsers = parsedUsers.map(u => u.id === currentUser.id ? updatedCurrentUser : u);
+            localStorage.setItem('gom_users', JSON.stringify(updatedUsers));
+          } catch (err) {
+            console.error(err);
+          }
+        }
+      }
+
+      // Filter out current user's records from local storage states
+      const savedTxs = localStorage.getItem('gom_transactions');
+      if (savedTxs) {
+        try {
+          const parsed = JSON.parse(savedTxs) as Transaction[];
+          const updated = parsed.filter(tx => tx.userId !== currentUser?.id);
+          localStorage.setItem('gom_transactions', JSON.stringify(updated));
+        } catch (err) { console.error(err); }
+      }
+
+      const savedSupport = localStorage.getItem('gom_support');
+      if (savedSupport) {
+        try {
+          const parsed = JSON.parse(savedSupport) as SupportMessage[];
+          const updated = parsed.filter(msg => msg.userId !== currentUser?.id);
+          localStorage.setItem('gom_support', JSON.stringify(updated));
+        } catch (err) { console.error(err); }
+      }
+
+      const savedLogs = localStorage.getItem('gom_audit_logs');
+      if (savedLogs) {
+        try {
+          const parsed = JSON.parse(savedLogs) as AuditLog[];
+          const updated = parsed.filter(log => log.userId !== currentUser?.id);
+          localStorage.setItem('gom_audit_logs', JSON.stringify(updated));
+        } catch (err) { console.error(err); }
+      }
+      
       window.location.reload();
     } catch (e) {
       console.error("Error resetting own account:", e);
