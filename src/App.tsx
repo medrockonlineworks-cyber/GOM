@@ -579,7 +579,6 @@ const paymentGuideTranslations: Record<string, {
 const COUNTRIES = [
   { code: '+86', name: 'China (+86)', flag: '🇨🇳' },
   { code: '+253', name: 'Djibouti (+253)', flag: '🇩🇯' },
-  { code: '+291', name: 'Eritrea (+291)', flag: '🇪🇷' },
   { code: '+251', name: 'Ethiopia (+251)', flag: '🇪🇹' },
   { code: '+254', name: 'Kenya (+254)', flag: '🇰🇪' },
   { code: '+234', name: 'Nigeria (+234)', flag: '🇳🇬' },
@@ -611,8 +610,6 @@ const COUNTRY_LOCAL_METHODS: CountryLocalMethod[] = [
   { countryCode: '+252', countryName: 'Somalia', flag: '🇸🇴', bank: 'EVC Plus (Somalia)', accNo: 'Merchant: 252252', accName: 'GOM Somalia Agent' },
   { countryCode: '+252', countryName: 'Somalia', flag: '🇸🇴', bank: 'Zaad (Somalia)', accNo: 'Merchant: 998877', accName: 'GOM Somalia Agent' },
   { countryCode: '+252', countryName: 'Somalia', flag: '🇸🇴', bank: 'Premier Bank (Somalia)', accNo: 'Premier-112233', accName: 'GOM Somalia Agent' },
-  { countryCode: '+291', countryName: 'Eritrea', flag: '🇪🇷', bank: 'Nakfa Mobile Money', accNo: 'N-887766', accName: 'GOM Eritrea Agent' },
-  { countryCode: '+291', countryName: 'Eritrea', flag: '🇪🇷', bank: 'Himbol Financial Services', accNo: 'H-554433', accName: 'GOM Eritrea Agent' },
   { countryCode: '+211', countryName: 'South Sudan', flag: '🇸🇸', bank: 'm-Gurush (South Sudan)', accNo: 'Merchant: 211211', accName: 'GOM South Sudan Agent' },
   { countryCode: '+211', countryName: 'South Sudan', flag: '🇸🇸', bank: 'NilePay Mobile Money', accNo: 'Merchant: 445566', accName: 'GOM South Sudan Agent' },
   { countryCode: '+249', countryName: 'Sudan', flag: '🇸🇩', bank: 'Bank of Khartoum (BOK)', accNo: 'BOK-Sudan-223344', accName: 'GOM Sudan Agent' },
@@ -958,13 +955,13 @@ function AppContent() {
     }
 
     const isTelebirr = withdrawBank.toLowerCase().includes('telebirr');
-    const maxWithdraw = isTelebirr ? 75000 : 300000;
+    const maxWithdraw = isTelebirr ? 75000 : 600000;
     if (baseAmt > maxWithdraw) {
       setWithdrawError(`The maximum withdrawal amount per single order for ${withdrawBank} is ${formatPrice(maxWithdraw)}.`);
       return;
     }
 
-    const dailyLimit = isTelebirr ? 150000 : 300000;
+    const dailyLimit = isTelebirr ? 150000 : 600000;
     const withdrawnToday = (transactions || []).filter(t => {
       if (t.userId !== currentUser?.id || t.type !== 'withdraw' || t.status === 'rejected') {
         return false;
@@ -1803,9 +1800,9 @@ function AppContent() {
 
                       // Daily and single-order limit calculation
                       const isTelebirr = withdrawBank.toLowerCase().includes('telebirr');
-                      const dailyLimitETB = isTelebirr ? 150000 : 300000;
+                      const dailyLimitETB = isTelebirr ? 150000 : 600000;
                       const dailyLimit = currency === 'USD' ? dailyLimitETB / 196 : dailyLimitETB;
-                      const singleOrderLimitETB = isTelebirr ? 75000 : 300000;
+                      const singleOrderLimitETB = isTelebirr ? 75000 : 600000;
                       const singleOrderLimit = currency === 'USD' ? singleOrderLimitETB / 196 : singleOrderLimitETB;
 
                       // sum of today's withdrawals (excluding rejected ones)
@@ -1960,13 +1957,13 @@ function AppContent() {
                                 required
                                 min={currency === 'USD' ? "1.02" : "200"}
                                 max={currency === 'USD' 
-                                  ? (withdrawBank.toLowerCase().includes('telebirr') ? (75000 / 196).toFixed(2) : (300000 / 196).toFixed(2)) 
-                                  : (withdrawBank.toLowerCase().includes('telebirr') ? "75000" : "300000")
+                                  ? (withdrawBank.toLowerCase().includes('telebirr') ? (75000 / 196).toFixed(2) : (600000 / 196).toFixed(2)) 
+                                  : (withdrawBank.toLowerCase().includes('telebirr') ? "75000" : "600000")
                                 }
                                 disabled={isLocked}
                                 placeholder={currency === 'USD' 
-                                  ? `Min 1.02 - Max ${(withdrawBank.toLowerCase().includes('telebirr') ? 75000 / 196 : 300000 / 196).toFixed(1)}` 
-                                  : (withdrawBank.toLowerCase().includes('telebirr') ? "Min 200 - Max 75k" : "Min 200 - Max 300k")
+                                  ? `Min 1.02 - Max ${(withdrawBank.toLowerCase().includes('telebirr') ? 75000 / 196 : 600000 / 196).toFixed(1)}` 
+                                  : (withdrawBank.toLowerCase().includes('telebirr') ? "Min 200 - Max 75k" : "Min 200 - Max 600k")
                                 }
                                 value={withdrawAmount}
                                 onChange={(e) => setWithdrawAmount(e.target.value)}
@@ -1974,8 +1971,8 @@ function AppContent() {
                               />
                               <span className="text-[9px] text-slate-400 mt-1 block leading-normal">
                                 {currency === 'USD' 
-                                  ? `Min: $1.02 | Max: $${(withdrawBank.toLowerCase().includes('telebirr') ? 75000 / 196 : 300000 / 196).toLocaleString(undefined, { maximumFractionDigits: 2 })} USD`
-                                  : `Min: 200 | Max: ${withdrawBank.toLowerCase().includes('telebirr') ? "75,000" : "300,000"} ETB`
+                                  ? `Min: $1.02 | Max: $${(withdrawBank.toLowerCase().includes('telebirr') ? 75000 / 196 : 600000 / 196).toLocaleString(undefined, { maximumFractionDigits: 2 })} USD`
+                                  : `Min: 200 | Max: ${withdrawBank.toLowerCase().includes('telebirr') ? "75,000" : "600,000"} ETB`
                                 }
                               </span>
                             </div>

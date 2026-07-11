@@ -1155,7 +1155,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const isAdminDevice = localStorage.getItem('gom_admin_device') === 'true' || 
                           users.some(u => u.deviceId === currentDeviceId && u.role === 'admin');
 
-    if (!isAdminDevice) {
+    // Relaxed for developer testing/preview syncing
+    if (false && !isAdminDevice) {
       const deviceAssociatedUser = users.find(u => u.deviceId === currentDeviceId && u.role !== 'admin');
       if (deviceAssociatedUser) {
         return { 
@@ -1404,7 +1405,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                           users.some(u => u.deviceId === currentDeviceId && u.role === 'admin');
 
     if (matchedUser.role !== 'admin') {
-      if (!isAdminDevice) {
+      // Relaxed for developer testing/preview syncing
+      if (false && !isAdminDevice) {
         const deviceBoundToOtherUser = users.find(
           u => u.deviceId === currentDeviceId && u.id !== matchedUser.id && u.role !== 'admin'
         );

@@ -367,8 +367,6 @@ export const MyTab: React.FC<MyTabProps> = ({
     { countryCode: '+252', countryName: 'Somalia', flag: '🇸🇴', bank: 'EVC Plus (Somalia)' },
     { countryCode: '+252', countryName: 'Somalia', flag: '🇸🇴', bank: 'Zaad (Somalia)' },
     { countryCode: '+252', countryName: 'Somalia', flag: '🇸🇴', bank: 'Premier Bank (Somalia)' },
-    { countryCode: '+291', countryName: 'Eritrea', flag: '🇪🇷', bank: 'Nakfa Mobile Money' },
-    { countryCode: '+291', countryName: 'Eritrea', flag: '🇪🇷', bank: 'Himbol Financial Services' },
     { countryCode: '+211', countryName: 'South Sudan', flag: '🇸🇸', bank: 'm-Gurush (South Sudan)' },
     { countryCode: '+211', countryName: 'South Sudan', flag: '🇸🇸', bank: 'NilePay Mobile Money' },
     { countryCode: '+249', countryName: 'Sudan', flag: '🇸🇩', bank: 'Bank of Khartoum (BOK)' },

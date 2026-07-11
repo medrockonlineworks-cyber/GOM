@@ -15,7 +15,6 @@ type AuthView = 'login' | 'register' | 'forgot';
 const COUNTRIES = [
   { code: '+86', name: 'China (+86)', flag: '🇨🇳' },
   { code: '+253', name: 'Djibouti (+253)', flag: '🇩🇯' },
-  { code: '+291', name: 'Eritrea (+291)', flag: '🇪🇷' },
   { code: '+251', name: 'Ethiopia (+251)', flag: '🇪🇹' },
   { code: '+254', name: 'Kenya (+254)', flag: '🇰🇪' },
   { code: '+234', name: 'Nigeria (+234)', flag: '🇳🇬' },

@@ -174,7 +174,6 @@ const generateRandomWithdrawal = () => {
 export const TELEGRAM_COUNTRIES = [
   { country: 'China', flag: '🇨🇳', prefix: '+86', code: '86', channel: 'GOM_China', support: 'GOM_China_Support' },
   { country: 'Djibouti', flag: '🇩🇯', prefix: '+253', code: '253', channel: 'GOM_Djibouti', support: 'GOM_Djibouti_Support' },
-  { country: 'Eritrea', flag: '🇪🇷', prefix: '+291', code: '291', channel: 'GOM_Eritrea', support: 'GOM_Eritrea_Support' },
   { country: 'Ethiopia', flag: '🇪🇹', prefix: '+251', code: '251', channel: 'GOM_Ethiopia_Official', support: 'gom_support_et' },
   { country: 'Kenya', flag: '🇰🇪', prefix: '+254', code: '254', channel: 'GOM_Kenya', support: 'GOM_Kenya_Support' },
   { country: 'Nigeria', flag: '🇳🇬', prefix: '+234', code: '234', channel: 'GOM_Nigeria', support: 'GOM_Nigeria_Support' },
