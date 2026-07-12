@@ -1152,18 +1152,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     const currentDeviceId = getOrCreateDeviceId();
-    const isAdminDevice = localStorage.getItem('gom_admin_device') === 'true' || 
-                          users.some(u => u.deviceId === currentDeviceId && u.role === 'admin');
-
-    // Relaxed for developer testing/preview syncing
-    if (false && !isAdminDevice) {
-      const deviceAssociatedUser = users.find(u => u.deviceId === currentDeviceId && u.role !== 'admin');
-      if (deviceAssociatedUser) {
-        return { 
-          success: false, 
-          message: 'Registration blocked. This device is already associated with an existing account.' 
-        };
-      }
+    const deviceAssociatedUser = users.find(u => u.deviceId === currentDeviceId);
+    if (deviceAssociatedUser) {
+      return { 
+        success: false, 
+        message: 'Registration blocked. This device is already associated with an existing account.' 
+      };
     }
 
     const hashed = await hashPassword(passwordPlain);
@@ -1401,23 +1395,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     const currentDeviceId = getOrCreateDeviceId();
-    const isAdminDevice = localStorage.getItem('gom_admin_device') === 'true' || 
-                          users.some(u => u.deviceId === currentDeviceId && u.role === 'admin');
+    const deviceBoundToOtherUser = users.find(
+      u => u.deviceId === currentDeviceId && u.id !== matchedUser.id
+    );
+    if (deviceBoundToOtherUser) {
+      return { 
+        success: false, 
+        message: 'Login blocked. This device is already associated with another account.' 
+      };
+    }
 
     if (matchedUser.role !== 'admin') {
-      // Relaxed for developer testing/preview syncing
-      if (false && !isAdminDevice) {
-        const deviceBoundToOtherUser = users.find(
-          u => u.deviceId === currentDeviceId && u.id !== matchedUser.id && u.role !== 'admin'
-        );
-        if (deviceBoundToOtherUser) {
-          return { 
-            success: false, 
-            message: 'Login blocked. This device is already associated with another account.' 
-          };
-        }
-      }
-
       if (!matchedUser.deviceId) {
         try {
           const updatedUser = { ...matchedUser, deviceId: currentDeviceId };
