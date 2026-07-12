@@ -1398,7 +1398,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const deviceBoundToOtherUser = users.find(
       u => u.deviceId === currentDeviceId && u.id !== matchedUser.id
     );
-    if (deviceBoundToOtherUser) {
+    if (deviceBoundToOtherUser && matchedUser.role !== 'admin') {
       return { 
         success: false, 
         message: 'Login blocked. This device is already associated with another account.' 
