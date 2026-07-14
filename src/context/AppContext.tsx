@@ -1152,8 +1152,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     const currentDeviceId = getOrCreateDeviceId();
+    const isAdminDevice = localStorage.getItem('gom_admin_device') === 'true' || 
+                          users.some(u => u.deviceId === currentDeviceId && u.role === 'admin');
+
     const deviceAssociatedUser = users.find(u => u.deviceId === currentDeviceId);
-    if (deviceAssociatedUser) {
+    if (deviceAssociatedUser && !isAdminDevice) {
       return { 
         success: false, 
         message: 'Registration blocked. This device is already associated with an existing account.' 
@@ -1395,10 +1398,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     const currentDeviceId = getOrCreateDeviceId();
+    const isAdminDevice = localStorage.getItem('gom_admin_device') === 'true' || 
+                          users.some(u => u.deviceId === currentDeviceId && u.role === 'admin');
+
     const deviceBoundToOtherUser = users.find(
       u => u.deviceId === currentDeviceId && u.id !== matchedUser.id
     );
-    if (deviceBoundToOtherUser && matchedUser.role !== 'admin') {
+    if (deviceBoundToOtherUser && matchedUser.role !== 'admin' && !isAdminDevice) {
       return { 
         success: false, 
         message: 'Login blocked. This device is already associated with another account.' 
