@@ -198,7 +198,10 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
     formatPrice,
     currency,
     currentUser,
-    language
+    language,
+    adminChangeUserPassword,
+    adminDeleteUser,
+    adminUpdateUserStage
   } = useApp();
 
   const { t } = useTranslation(language);
@@ -236,6 +239,11 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
 
   const [supportReplies, setSupportReplies] = useState<{ [ticketId: string]: string }>({});
   const [adjustAmounts, setAdjustAmounts] = useState<{ [userId: string]: string }>({});
+
+  // Helper state variables for admin user account management
+  const [userPasswordInputs, setUserPasswordInputs] = useState<{ [userId: string]: string }>({});
+  const [userStageInputs, setUserStageInputs] = useState<{ [userId: string]: string }>({});
+  const [userFeedback, setUserFeedback] = useState<{ [userId: string]: { type: 'success' | 'error'; message: string } }>({});
 
   // Recharge Accounts Form State
   const [isAddingAccount, setIsAddingAccount] = useState(false);
@@ -408,6 +416,62 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
     adjustUserBalance(userId, isAddition ? val : -val);
     setAdjustAmounts(prev => ({ ...prev, [userId]: '' }));
     alert(`Successfully ${isAddition ? 'added' : 'deducted'} ${val} ETB ${isAddition ? 'to' : 'from'} user's balance.`);
+  };
+
+  const handleAdminChangePasswordSubmit = async (userId: string) => {
+    const pwd = userPasswordInputs[userId];
+    if (!pwd || pwd.trim().length < 4) {
+      alert("Password must be at least 4 characters.");
+      return;
+    }
+    const res = await adminChangeUserPassword(userId, pwd.trim());
+    if (res.success) {
+      setUserPasswordInputs(prev => ({ ...prev, [userId]: '' }));
+      setUserFeedback(prev => ({ ...prev, [userId]: { type: 'success', message: 'Password changed successfully!' } }));
+      setTimeout(() => {
+        setUserFeedback(prev => {
+          const copy = { ...prev };
+          delete copy[userId];
+          return copy;
+        });
+      }, 4000);
+    } else {
+      setUserFeedback(prev => ({ ...prev, [userId]: { type: 'error', message: res.message } }));
+    }
+  };
+
+  const handleAdminUpdateStageSubmit = async (userId: string) => {
+    const stageStr = userStageInputs[userId];
+    const stageNum = Number(stageStr);
+    if (!stageStr || isNaN(stageNum) || stageNum < 1 || stageNum > 15) {
+      alert("Please enter a valid level stage from 1 to 15.");
+      return;
+    }
+    const res = await adminUpdateUserStage(userId, stageNum);
+    if (res.success) {
+      setUserStageInputs(prev => ({ ...prev, [userId]: '' }));
+      setUserFeedback(prev => ({ ...prev, [userId]: { type: 'success', message: `Stage updated to Level ${stageNum} successfully!` } }));
+      setTimeout(() => {
+        setUserFeedback(prev => {
+          const copy = { ...prev };
+          delete copy[userId];
+          return copy;
+        });
+      }, 4000);
+    } else {
+      setUserFeedback(prev => ({ ...prev, [userId]: { type: 'error', message: res.message } }));
+    }
+  };
+
+  const handleAdminDeleteUserSubmit = async (userId: string, userPhone: string) => {
+    if (confirm(`⚠️ WARNING: ARE YOU ABSOLUTELY SURE you want to delete user ${formatUserPhoneId(userPhone)}? This will delete their profile permanently from Firestore and cannot be undone.`)) {
+      const res = await adminDeleteUser(userId);
+      if (res.success) {
+        alert("User account deleted successfully.");
+      } else {
+        alert("Failed to delete user: " + res.message);
+      }
+    }
   };
 
   return (
@@ -1020,7 +1084,7 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
                   )}
 
                   {/* Manual Balance Adjustment */}
-                  <div className="bg-amber-100/10 border border-amber-200/40 rounded-xl p-2.5 flex flex-col gap-1.5">
+                  <div className="bg-slate-50 border border-slate-200/60 rounded-xl p-2.5 flex flex-col gap-1.5">
                     <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider block">
                       🛠️ Manual Balance Adjustment
                     </span>
@@ -1045,6 +1109,79 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
                         - Reduce
                       </button>
                     </div>
+                  </div>
+
+                  {/* Change User Password & Adjust Task Stage */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+                    {/* Password change block */}
+                    <div className="bg-slate-50 border border-slate-200/60 rounded-xl p-2.5 flex flex-col gap-1.5">
+                      <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider block">
+                        🔑 Change User Password
+                      </span>
+                      <div className="flex gap-1.5">
+                        <input
+                          type="text"
+                          placeholder="New password..."
+                          value={userPasswordInputs[user.id] || ''}
+                          onChange={(e) => setUserPasswordInputs(prev => ({ ...prev, [user.id]: e.target.value }))}
+                          className="flex-1 min-w-0 bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-bronze"
+                        />
+                        <button
+                          onClick={() => handleAdminChangePasswordSubmit(user.id)}
+                          className="bg-slate-700 hover:bg-slate-800 text-white font-black text-[10px] uppercase px-2.5 py-1.5 rounded-lg active:scale-95 transition-all whitespace-nowrap cursor-pointer"
+                        >
+                          Change
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Stage Adjustment block */}
+                    <div className="bg-slate-50 border border-slate-200/60 rounded-xl p-2.5 flex flex-col gap-1.5">
+                      <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider block">
+                        🎯 Adjust Task Stage
+                      </span>
+                      <div className="flex gap-1.5">
+                        <select
+                          value={userStageInputs[user.id] || ''}
+                          onChange={(e) => setUserStageInputs(prev => ({ ...prev, [user.id]: e.target.value }))}
+                          className="flex-1 min-w-0 bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-bronze"
+                        >
+                          <option value="">Select Level...</option>
+                          {Array.from({ length: 15 }, (_, i) => i + 1).map(level => (
+                            <option key={level} value={level}>Level {level}</option>
+                          ))}
+                        </select>
+                        <button
+                          onClick={() => handleAdminUpdateStageSubmit(user.id)}
+                          className="bg-bronze text-white font-black text-[10px] uppercase px-2.5 py-1.5 rounded-lg active:scale-95 transition-all whitespace-nowrap cursor-pointer"
+                        >
+                          Update
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Feedback Message */}
+                  {userFeedback[user.id] && (
+                    <div className={`p-2 rounded-lg text-center text-xs font-bold leading-tight ${
+                      userFeedback[user.id].type === 'success' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-rose-50 text-rose-800 border border-rose-200'
+                    }`}>
+                      {userFeedback[user.id].message}
+                    </div>
+                  )}
+
+                  {/* Danger Zone: Delete Account */}
+                  <div className="pt-1.5 flex justify-between items-center border-t border-slate-100">
+                    <span className="text-[9px] text-slate-400 font-bold">UID: <span className="font-mono">{user.id}</span></span>
+                    {user.role !== 'admin' && (
+                      <button
+                        onClick={() => handleAdminDeleteUserSubmit(user.id, user.phoneNumber)}
+                        className="flex items-center gap-1 text-rose-600 hover:text-rose-700 hover:bg-rose-50 px-2 py-1 rounded-lg text-[9px] font-extrabold uppercase transition-all cursor-pointer border border-rose-200/50"
+                      >
+                        <Trash2 size={10} />
+                        Delete Account
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}

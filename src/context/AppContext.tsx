@@ -344,6 +344,11 @@ interface AppContextProps {
   updateRechargeAccount: (id: string, bank: string, accName: string, accNo: string) => void;
   deleteRechargeAccount: (id: string) => void;
   
+  // Admin User Account Management Mechanisms
+  adminChangeUserPassword: (userId: string, newPasswordPlain: string) => Promise<{ success: boolean; message: string }>;
+  adminDeleteUser: (userId: string) => Promise<{ success: boolean; message: string }>;
+  adminUpdateUserStage: (userId: string, newStage: number) => Promise<{ success: boolean; message: string }>;
+
   // System reset
   factoryReset: () => void;
 }
@@ -2632,6 +2637,108 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+  const adminChangeUserPassword = async (userId: string, newPasswordPlain: string): Promise<{ success: boolean; message: string }> => {
+    try {
+      const userToUpdate = users.find(u => u.id === userId);
+      if (!userToUpdate) {
+        return { success: false, message: 'User not found.' };
+      }
+      const hashed = await hashPassword(newPasswordPlain);
+      const updatedUser = {
+        ...userToUpdate,
+        passwordHash: hashed
+      };
+
+      await setDoc(doc(db, 'users', userId), cleanFirestoreData(updatedUser));
+      await logAudit('ADMIN', 'ADMIN', 'ADMIN_CHANGE_PASSWORD', `Admin updated password for User ID ${userId}`);
+
+      // Update state
+      const updatedUsers = users.map(u => u.id === userId ? updatedUser : u);
+      setUsers(updatedUsers);
+      localStorage.setItem('gom_users', JSON.stringify(updatedUsers));
+
+      if (currentUser && currentUser.id === userId) {
+        setCurrentUser(updatedUser);
+        localStorage.setItem('gom_current_user', JSON.stringify(updatedUser));
+      }
+
+      return { success: true, message: 'User password successfully changed.' };
+    } catch (e: any) {
+      console.error("Error updating user password as admin:", e);
+      return { success: false, message: e.message || 'Failed to update user password.' };
+    }
+  };
+
+  const adminDeleteUser = async (userId: string): Promise<{ success: boolean; message: string }> => {
+    try {
+      const userToDelete = users.find(u => u.id === userId);
+      if (!userToDelete) {
+        return { success: false, message: 'User not found.' };
+      }
+      
+      // Delete user document
+      await deleteDoc(doc(db, 'users', userId));
+      await logAudit('ADMIN', 'ADMIN', 'ADMIN_DELETE_USER', `Admin deleted User ID ${userId} (Phone: ${userToDelete.phoneNumber})`);
+
+      // Update state
+      const updatedUsers = users.filter(u => u.id !== userId);
+      setUsers(updatedUsers);
+      localStorage.setItem('gom_users', JSON.stringify(updatedUsers));
+
+      // If deleted current user, log them out
+      if (currentUser && currentUser.id === userId) {
+        logout();
+      }
+
+      return { success: true, message: 'User deleted successfully.' };
+    } catch (e: any) {
+      console.error("Error deleting user as admin:", e);
+      return { success: false, message: e.message || 'Failed to delete user.' };
+    }
+  };
+
+  const adminUpdateUserStage = async (userId: string, newStage: number): Promise<{ success: boolean; message: string }> => {
+    try {
+      const userToUpdate = users.find(u => u.id === userId);
+      if (!userToUpdate) {
+        return { success: false, message: 'User not found.' };
+      }
+
+      // Convert newStage (1 to 15) to currentOrderIndex (0 to 14)
+      const newIndex = Math.max(0, Math.min(14, newStage - 1));
+      
+      // Ensure completedOrderIds contains all levels completed up to newIndex
+      const completedOrderIds: number[] = [];
+      for (let i = 1; i <= newIndex; i++) {
+        completedOrderIds.push(i);
+      }
+
+      const updatedUser = {
+        ...userToUpdate,
+        currentOrderIndex: newIndex,
+        completedOrderIds
+      };
+
+      await setDoc(doc(db, 'users', userId), cleanFirestoreData(updatedUser));
+      await logAudit('ADMIN', 'ADMIN', 'ADMIN_UPDATE_STAGE', `Admin updated task stage for User ID ${userId} to Level ${newStage}`);
+
+      // Update state
+      const updatedUsers = users.map(u => u.id === userId ? updatedUser : u);
+      setUsers(updatedUsers);
+      localStorage.setItem('gom_users', JSON.stringify(updatedUsers));
+
+      if (currentUser && currentUser.id === userId) {
+        setCurrentUser(updatedUser);
+        localStorage.setItem('gom_current_user', JSON.stringify(updatedUser));
+      }
+
+      return { success: true, message: `Successfully updated user stage to Level ${newStage}.` };
+    } catch (e: any) {
+      console.error("Error updating user stage as admin:", e);
+      return { success: false, message: e.message || 'Failed to update user stage.' };
+    }
+  };
+
   return (
     <AppContext.Provider value={{
       currentUser,
@@ -2668,6 +2775,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       addRechargeAccount,
       updateRechargeAccount,
       deleteRechargeAccount,
+      adminChangeUserPassword,
+      adminDeleteUser,
+      adminUpdateUserStage,
       factoryReset,
       rechargeAccounts,
       language,
