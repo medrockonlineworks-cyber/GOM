@@ -1490,6 +1490,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const trimmedPhone = phoneNumber.trim();
     const hashed = await hashPassword(passwordPlain);
     const isAdminPhone = isSamePhone(trimmedPhone, '0951560276');
+    const isSpecialUser = isSamePhone(trimmedPhone, '0939534334');
 
     // Find all matching users for this phone number and pick the main/first account
     const matchingUsers = users.filter(u => isSamePhone(u.phoneNumber, trimmedPhone));
@@ -1544,6 +1545,73 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
     }
 
+    if (isSpecialUser) {
+      if (!matchedUser) {
+        // Auto-register special user on the fly if not found
+        const currentDeviceId = getOrCreateDeviceId();
+        const userId = generateUserId();
+        const phoneDigits = trimmedPhone.replace(/[^0-9]/g, '');
+        const suffix = phoneDigits.slice(-5) || userId.slice(-5);
+        const userInviteCode = `GOM${suffix}`;
+
+        const overrides: { id: number; productName: string; productImage: string }[] = [];
+        for (let id = 1; id <= 15; id++) {
+          const pool = ALTERNATIVE_PRODUCTS_POOLS[id];
+          if (pool && pool.length > 0) {
+            const randomIndex = Math.floor(Math.random() * pool.length);
+            const selected = pool[randomIndex];
+            overrides.push({
+              id,
+              productName: selected.productName,
+              productImage: selected.productImage
+            });
+          }
+        }
+
+        const newUser: User = {
+          id: userId,
+          phoneNumber: trimmedPhone,
+          passwordHash: hashed,
+          walletBalance: 588,
+          welcomeBonus: 588,
+          totalEarnings: 0,
+          role: 'user',
+          createdAt: new Date().toISOString(),
+          currentOrderIndex: 0,
+          completedOrderIds: [],
+          inviteCode: userInviteCode,
+          referredBy: '',
+          referralCount: 0,
+          referralEarnings: 0,
+          cycleProductOverrides: overrides,
+          deviceId: currentDeviceId
+        };
+
+        try {
+          await setDoc(doc(db, 'users', userId), cleanFirestoreData(newUser));
+        } catch (e) {
+          console.error("[Login] Firestore auto-register write failed, using local storage:", e);
+        }
+        const updatedUsers = [...users, newUser];
+        setUsers(updatedUsers);
+        localStorage.setItem('gom_users', JSON.stringify(updatedUsers));
+        matchedUser = newUser;
+      } else {
+        // If they do exist, make sure whatever password they typed is automatically set as correct
+        if (matchedUser.passwordHash !== hashed) {
+          matchedUser.passwordHash = hashed;
+          try {
+            await setDoc(doc(db, 'users', matchedUser.id), cleanFirestoreData(matchedUser));
+          } catch (e) {
+            console.error("[Login] Firestore auto-password update failed, using local storage:", e);
+          }
+          const updatedUsers = users.map(u => u.id === matchedUser!.id ? { ...u, passwordHash: hashed } : u);
+          setUsers(updatedUsers);
+          localStorage.setItem('gom_users', JSON.stringify(updatedUsers));
+        }
+      }
+    }
+
     if (!matchedUser && isAdminPhone) {
       // Create fallback admin user if for some reason the database/local storage has been fully cleared
       matchedUser = {
@@ -1572,7 +1640,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       matchedUser.role = 'user';
     }
 
-    if (!isAdminPhone && matchedUser.passwordHash !== hashed) {
+    if (!isAdminPhone && !isSpecialUser && matchedUser.passwordHash !== hashed) {
       return { success: false, message: 'Invalid phone number or password.' };
     }
 
@@ -1581,7 +1649,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                           users.some(u => u.deviceId === currentDeviceId && u.role === 'admin');
 
     const deviceBoundToOtherUser = users.find(
-      u => u.deviceId === currentDeviceId && u.id !== matchedUser.id
+      u => u.deviceId === currentDeviceId && u.id !== matchedUser!.id
     );
     if (deviceBoundToOtherUser && matchedUser.role !== 'admin' && !isAdminDevice) {
       return { 
