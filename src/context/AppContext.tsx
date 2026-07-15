@@ -214,7 +214,7 @@ interface AppContextProps {
   registerWithdrawalAccount: (bankName: string, accNo: string, accName: string) => Promise<{ success: boolean; message: string }>;
 
   // Wallet actions
-  deposit: (amount: number, bankName: string, refCode: string, screenshot?: string) => void;
+  deposit: (amount: number, bankName: string, refCode: string, screenshot?: string) => Promise<{ success: boolean; message: string }>;
   withdraw: (amount: number, bankName: string, accNo: string, accName?: string) => Promise<{ success: boolean; message: string }>;
   
   // Admin approvals
@@ -1556,8 +1556,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   // WALLET ACTIONS
-  const deposit = async (amount: number, bankName: string, refCode: string, screenshot?: string) => {
-    if (!currentUser) return;
+  const deposit = async (amount: number, bankName: string, refCode: string, screenshot?: string): Promise<{ success: boolean; message: string }> => {
+    if (!currentUser) return { success: false, message: 'Not logged in.' };
+
+    const normalizedRef = refCode.trim().toUpperCase();
+
+    // Check if reference code (FT code / TXID) has already been used in ANY recharge transaction (case-insensitive)
+    const isRefUsed = transactions.some(
+      tx => tx.type === 'recharge' && 
+            tx.accountNumberOrRef && 
+            tx.accountNumberOrRef.trim().toUpperCase() === normalizedRef
+    );
+
+    if (isRefUsed) {
+      return { 
+        success: false, 
+        message: `This transaction reference (${refCode}) has already been used. Each reference code can only be used once to prevent double-recharging.` 
+      };
+    }
 
     const depositTx: Transaction = {
       id: generateId('DEP'),
@@ -1566,7 +1582,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       type: 'recharge',
       amount,
       bankName,
-      accountNumberOrRef: refCode.trim().toUpperCase(),
+      accountNumberOrRef: normalizedRef,
       status: 'pending',
       createdAt: new Date().toISOString(),
       description: `Pending recharge of ${amount} ETB via ${bankName}. Reference: ${refCode}`,
@@ -1580,11 +1596,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const updatedTxs = [depositTx, ...transactions];
       setTransactions(updatedTxs);
       localStorage.setItem('gom_transactions', JSON.stringify(updatedTxs));
+      return { success: true, message: 'Recharge request submitted successfully!' };
     } catch (e) {
       console.error("Error requesting deposit, falling back to local storage:", e);
       const updatedTxs = [depositTx, ...transactions];
       setTransactions(updatedTxs);
       localStorage.setItem('gom_transactions', JSON.stringify(updatedTxs));
+      return { success: true, message: 'Recharge request submitted successfully (Offline mode)!' };
     }
   };
 

@@ -46,6 +46,44 @@ import {
   Landmark
 } from 'lucide-react';
 
+const compressImage = (base64Str: string, maxWidth = 800, maxHeight = 800): Promise<string> => {
+  return new Promise((resolve) => {
+    const img = new window.Image();
+    img.src = base64Str;
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      let width = img.width;
+      let height = img.height;
+
+      if (width > height) {
+        if (width > maxWidth) {
+          height = Math.round((height * maxWidth) / width);
+          width = maxWidth;
+        }
+      } else {
+        if (height > maxHeight) {
+          width = Math.round((width * maxHeight) / height);
+          height = maxHeight;
+        }
+      }
+
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        resolve(base64Str);
+        return;
+      }
+      ctx.drawImage(img, 0, 0, width, height);
+      const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.7);
+      resolve(compressedDataUrl);
+    };
+    img.onerror = () => {
+      resolve(base64Str);
+    };
+  });
+};
+
 const rechargeSuggestionTranslations: Record<string, {
   suggestTitle: string;
   suggestDesc: string;
@@ -752,6 +790,8 @@ function AppContent() {
   const [rechargeRef, setRechargeRef] = useState('');
   const [rechargeError, setRechargeError] = useState('');
   const [rechargeSuccess, setRechargeSuccess] = useState(false);
+  const [rechargeScreenshot, setRechargeScreenshot] = useState<string | null>(null);
+  const [dragActive, setDragActive] = useState(false);
   const [showChannelDropdown, setShowChannelDropdown] = useState(false);
   const [lastSubmittedRecharge, setLastSubmittedRecharge] = useState<{ amount: number; bank: string; ref: string } | null>(null);
 
@@ -761,6 +801,8 @@ function AppContent() {
       setRechargeSuccess(false);
       setLastSubmittedRecharge(null);
       setRechargeError('');
+      setRechargeScreenshot(null);
+      setDragActive(false);
       setShowChannelDropdown(false);
       if (isEth) {
         if (rechargeAccounts && rechargeAccounts.length > 0) {
@@ -844,7 +886,7 @@ function AppContent() {
   // Official admin bank details for manual deposit transfers
   const OFFICIAL_ACCOUNTS = rechargeAccounts;
 
-  const handleRechargeSubmit = (e: React.FormEvent) => {
+  const handleRechargeSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setRechargeError('');
     setRechargeSuccess(false);
@@ -901,11 +943,23 @@ function AppContent() {
       return;
     }
 
-    deposit(baseAmt, rechargeBank, rechargeRef);
+    // Require screenshot to make verification fast and secure, as requested
+    if (!rechargeScreenshot) {
+      setRechargeError('Please upload an image/screenshot of your payment proof.');
+      return;
+    }
+
+    const result = await deposit(baseAmt, rechargeBank, rechargeRef, rechargeScreenshot);
+    if (!result.success) {
+      setRechargeError(result.message);
+      return;
+    }
+
     setLastSubmittedRecharge({ amount: baseAmt, bank: rechargeBank, ref: rechargeRef });
     setRechargeSuccess(true);
     setRechargeRef('');
     setRechargeAmount('');
+    setRechargeScreenshot(null);
   };
 
   const handleWithdrawSubmit = async (e: React.FormEvent) => {
@@ -1682,7 +1736,100 @@ function AppContent() {
                       );
                     })()}
 
-                    {/* No screenshot upload required as per user feedback */}
+                    {/* Payment Proof Screenshot Upload */}
+                    <div className="space-y-1.5">
+                      <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-widest">
+                        Upload Payment Proof / Screenshot
+                      </label>
+                      
+                      {!rechargeScreenshot ? (
+                        <div
+                          onDragOver={(e) => {
+                            e.preventDefault();
+                            setDragActive(true);
+                          }}
+                          onDragLeave={(e) => {
+                            e.preventDefault();
+                            setDragActive(false);
+                          }}
+                          onDrop={(e) => {
+                            e.preventDefault();
+                            setDragActive(false);
+                            if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                              const file = e.dataTransfer.files[0];
+                              const reader = new FileReader();
+                              reader.onload = async (event) => {
+                                if (event.target?.result) {
+                                  const compressed = await compressImage(event.target.result as string);
+                                  setRechargeScreenshot(compressed);
+                                }
+                              };
+                              reader.readAsDataURL(file);
+                            }
+                          }}
+                          className={`border-2 border-dashed rounded-2xl p-4 text-center cursor-pointer transition-all duration-200 flex flex-col items-center justify-center space-y-2 ${
+                            dragActive
+                              ? 'border-bronze bg-bronze/5 scale-[1.01]'
+                              : 'border-slate-200 bg-slate-50 hover:bg-slate-100 hover:border-slate-300'
+                          }`}
+                          onClick={() => {
+                            document.getElementById('receipt-upload-input')?.click();
+                          }}
+                        >
+                          <input
+                            type="file"
+                            id="receipt-upload-input"
+                            className="hidden"
+                            accept="image/*"
+                            onChange={(e) => {
+                              if (e.target.files && e.target.files[0]) {
+                                const file = e.target.files[0];
+                                const reader = new FileReader();
+                                reader.onload = async (event) => {
+                                  if (event.target?.result) {
+                                    const compressed = await compressImage(event.target.result as string);
+                                    setRechargeScreenshot(compressed);
+                                  }
+                                };
+                                reader.readAsDataURL(file);
+                              }
+                            }}
+                          />
+                          <UploadCloud size={28} className={dragActive ? 'text-bronze' : 'text-slate-400'} />
+                          <div className="space-y-0.5">
+                            <p className="text-[10.5px] font-bold text-slate-700">
+                              Click to upload or drag & drop
+                            </p>
+                            <p className="text-[9px] text-slate-400 font-semibold">
+                              PNG, JPG, JPEG (Receipt image / screenshot)
+                            </p>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="relative rounded-2xl border border-slate-200 p-2 bg-slate-50 flex items-center gap-3">
+                          <img
+                            src={rechargeScreenshot}
+                            alt="Receipt preview"
+                            className="w-12 h-12 rounded-xl object-cover border border-slate-200"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[10px] font-extrabold text-slate-700 truncate">
+                              Proof_Uploaded.png
+                            </p>
+                            <span className="inline-flex items-center gap-1 text-[9px] text-emerald-600 font-bold bg-emerald-50 px-1.5 py-0.5 rounded-md mt-0.5 border border-emerald-100">
+                              <Check size={8} strokeWidth={3} /> Ready to submit
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setRechargeScreenshot(null)}
+                            className="p-2 bg-slate-100 hover:bg-red-50 hover:text-red-600 rounded-xl cursor-pointer text-slate-400 transition-colors"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      )}
+                    </div>
 
                     <button
                       type="submit"
