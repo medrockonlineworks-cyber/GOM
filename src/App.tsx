@@ -856,6 +856,18 @@ function AppContent() {
   const [withdrawSuccess, setWithdrawSuccess] = useState(false);
   const [lastWithdrawInfo, setLastWithdrawInfo] = useState<{ amount: number; bank: string; accNo: string } | null>(null);
 
+  // Auto-close withdrawal modal after 5 seconds when success is triggered, as requested
+  React.useEffect(() => {
+    if (withdrawSuccess) {
+      const timer = setTimeout(() => {
+        setWithdrawModalOpen(false);
+        setWithdrawSuccess(false);
+        setLastWithdrawInfo(null);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [withdrawSuccess]);
+
   const [supportSubject, setSupportSubject] = useState('Wallet Recharge Issue');
   const [supportMessage, setSupportMessage] = useState('');
   const [supportSuccess, setSupportSuccess] = useState(false);

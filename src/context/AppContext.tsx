@@ -78,6 +78,111 @@ export const isSamePhone = (phoneA: string, phoneB: string): boolean => {
   return false;
 };
 
+export const extractInviteCode = (input: string): string => {
+  if (!input) return '';
+  let cleaned = input.trim();
+  
+  // 1. If it's a URL or contains query parameters (e.g., ?ref=GOM12345 or /register?ref=GOM12345)
+  if (cleaned.toLowerCase().includes('ref=')) {
+    try {
+      const refIdx = cleaned.toLowerCase().indexOf('ref=');
+      if (refIdx !== -1) {
+        let val = cleaned.substring(refIdx + 4);
+        // split by any remaining URL delimiters like & or # or /
+        const endIdx = val.search(/[&#/]/);
+        if (endIdx !== -1) {
+          val = val.substring(0, endIdx);
+        }
+        cleaned = val;
+      }
+    } catch (e) {
+      console.error("Error parsing referral URL manually:", e);
+    }
+  } else if (cleaned.startsWith('http://') || cleaned.startsWith('https://')) {
+    // If it's a URL but doesn't have ref=, maybe the code is just the last path segment
+    try {
+      const parts = cleaned.split('/');
+      const lastPart = parts[parts.length - 1];
+      if (lastPart) {
+        cleaned = lastPart;
+      }
+    } catch (e) {}
+  }
+
+  // 2. Remove common prefix/decorative characters like #, @, or trailing slashes/questions
+  cleaned = cleaned.replace(/^[@#?/]+/, '').replace(/[?/]+$/, '');
+  
+  return cleaned.trim();
+};
+
+export const deduplicateUsers = (list: User[]): User[] => {
+  if (!list || list.length === 0) return list;
+  
+  const uniqueUsers: User[] = [];
+  
+  for (const u of list) {
+    const existingIndex = uniqueUsers.findIndex(ex => isSamePhone(ex.phoneNumber, u.phoneNumber));
+    if (existingIndex === -1) {
+      uniqueUsers.push(u);
+    } else {
+      const existingUser = uniqueUsers[existingIndex];
+      const existingIsAdmin = existingUser.role === 'admin';
+      const currentIsAdmin = u.role === 'admin';
+      
+      let useCurrent = false;
+      if (currentIsAdmin && !existingIsAdmin) {
+        useCurrent = true;
+      } else if (existingIsAdmin && !currentIsAdmin) {
+        useCurrent = false;
+      } else {
+        const balanceEx = existingUser.walletBalance || 0;
+        const balanceCur = u.walletBalance || 0;
+        if (balanceCur > balanceEx) {
+          useCurrent = true;
+        } else if (balanceCur < balanceEx) {
+          useCurrent = false;
+        } else {
+          const ordEx = existingUser.completedOrderIds ? existingUser.completedOrderIds.length : 0;
+          const ordCur = u.completedOrderIds ? u.completedOrderIds.length : 0;
+          if (ordCur > ordEx) {
+            useCurrent = true;
+          } else if (ordCur < ordEx) {
+            useCurrent = false;
+          } else {
+            const timeEx = new Date(existingUser.createdAt || 0).getTime();
+            const timeCur = new Date(u.createdAt || 0).getTime();
+            if (timeCur < timeEx) {
+              useCurrent = true;
+            }
+          }
+        }
+      }
+      
+      if (useCurrent) {
+        const dupToDelete = existingUser;
+        uniqueUsers[existingIndex] = u;
+        try {
+          deleteDoc(doc(db, 'users', dupToDelete.id)).catch(e => {
+            console.warn(`Could not delete duplicate user ${dupToDelete.phoneNumber} (ID: ${dupToDelete.id}) in background:`, e.message || e);
+          });
+        } catch (e) {
+          console.error(`Error deleting duplicate user ${dupToDelete.id}:`, e);
+        }
+      } else {
+        try {
+          deleteDoc(doc(db, 'users', u.id)).catch(e => {
+            console.warn(`Could not delete duplicate user ${u.phoneNumber} (ID: ${u.id}) in background:`, e.message || e);
+          });
+        } catch (e) {
+          console.error(`Error deleting duplicate user ${u.id}:`, e);
+        }
+      }
+    }
+  }
+  
+  return uniqueUsers;
+};
+
 const cleanFirestoreData = (obj: any): any => {
   if (obj === null || typeof obj !== 'object') {
     return obj;
@@ -303,7 +408,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     // Ensure all loaded users have inviteCodes and referral fields
-    return loadedUsers.map(u => {
+    const completedList = loadedUsers.map(u => {
       const updated = { ...u };
       if (!updated.inviteCode) {
         const phoneDigits = updated.phoneNumber.replace(/[^0-9]/g, '');
@@ -337,6 +442,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
       return updated;
     });
+    return deduplicateUsers(completedList);
   });
 
   const [rawCurrentUser, setRawCurrentUser] = useState<User | null>(() => {
@@ -677,17 +783,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           updateDoc(doc(db, 'users', u.id), { role: 'admin' }).catch(() => {});
         }
 
+        // Auto-heal missing inviteCode for existing / direct database users
+        if (!u.inviteCode) {
+          const phoneDigits = (u.phoneNumber || '').replace(/[^0-9]/g, '');
+          const suffix = phoneDigits.slice(-5) || u.id.slice(-5);
+          u.inviteCode = `GOM${suffix}`;
+          updateDoc(doc(db, 'users', u.id), { inviteCode: u.inviteCode }).catch(() => {});
+        }
+
         list.push(u);
       });
       
       if (list.length > 0) {
-        setUsers(list);
-        localStorage.setItem('gom_users', JSON.stringify(list));
+        const deduplicated = deduplicateUsers(list);
+        setUsers(deduplicated);
+        localStorage.setItem('gom_users', JSON.stringify(deduplicated));
         
         // Sync rawCurrentUser with the updated data from database
         setRawCurrentUser(prev => {
           if (!prev) return null;
-          const match = list.find(u => u.id === prev.id);
+          const match = deduplicated.find(u => u.id === prev.id);
           if (!match) return prev;
           if (
             match.walletBalance !== prev.walletBalance ||
@@ -1146,9 +1261,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return { success: false, message: 'Invalid phone format. Please enter a valid phone number (e.g. +2519xxxxxxxx).' };
     }
 
-    const exists = users.some(u => isSamePhone(u.phoneNumber, trimmedPhone));
+    // Check both memory state and localStorage to prevent duplicate account registration
+    const saved = localStorage.getItem('gom_users');
+    let allUsersToCheck = [...users];
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          parsed.forEach(u => {
+            if (!allUsersToCheck.some(ex => ex.id === u.id)) {
+              allUsersToCheck.push(u);
+            }
+          });
+        }
+      } catch (e) {}
+    }
+
+    const exists = allUsersToCheck.some(u => isSamePhone(u.phoneNumber, trimmedPhone));
     if (exists) {
-      return { success: false, message: 'Phone number already registered.' };
+      return { success: false, message: 'Phone number already registered. Duplicate account creation is not allowed.' };
     }
 
     const currentDeviceId = getOrCreateDeviceId();
@@ -1175,11 +1306,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const additionalTxs: Transaction[] = [];
 
     if (referralCode && referralCode.trim() !== '') {
-      const cleanRef = referralCode.trim().toUpperCase();
+      const extracted = extractInviteCode(referralCode);
+      const cleanRef = extracted.toUpperCase();
       const referrer = users.find(u => 
-        isSamePhone(u.phoneNumber, referralCode.trim()) || 
-        u.inviteCode?.toUpperCase() === cleanRef || 
-        u.id === referralCode.trim()
+        isSamePhone(u.phoneNumber, extracted) || 
+        (u.inviteCode && u.inviteCode.toUpperCase() === cleanRef) || 
+        u.id === extracted
       );
 
       if (!referrer) {
@@ -1359,10 +1491,57 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const hashed = await hashPassword(passwordPlain);
     const isAdminPhone = isSamePhone(trimmedPhone, '0951560276');
 
-    // Try to find admin first if it's the admin phone number to prevent duplicate registration overlaps
-    let matchedUser = users.find(u => isSamePhone(u.phoneNumber, trimmedPhone) && u.role === 'admin');
-    if (!matchedUser) {
-      matchedUser = users.find(u => isSamePhone(u.phoneNumber, trimmedPhone));
+    // Find all matching users for this phone number and pick the main/first account
+    const matchingUsers = users.filter(u => isSamePhone(u.phoneNumber, trimmedPhone));
+    let matchedUser: User | null = null;
+
+    if (matchingUsers.length > 0) {
+      // Find the main account (highest wallet balance, most completed orders, or earliest created)
+      const sortedMatching = [...matchingUsers].sort((a, b) => {
+        // Admin first
+        if (a.role === 'admin' && b.role !== 'admin') return -1;
+        if (a.role !== 'admin' && b.role === 'admin') return 1;
+
+        // Highest wallet balance
+        const balA = a.walletBalance || 0;
+        const balB = b.walletBalance || 0;
+        if (balB !== balA) return balB - balA;
+
+        // Highest completed orders size
+        const ordA = a.completedOrderIds ? a.completedOrderIds.length : 0;
+        const ordB = b.completedOrderIds ? b.completedOrderIds.length : 0;
+        if (ordB !== ordA) return ordB - ordA;
+
+        // Earliest created
+        const timeA = new Date(a.createdAt || 0).getTime();
+        const timeB = new Date(b.createdAt || 0).getTime();
+        return timeA - timeB;
+      });
+
+      matchedUser = sortedMatching[0];
+
+      // If we found duplicate accounts, remove them immediately
+      if (sortedMatching.length > 1) {
+        const dupsToDelete = sortedMatching.slice(1);
+        console.log(`[Login] Found duplicate accounts for phone ${trimmedPhone}. Removing:`, dupsToDelete.map(u => u.id));
+        
+        // Update local state and localStorage immediately
+        const dupIds = dupsToDelete.map(d => d.id);
+        const filteredUsers = users.filter(u => !dupIds.includes(u.id));
+        setUsers(filteredUsers);
+        localStorage.setItem('gom_users', JSON.stringify(filteredUsers));
+
+        // Delete from Firestore in background
+        for (const d of dupsToDelete) {
+          try {
+            deleteDoc(doc(db, 'users', d.id)).catch(e => {
+              console.warn(`[Login] Could not delete duplicate user ${d.phoneNumber} (ID: ${d.id}) on login:`, e.message || e);
+            });
+          } catch (e) {
+            console.error(`[Login] Error deleting duplicate user ${d.id}:`, e);
+          }
+        }
+      }
     }
 
     if (!matchedUser && isAdminPhone) {
