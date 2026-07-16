@@ -243,18 +243,11 @@ export function verifyVerificationCode(
       return { valid: false, expired: false, expiryDate: null, error: "Code too short" };
     }
 
-    // Since expiryCompact.toString(36) is about 5-6 characters, and sigBase36 is the rest (typically 11-13 chars)
-    // We can find where expiry compact sits. Let's trace back:
-    // A compact timestamp for 2026 (e.g. 178418318) in base36 is "2Y9ZTY" (6 chars)
-    // Let's dynamically parse:
-    // Our N is ~2 * 10^34, base36 signature length is at most 13 chars.
-    // Therefore, the first portion of the string (cleaned.length - 13 or similar) is the compact expiry!
-    // Let's use a robust division: the signature of RSA_N in base36 can be up to 13 characters.
-    // So expiryBase36 occupies the characters before the last 13 characters.
-    // If the string length is 18, signature is 12-13 characters, expiry is 5-6 characters.
-    const sigLen = Math.min(cleaned.length, 13);
-    const expiryBase36 = cleaned.substring(0, cleaned.length - sigLen);
-    const sigBase36 = cleaned.substring(cleaned.length - sigLen);
+    // In Base36, a compact 10-second resolution epoch timestamp for any date between 
+    // March 1989 and the year 2659 is mathematically guaranteed to be exactly 6 characters long.
+    // Therefore, the first 6 characters are always the expiryBase36, and the remaining characters form the RSA signature.
+    const expiryBase36 = cleaned.substring(0, 6);
+    const sigBase36 = cleaned.substring(6);
 
     if (!expiryBase36 || !sigBase36) {
       return { valid: false, expired: false, expiryDate: null, error: "Invalid code format" };
