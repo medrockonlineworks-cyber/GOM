@@ -31,7 +31,10 @@ import {
   updateDoc,
   onSnapshot, 
   deleteDoc, 
-  writeBatch
+  writeBatch,
+  query,
+  where,
+  getDocs
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 
@@ -115,6 +118,42 @@ export const extractInviteCode = (input: string): string => {
   return cleaned.trim();
 };
 
+export const mergeUserRecords = (primary: User, secondary: User): User => {
+  const mergedCompletedOrderIds = Array.from(new Set([
+    ...(primary.completedOrderIds || []),
+    ...(secondary.completedOrderIds || [])
+  ])).sort((a, b) => a - b);
+
+  const walletBalance = Math.max(primary.walletBalance || 0, secondary.walletBalance || 0);
+  const totalEarnings = Math.max(primary.totalEarnings || 0, secondary.totalEarnings || 0);
+  const welcomeBonus = Math.max(primary.welcomeBonus || 0, secondary.welcomeBonus || 0);
+
+  const currentOrderIndex = Math.max(
+    primary.currentOrderIndex || 0,
+    secondary.currentOrderIndex || 0,
+    mergedCompletedOrderIds.length
+  );
+
+  return {
+    ...primary,
+    walletBalance,
+    welcomeBonus,
+    totalEarnings,
+    completedOrderIds: mergedCompletedOrderIds,
+    currentOrderIndex,
+    inviteCode: primary.inviteCode || secondary.inviteCode,
+    referredBy: primary.referredBy || secondary.referredBy,
+    referralCount: Math.max(primary.referralCount || 0, secondary.referralCount || 0),
+    referralEarnings: Math.max(primary.referralEarnings || 0, secondary.referralEarnings || 0),
+    cycleProductOverrides: primary.cycleProductOverrides || secondary.cycleProductOverrides,
+    lastOrderCompletedAt: primary.lastOrderCompletedAt || secondary.lastOrderCompletedAt,
+    deviceId: primary.deviceId || secondary.deviceId,
+    withdrawalBank: primary.withdrawalBank || secondary.withdrawalBank,
+    withdrawalAccNo: primary.withdrawalAccNo || secondary.withdrawalAccNo,
+    withdrawalAccName: primary.withdrawalAccName || secondary.withdrawalAccName,
+  };
+};
+
 export const deduplicateUsers = (list: User[]): User[] => {
   if (!list || list.length === 0) return list;
   
@@ -129,54 +168,58 @@ export const deduplicateUsers = (list: User[]): User[] => {
       const existingIsAdmin = existingUser.role === 'admin';
       const currentIsAdmin = u.role === 'admin';
       
-      let useCurrent = false;
+      let primaryUser = existingUser;
+      let secondaryUser = u;
+      let useCurrentAsPrimary = false;
+
       if (currentIsAdmin && !existingIsAdmin) {
-        useCurrent = true;
+        useCurrentAsPrimary = true;
       } else if (existingIsAdmin && !currentIsAdmin) {
-        useCurrent = false;
+        useCurrentAsPrimary = false;
       } else {
         const balanceEx = existingUser.walletBalance || 0;
         const balanceCur = u.walletBalance || 0;
         if (balanceCur > balanceEx) {
-          useCurrent = true;
+          useCurrentAsPrimary = true;
         } else if (balanceCur < balanceEx) {
-          useCurrent = false;
+          useCurrentAsPrimary = false;
         } else {
           const ordEx = existingUser.completedOrderIds ? existingUser.completedOrderIds.length : 0;
           const ordCur = u.completedOrderIds ? u.completedOrderIds.length : 0;
           if (ordCur > ordEx) {
-            useCurrent = true;
+            useCurrentAsPrimary = true;
           } else if (ordCur < ordEx) {
-            useCurrent = false;
+            useCurrentAsPrimary = false;
           } else {
             const timeEx = new Date(existingUser.createdAt || 0).getTime();
             const timeCur = new Date(u.createdAt || 0).getTime();
             if (timeCur < timeEx) {
-              useCurrent = true;
+              useCurrentAsPrimary = true;
             }
           }
         }
       }
       
-      if (useCurrent) {
-        const dupToDelete = existingUser;
-        uniqueUsers[existingIndex] = u;
-        try {
-          deleteDoc(doc(db, 'users', dupToDelete.id)).catch(e => {
-            console.warn(`Could not delete duplicate user ${dupToDelete.phoneNumber} (ID: ${dupToDelete.id}) in background:`, e.message || e);
-          });
-        } catch (e) {
-          console.error(`Error deleting duplicate user ${dupToDelete.id}:`, e);
-        }
-      } else {
-        try {
-          deleteDoc(doc(db, 'users', u.id)).catch(e => {
-            console.warn(`Could not delete duplicate user ${u.phoneNumber} (ID: ${u.id}) in background:`, e.message || e);
-          });
-        } catch (e) {
-          console.error(`Error deleting duplicate user ${u.id}:`, e);
-        }
+      if (useCurrentAsPrimary) {
+        primaryUser = u;
+        secondaryUser = existingUser;
       }
+
+      // Merge data cleanly instead of just deleting
+      const mergedUser = mergeUserRecords(primaryUser, secondaryUser);
+      uniqueUsers[existingIndex] = mergedUser;
+
+      console.log(`[Sync-Deduplicate] Merged duplicate user accounts for ${mergedUser.phoneNumber}. Primary ID: ${mergedUser.id}, Secondary ID: ${secondaryUser.id}`);
+
+      // Sync merged user back to Firestore
+      setDoc(doc(db, 'users', mergedUser.id), cleanFirestoreData(mergedUser)).catch(e => {
+        console.warn(`[Sync-Deduplicate] Could not write merged user ${mergedUser.id}:`, e.message || e);
+      });
+
+      // Remove the duplicate obsolete document from Firestore
+      deleteDoc(doc(db, 'users', secondaryUser.id)).catch(e => {
+        console.warn(`[Sync-Deduplicate] Could not delete secondary user ${secondaryUser.id}:`, e.message || e);
+      });
     }
   }
   
@@ -1376,7 +1419,61 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       } catch (e) {}
     }
 
-    const exists = allUsersToCheck.some(u => isSamePhone(u.phoneNumber, trimmedPhone));
+    let exists = allUsersToCheck.some(u => isSamePhone(u.phoneNumber, trimmedPhone));
+    
+    // Direct database query fallback to prevent duplicate registrations even when onSnapshot is stale or blocked
+    if (!exists) {
+      let directMatches: User[] = [];
+      try {
+        const q = query(collection(db, 'users'), where('phoneNumber', '==', trimmedPhone));
+        const querySnapshot = await getDocs(q);
+        querySnapshot.forEach((doc) => {
+          directMatches.push(doc.data() as User);
+        });
+
+        if (directMatches.length === 0) {
+          const cleanDigits = trimmedPhone.replace(/\D/g, '');
+          const variations = [
+            trimmedPhone,
+            cleanDigits,
+            cleanDigits.startsWith('251') ? '0' + cleanDigits.substring(3) : '',
+            cleanDigits.startsWith('251') ? cleanDigits.substring(3) : '',
+            !cleanDigits.startsWith('251') && cleanDigits.startsWith('0') ? '251' + cleanDigits.substring(1) : '',
+            !cleanDigits.startsWith('251') && cleanDigits.startsWith('0') ? '+' + '251' + cleanDigits.substring(1) : '',
+          ].filter(Boolean);
+
+          for (const variant of variations) {
+            if (variant !== trimmedPhone) {
+              const qVar = query(collection(db, 'users'), where('phoneNumber', '==', variant));
+              const snapVar = await getDocs(qVar);
+              snapVar.forEach((doc) => {
+                if (!directMatches.some(u => u.id === doc.id)) {
+                  directMatches.push(doc.data() as User);
+                }
+              });
+            }
+          }
+        }
+      } catch (e) {
+        console.warn("[Register] Direct Firestore check failed:", e);
+      }
+
+      if (directMatches.length > 0) {
+        exists = true;
+        // Update local state so it's aware of the existing user
+        setUsers(prev => {
+          let updated = [...prev];
+          directMatches.forEach(dm => {
+            if (!updated.some(u => u.id === dm.id)) {
+              updated.push(dm);
+            }
+          });
+          localStorage.setItem('gom_users', JSON.stringify(updated));
+          return updated;
+        });
+      }
+    }
+
     if (exists) {
       return { success: false, message: 'Phone number already registered. Duplicate account creation is not allowed.' };
     }
@@ -1591,8 +1688,77 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const isAdminPhone = isSamePhone(trimmedPhone, '0951560276');
     const isSpecialUser = isSamePhone(trimmedPhone, '0939534334');
 
-    // Find all matching users for this phone number and pick the main/first account
-    const matchingUsers = users.filter(u => isSamePhone(u.phoneNumber, trimmedPhone));
+    // Fetch directly from Firestore to ensure we have the most up-to-date and correct user record,
+    // especially if local `users` array is empty, out of date, or missing the admin password change.
+    let directMatches: User[] = [];
+    try {
+      const q = query(collection(db, 'users'), where('phoneNumber', '==', trimmedPhone));
+      const querySnapshot = await getDocs(q);
+      querySnapshot.forEach((doc) => {
+        directMatches.push(doc.data() as User);
+      });
+
+      // Try phone variations if directMatch is empty
+      if (directMatches.length === 0) {
+        const cleanDigits = trimmedPhone.replace(/\D/g, '');
+        const variations = [
+          trimmedPhone,
+          cleanDigits,
+          cleanDigits.startsWith('251') ? '0' + cleanDigits.substring(3) : '',
+          cleanDigits.startsWith('251') ? cleanDigits.substring(3) : '',
+          !cleanDigits.startsWith('251') && cleanDigits.startsWith('0') ? '251' + cleanDigits.substring(1) : '',
+          !cleanDigits.startsWith('251') && cleanDigits.startsWith('0') ? '+' + '251' + cleanDigits.substring(1) : '',
+        ].filter(Boolean);
+
+        for (const variant of variations) {
+          if (variant !== trimmedPhone) {
+            const qVar = query(collection(db, 'users'), where('phoneNumber', '==', variant));
+            const snapVar = await getDocs(qVar);
+            snapVar.forEach((doc) => {
+              if (!directMatches.some(u => u.id === doc.id)) {
+                directMatches.push(doc.data() as User);
+              }
+            });
+          }
+        }
+      }
+    } catch (e) {
+      console.warn("[Login] Direct Firestore query failed:", e);
+    }
+
+    // Find local memory matches
+    const localMatches = users.filter(u => isSamePhone(u.phoneNumber, trimmedPhone));
+    
+    // Merge local and direct matches
+    let mergedMatching = [...localMatches];
+    directMatches.forEach(dm => {
+      const existsIdx = mergedMatching.findIndex(u => u.id === dm.id);
+      if (existsIdx === -1) {
+        mergedMatching.push(dm);
+      } else {
+        // Direct match from Firestore is newer and has the correct password hash changed by admin
+        mergedMatching[existsIdx] = dm;
+      }
+    });
+
+    // Update global users state with any direct matches to keep local storage and state updated
+    if (directMatches.length > 0) {
+      setUsers(prev => {
+        let updated = [...prev];
+        directMatches.forEach(dm => {
+          const idx = updated.findIndex(u => u.id === dm.id);
+          if (idx !== -1) {
+            updated[idx] = dm;
+          } else {
+            updated.push(dm);
+          }
+        });
+        localStorage.setItem('gom_users', JSON.stringify(updated));
+        return updated;
+      });
+    }
+
+    const matchingUsers = mergedMatching;
     let matchedUser: User | null = null;
 
     if (matchingUsers.length > 0) {
@@ -1618,30 +1784,36 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return timeA - timeB;
       });
 
-      matchedUser = sortedMatching[0];
-
-      // If we found duplicate accounts, remove them immediately
+      let primary = sortedMatching[0];
       if (sortedMatching.length > 1) {
-        const dupsToDelete = sortedMatching.slice(1);
-        console.log(`[Login] Found duplicate accounts for phone ${trimmedPhone}. Removing:`, dupsToDelete.map(u => u.id));
-        
-        // Update local state and localStorage immediately
-        const dupIds = dupsToDelete.map(d => d.id);
-        const filteredUsers = users.filter(u => !dupIds.includes(u.id));
-        setUsers(filteredUsers);
-        localStorage.setItem('gom_users', JSON.stringify(filteredUsers));
-
-        // Delete from Firestore in background
-        for (const d of dupsToDelete) {
-          try {
-            deleteDoc(doc(db, 'users', d.id)).catch(e => {
-              console.warn(`[Login] Could not delete duplicate user ${d.phoneNumber} (ID: ${d.id}) on login:`, e.message || e);
-            });
-          } catch (e) {
-            console.error(`[Login] Error deleting duplicate user ${d.id}:`, e);
-          }
+        console.log(`[Login] Found duplicate accounts for phone ${trimmedPhone}. Merging them...`);
+        for (let i = 1; i < sortedMatching.length; i++) {
+          const secondary = sortedMatching[i];
+          primary = mergeUserRecords(primary, secondary);
+          
+          // Delete secondary in Firestore
+          deleteDoc(doc(db, 'users', secondary.id)).catch(e => {
+            console.warn(`[Login] Could not delete duplicate user ${secondary.phoneNumber} (ID: ${secondary.id}) on login:`, e.message || e);
+          });
         }
+        
+        // Save merged primary to Firestore
+        await setDoc(doc(db, 'users', primary.id), cleanFirestoreData(primary));
+        
+        // Update local users state
+        setUsers(prev => {
+          const filtered = prev.filter(u => !sortedMatching.some(sm => sm.id === u.id && sm.id !== primary.id));
+          const idx = filtered.findIndex(u => u.id === primary.id);
+          if (idx !== -1) {
+            filtered[idx] = primary;
+          } else {
+            filtered.push(primary);
+          }
+          localStorage.setItem('gom_users', JSON.stringify(filtered));
+          return filtered;
+        });
       }
+      matchedUser = primary;
     }
 
     if (isSpecialUser) {
