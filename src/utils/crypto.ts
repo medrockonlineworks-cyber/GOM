@@ -313,46 +313,100 @@ export function verifyVerificationCode(
 
     const isExpired = nowSec > expiryTimeSec;
 
-    // Normalize inputs
-    const normPhone = normalizePhoneForCrypto(phoneNumber);
-    const normAmount = Math.round(amount).toString();
-    const normRef = reference.trim().toUpperCase();
-
-    // Strategy 1: Check with newly normalized phone format
-    const payload = `${normPhone}:${normAmount}:${normRef}:${expiryMinutesSinceEpoch}:gom_secure_offline_salt_2026`;
-    const hashHex = sha256(payload);
-    const hashBigInt = BigInt('0x' + hashHex);
-    const expectedSigVal = Number(hashBigInt % 60466176n);
-    const expectedSigBase36 = expectedSigVal.toString(36).toUpperCase().padStart(5, '0');
-
-    let isSignatureValid = (sigBase36 === expectedSigBase36);
-
-    // Strategy 2 (Fallback): Check with legacy raw trimmed phone format
-    if (!isSignatureValid) {
-      const fallbackPhone = phoneNumber.trim();
-      const fallbackPayload = `${fallbackPhone}:${normAmount}:${normRef}:${expiryMinutesSinceEpoch}:gom_secure_offline_salt_2026`;
-      const fbHashHex = sha256(fallbackPayload);
-      const fbHashBigInt = BigInt('0x' + fbHashHex);
-      const fbExpectedSigVal = Number(fbHashBigInt % 60466176n);
-      const fbExpectedSigBase36 = fbExpectedSigVal.toString(36).toUpperCase().padStart(5, '0');
+    // Helper to generate visual typo variations of a string (O<->0, I/L<->1, etc.)
+    const getRefVariations = (refStr: string): string[] => {
+      const base = (refStr || '').trim().toUpperCase();
+      const variations = new Set<string>([base]);
       
-      if (sigBase36 === fbExpectedSigBase36) {
-        isSignatureValid = true;
-      }
-    }
-
-    // Strategy 3 (Fallback): Check with double-cleaned phone (only digits)
-    if (!isSignatureValid) {
-      const fallbackPhone2 = phoneNumber.replace(/\D/g, '');
-      const fallbackPayload2 = `${fallbackPhone2}:${normAmount}:${normRef}:${expiryMinutesSinceEpoch}:gom_secure_offline_salt_2026`;
-      const fbHashHex2 = sha256(fallbackPayload2);
-      const fbHashBigInt2 = BigInt('0x' + fbHashHex2);
-      const fbExpectedSigVal2 = Number(fbHashBigInt2 % 60466176n);
-      const fbExpectedSigBase362 = fbExpectedSigVal2.toString(36).toUpperCase().padStart(5, '0');
+      variations.add(base.replace(/O/g, '0'));
+      variations.add(base.replace(/0/g, 'O'));
       
-      if (sigBase36 === fbExpectedSigBase362) {
-        isSignatureValid = true;
+      variations.add(base.replace(/I/g, '1').replace(/L/g, '1'));
+      variations.add(base.replace(/1/g, 'I'));
+      
+      variations.add(base.replace(/Z/g, '2'));
+      variations.add(base.replace(/2/g, 'Z'));
+
+      variations.add(base.replace(/S/g, '5'));
+      variations.add(base.replace(/5/g, 'S'));
+
+      variations.add(base.replace(/B/g, '8'));
+      variations.add(base.replace(/8/g, 'B'));
+
+      variations.add(base.replace(/G/g, '6'));
+      variations.add(base.replace(/6/g, 'G'));
+
+      return Array.from(variations);
+    };
+
+    // Helper to generate phone number variations
+    const getPhoneVariations = (phoneStr: string): string[] => {
+      const raw = (phoneStr || '').trim();
+      const digits = raw.replace(/\D/g, '');
+      const variations = new Set<string>([raw, digits]);
+      
+      const normalized = normalizePhoneForCrypto(phoneStr);
+      variations.add(normalized);
+      
+      if (normalized.length > 0) {
+        variations.add('0' + normalized);
+        variations.add('251' + normalized);
+        variations.add('+251' + normalized);
       }
+      
+      return Array.from(variations).filter(Boolean);
+    };
+
+    // Helper to generate amount variations
+    const getAmountVariations = (amt: number): string[] => {
+      const variations = new Set<string>();
+      
+      const rounded = Math.round(amt).toString();
+      variations.add(rounded);
+      
+      const parsedFloat = parseFloat(amt as any);
+      if (!isNaN(parsedFloat)) {
+        variations.add(Math.round(parsedFloat).toString());
+        variations.add(Math.floor(parsedFloat).toString());
+        variations.add(Math.ceil(parsedFloat).toString());
+        variations.add(parsedFloat.toFixed(2));
+        variations.add(parsedFloat.toString());
+      }
+      
+      const cleanAmountStr = (amt + '').replace(/[^0-9.]/g, '');
+      const cleanVal = parseFloat(cleanAmountStr);
+      if (!isNaN(cleanVal)) {
+        variations.add(Math.round(cleanVal).toString());
+        variations.add(cleanVal.toString());
+      }
+
+      return Array.from(variations);
+    };
+
+    const phoneVars = getPhoneVariations(phoneNumber);
+    const amountVars = getAmountVariations(amount);
+    const refVars = getRefVariations(reference);
+
+    let isSignatureValid = false;
+
+    // Check all variation combinations to find a match
+    for (const p of phoneVars) {
+      for (const a of amountVars) {
+        for (const r of refVars) {
+          const payload = `${p}:${a}:${r}:${expiryMinutesSinceEpoch}:gom_secure_offline_salt_2026`;
+          const hashHex = sha256(payload);
+          const hashBigInt = BigInt('0x' + hashHex);
+          const expectedSigVal = Number(hashBigInt % 60466176n);
+          const expectedSigBase36 = expectedSigVal.toString(36).toUpperCase().padStart(5, '0');
+
+          if (sigBase36 === expectedSigBase36) {
+            isSignatureValid = true;
+            break;
+          }
+        }
+        if (isSignatureValid) break;
+      }
+      if (isSignatureValid) break;
     }
 
     return {
