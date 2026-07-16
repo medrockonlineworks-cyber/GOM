@@ -244,6 +244,7 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
   const [userPasswordInputs, setUserPasswordInputs] = useState<{ [userId: string]: string }>({});
   const [userStageInputs, setUserStageInputs] = useState<{ [userId: string]: string }>({});
   const [userFeedback, setUserFeedback] = useState<{ [userId: string]: { type: 'success' | 'error'; message: string } }>({});
+  const [expandedInvites, setExpandedInvites] = useState<{ [userId: string]: boolean }>({});
 
   // Recharge Accounts Form State
   const [isAddingAccount, setIsAddingAccount] = useState(false);
@@ -1082,6 +1083,55 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
                       )}
                     </div>
                   )}
+
+                  {/* Invited Users List */}
+                  {(() => {
+                    const invitedPersons = users.filter(u => u.referredBy === user.id || u.referredBy === user.phoneNumber);
+                    const invitedCount = invitedPersons.length;
+                    return (
+                      <div className="bg-slate-50 border border-slate-200/60 rounded-xl p-2.5 text-[11px] text-slate-600 space-y-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setExpandedInvites(prev => ({ ...prev, [user.id]: !prev[user.id] }))}
+                          className="w-full flex justify-between items-center text-[9px] font-black text-slate-500 uppercase tracking-wider hover:text-slate-700 transition-colors focus:outline-none cursor-pointer"
+                        >
+                          <span className="flex items-center gap-1 text-slate-600">
+                            👥 Invited Partners ({invitedCount})
+                          </span>
+                          <span className="text-slate-400 font-extrabold">{expandedInvites[user.id] ? '▼ Hide' : '▶ Show'}</span>
+                        </button>
+                        
+                        {expandedInvites[user.id] && (
+                          <div className="pt-1.5 space-y-1.5 border-t border-slate-200/60 max-h-[160px] overflow-y-auto pr-0.5">
+                            {invitedCount === 0 ? (
+                              <div className="text-[10px] text-slate-400 text-center py-1 font-semibold italic">No invites yet.</div>
+                            ) : (
+                              invitedPersons.map(member => (
+                                <div key={member.id} className="bg-white border border-slate-100 rounded-lg p-2 flex justify-between items-center text-[10px] shadow-xs">
+                                  <div className="space-y-0.5">
+                                    <div className="font-extrabold text-slate-800">
+                                      {formatUserPhoneId(member.phoneNumber)}
+                                    </div>
+                                    <div className="text-[8px] text-slate-400 font-bold">
+                                      Joined: {member.createdAt ? new Date(member.createdAt).toLocaleDateString() : 'N/A'}
+                                    </div>
+                                  </div>
+                                  <div className="text-right space-y-0.5">
+                                    <div className="font-extrabold text-slate-700">
+                                      {formatPrice(member.walletBalance)}
+                                    </div>
+                                    <div className="text-[8px] text-bronze font-black">
+                                      Order {Math.min(15, member.currentOrderIndex + 1)}/15
+                                    </div>
+                                  </div>
+                                </div>
+                              ))
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
 
                   {/* Manual Balance Adjustment */}
                   <div className="bg-slate-50 border border-slate-200/60 rounded-xl p-2.5 flex flex-col gap-1.5">
