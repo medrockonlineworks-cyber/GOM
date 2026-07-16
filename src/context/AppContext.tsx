@@ -3459,6 +3459,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setUsedCodes(updatedUsed);
       localStorage.setItem('gom_used_verification_codes', JSON.stringify(updatedUsed));
 
+      // IMMEDIATE LOCAL STATE UPDATE (Instant feedback across all components)
+      const updatedTxs = transactions.map(t => t.id === txId ? { ...t, status: 'approved' as const } : t);
+      setTransactions(updatedTxs);
+      localStorage.setItem('gom_transactions', JSON.stringify(updatedTxs));
+
+      const userToUpdate = users.find(u => u.id === tx.userId);
+      if (userToUpdate) {
+        const updatedUser = {
+          ...userToUpdate,
+          walletBalance: userToUpdate.walletBalance + tx.amount
+        };
+        const updatedUsers = users.map(u => u.id === tx.userId ? updatedUser : u);
+        setUsers(updatedUsers);
+        localStorage.setItem('gom_users', JSON.stringify(updatedUsers));
+
+        if (currentUser && currentUser.id === tx.userId) {
+          setRawCurrentUser(updatedUser);
+          localStorage.setItem('gom_current_user', JSON.stringify(updatedUser));
+        }
+      }
+
       // Update in PostgreSQL database synchronously by hitting the status update endpoint
       const res = await fetch(`/api/transactions/${txId}/status`, {
         method: 'PUT',
