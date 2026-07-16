@@ -738,37 +738,66 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [cartTrigger, setCartTrigger] = useState(0);
 
   const [transactions, setTransactions] = useState<Transaction[]>(() => {
-    const saved = localStorage.getItem('gom_transactions');
-    return saved ? JSON.parse(saved) : [];
+    try {
+      const saved = localStorage.getItem('gom_transactions');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
   });
 
   const [announcements, setAnnouncements] = useState<Announcement[]>(() => {
-    const saved = localStorage.getItem('gom_announcements');
-    return saved ? JSON.parse(saved) : INITIAL_ANNOUNCEMENTS;
+    try {
+      const saved = localStorage.getItem('gom_announcements');
+      return saved ? JSON.parse(saved) : INITIAL_ANNOUNCEMENTS;
+    } catch (e) {
+      return INITIAL_ANNOUNCEMENTS;
+    }
   });
 
   const [supportMessages, setSupportMessages] = useState<SupportMessage[]>(() => {
-    const saved = localStorage.getItem('gom_support');
-    return saved ? JSON.parse(saved) : [];
+    try {
+      const saved = localStorage.getItem('gom_support');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
   });
 
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>(() => {
-    const saved = localStorage.getItem('gom_audit_logs');
-    return saved ? JSON.parse(saved) : [
-      {
-        id: "log-init",
-        userId: "SYSTEM",
-        userPhone: "SYSTEM",
-        action: "INITIALIZE",
-        details: "GOM system initialized successfully.",
-        createdAt: new Date().toISOString()
-      }
-    ];
+    try {
+      const saved = localStorage.getItem('gom_audit_logs');
+      return saved ? JSON.parse(saved) : [
+        {
+          id: "log-init",
+          userId: "SYSTEM",
+          userPhone: "SYSTEM",
+          action: "INITIALIZE",
+          details: "GOM system initialized successfully.",
+          createdAt: new Date().toISOString()
+        }
+      ];
+    } catch (e) {
+      return [
+        {
+          id: "log-init",
+          userId: "SYSTEM",
+          userPhone: "SYSTEM",
+          action: "INITIALIZE",
+          details: "GOM system initialized successfully.",
+          createdAt: new Date().toISOString()
+        }
+      ];
+    }
   });
 
   const [scalingMultiplier, setScalingMultiplier] = useState<number>(() => {
-    const saved = localStorage.getItem('gom_scaling_multiplier');
-    return saved ? Number(saved) : 1.5; // 50% increase progressively by default
+    try {
+      const saved = localStorage.getItem('gom_scaling_multiplier');
+      return saved ? Number(saved) : 1.5; // 50% increase progressively by default
+    } catch (e) {
+      return 1.5;
+    }
   });
 
   const [rechargeAccounts, setRechargeAccounts] = useState<RechargeAccount[]>(() => {
@@ -790,13 +819,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   });
 
   const [bankLogos, setBankLogos] = useState<{ [key: string]: string }>(() => {
-    const saved = localStorage.getItem('gom_bank_logos');
-    return saved ? JSON.parse(saved) : DEFAULT_BANK_LOGOS;
+    try {
+      const saved = localStorage.getItem('gom_bank_logos');
+      return saved ? JSON.parse(saved) : DEFAULT_BANK_LOGOS;
+    } catch (e) {
+      return DEFAULT_BANK_LOGOS;
+    }
   });
 
   const [marketplaceLogos, setMarketplaceLogos] = useState<{ [key: string]: string }>(() => {
-    const saved = localStorage.getItem('gom_marketplace_logos');
-    return saved ? JSON.parse(saved) : DEFAULT_MARKETPLACE_LOGOS;
+    try {
+      const saved = localStorage.getItem('gom_marketplace_logos');
+      return saved ? JSON.parse(saved) : DEFAULT_MARKETPLACE_LOGOS;
+    } catch (e) {
+      return DEFAULT_MARKETPLACE_LOGOS;
+    }
   });
 
   // Custom products costs managed by admin
@@ -2434,10 +2471,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
 
     try {
-      const batch = writeBatch(db);
-      batch.set(doc(db, 'users', currentUser.id), cleanFirestoreData(updatedUser));
-      batch.set(doc(db, 'transactions', withdrawTx.id), cleanFirestoreData(withdrawTx));
-      await batch.commit();
+      await fetch('/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedUser)
+      });
+      await fetch('/api/transactions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(withdrawTx)
+      });
 
       await logAudit(currentUser.id, currentUser.phoneNumber, 'WITHDRAW_REQUEST', `Requested withdrawal of ${amount} ETB to ${bankName}. Account: ${accNo}${finalAccName ? ` (Holder: ${finalAccName})` : ''}`);
 
@@ -2473,45 +2516,36 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (!tx || tx.status !== 'pending') return;
 
     try {
-      const batch = writeBatch(db);
-      batch.set(doc(db, 'transactions', txId), cleanFirestoreData({ ...tx, status: 'approved' }));
+      const res = await fetch(`/api/transactions/${txId}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'approved' })
+      });
 
-      if (tx.type === 'recharge') {
-        const userDocRef = doc(db, 'users', tx.userId);
-        const userToUpdate = users.find(u => u.id === tx.userId);
-        if (userToUpdate) {
-          const updatedUser = {
-            ...userToUpdate,
-            walletBalance: userToUpdate.walletBalance + tx.amount
-          };
-          batch.set(userDocRef, cleanFirestoreData(updatedUser));
-        }
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || 'Failed to update transaction status on backend.');
       }
 
-      await batch.commit();
-      await logAudit('ADMIN', 'ADMIN', 'APPROVE_RECHARGE', `Approved recharge of ${tx.amount} ETB for User ${tx.userId}`);
-
-      // Instantly update local state for real-time reactivity and consistency
-      const updatedTxs = transactions.map(t => t.id === txId ? { ...t, status: 'approved' as const } : t);
-      setTransactions(updatedTxs);
-      localStorage.setItem('gom_transactions', JSON.stringify(updatedTxs));
-
-      if (tx.type === 'recharge') {
-        const userToUpdate = users.find(u => u.id === tx.userId);
-        if (userToUpdate) {
-          const updatedUser = {
-            ...userToUpdate,
-            walletBalance: userToUpdate.walletBalance + tx.amount
-          };
-          const updatedUsers = users.map(u => u.id === tx.userId ? updatedUser : u);
-          setUsers(updatedUsers);
-          localStorage.setItem('gom_users', JSON.stringify(updatedUsers));
-          
-          if (currentUser && currentUser.id === tx.userId) {
-            setRawCurrentUser(updatedUser);
+      const data = await res.json();
+      if (data.success) {
+        if (data.users) {
+          setUsers(data.users);
+          localStorage.setItem('gom_users', JSON.stringify(data.users));
+          if (currentUser) {
+            const updatedMe = data.users.find((u: any) => u.id === currentUser.id);
+            if (updatedMe) {
+              setRawCurrentUser(updatedMe);
+              localStorage.setItem('gom_current_user', JSON.stringify(updatedMe));
+            }
           }
         }
+        if (data.transactions) {
+          setTransactions(data.transactions);
+          localStorage.setItem('gom_transactions', JSON.stringify(data.transactions));
+        }
       }
+      await logAudit('ADMIN', 'ADMIN', 'APPROVE_RECHARGE', `Approved recharge of ${tx.amount} ETB for User ${tx.userId}`);
     } catch (e) {
       console.error("Error approving transaction, falling back to local storage:", e);
       
@@ -2531,7 +2565,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           localStorage.setItem('gom_users', JSON.stringify(updatedUsers));
           
           if (currentUser && currentUser.id === tx.userId) {
-            setCurrentUser(updatedUser);
+            setRawCurrentUser(updatedUser);
+            localStorage.setItem('gom_current_user', JSON.stringify(updatedUser));
           }
         }
       }
@@ -2543,45 +2578,36 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (!tx || tx.status !== 'pending') return;
 
     try {
-      const batch = writeBatch(db);
-      batch.set(doc(db, 'transactions', txId), cleanFirestoreData({ ...tx, status: 'rejected' }));
+      const res = await fetch(`/api/transactions/${txId}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'rejected' })
+      });
 
-      if (tx.type === 'withdraw') {
-        const userDocRef = doc(db, 'users', tx.userId);
-        const userToUpdate = users.find(u => u.id === tx.userId);
-        if (userToUpdate) {
-          const updatedUser = {
-            ...userToUpdate,
-            walletBalance: userToUpdate.walletBalance + tx.amount
-          };
-          batch.set(userDocRef, cleanFirestoreData(updatedUser));
-        }
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || 'Failed to reject transaction status on backend.');
       }
 
-      await batch.commit();
-      await logAudit('ADMIN', 'ADMIN', 'REJECT_WITHDRAWAL', `Rejected withdrawal of ${tx.amount} ETB for User ${tx.userId}. Funds refunded.`);
-
-      // Instantly update local state for real-time reactivity and consistency
-      const updatedTxs = transactions.map(t => t.id === txId ? { ...t, status: 'rejected' as const } : t);
-      setTransactions(updatedTxs);
-      localStorage.setItem('gom_transactions', JSON.stringify(updatedTxs));
-
-      if (tx.type === 'withdraw') {
-        const userToUpdate = users.find(u => u.id === tx.userId);
-        if (userToUpdate) {
-          const updatedUser = {
-            ...userToUpdate,
-            walletBalance: userToUpdate.walletBalance + tx.amount
-          };
-          const updatedUsers = users.map(u => u.id === tx.userId ? updatedUser : u);
-          setUsers(updatedUsers);
-          localStorage.setItem('gom_users', JSON.stringify(updatedUsers));
-          
-          if (currentUser && currentUser.id === tx.userId) {
-            setRawCurrentUser(updatedUser);
+      const data = await res.json();
+      if (data.success) {
+        if (data.users) {
+          setUsers(data.users);
+          localStorage.setItem('gom_users', JSON.stringify(data.users));
+          if (currentUser) {
+            const updatedMe = data.users.find((u: any) => u.id === currentUser.id);
+            if (updatedMe) {
+              setRawCurrentUser(updatedMe);
+              localStorage.setItem('gom_current_user', JSON.stringify(updatedMe));
+            }
           }
         }
+        if (data.transactions) {
+          setTransactions(data.transactions);
+          localStorage.setItem('gom_transactions', JSON.stringify(data.transactions));
+        }
       }
+      await logAudit('ADMIN', 'ADMIN', 'REJECT_WITHDRAWAL', `Rejected withdrawal of ${tx.amount} ETB for User ${tx.userId}. Funds refunded.`);
     } catch (e) {
       console.error("Error rejecting transaction, falling back to local storage:", e);
       
@@ -2601,7 +2627,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           localStorage.setItem('gom_users', JSON.stringify(updatedUsers));
           
           if (currentUser && currentUser.id === tx.userId) {
-            setCurrentUser(updatedUser);
+            setRawCurrentUser(updatedUser);
+            localStorage.setItem('gom_current_user', JSON.stringify(updatedUser));
           }
         }
       }
@@ -3144,38 +3171,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const factoryReset = async () => {
     try {
       if (currentUser) {
-        const batch = writeBatch(db);
-        
-        // Reset current user's document details instead of deleting it
-        const userRef = doc(db, 'users', currentUser.id);
-        batch.update(userRef, {
-          walletBalance: 0,
-          welcomeBonus: 0,
-          totalEarnings: 0,
-          currentOrderIndex: 0,
-          completedOrderIds: [],
-          lastOrderCompletedAt: null
+        await fetch('/api/factory-reset', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: currentUser.id })
         });
-        
-        // Delete current user's transactions
-        const userTxs = transactions.filter(tx => tx.userId === currentUser.id);
-        userTxs.forEach(tx => {
-          batch.delete(doc(db, 'transactions', tx.id));
-        });
-        
-        // Delete current user's support messages
-        const userSupport = supportMessages.filter(msg => msg.userId === currentUser.id);
-        userSupport.forEach(msg => {
-          batch.delete(doc(db, 'support', msg.id));
-        });
-        
-        // Delete current user's audit logs
-        const userLogs = auditLogs.filter(log => log.userId === currentUser.id);
-        userLogs.forEach(log => {
-          batch.delete(doc(db, 'auditLogs', log.id));
-        });
-        
-        await batch.commit();
       }
       
       // Update local storage selectively so the session is preserved (no logout)
@@ -3453,36 +3453,80 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return { success: false, message: 'This verification code has expired.' };
     }
 
-    // Mark code as used globally
-    const updatedUsed = [...usedCodes, normalizedCode];
-    setUsedCodes(updatedUsed);
-    localStorage.setItem('gom_used_verification_codes', JSON.stringify(updatedUsed));
+    try {
+      // Mark code as used globally
+      const updatedUsed = [...usedCodes, normalizedCode];
+      setUsedCodes(updatedUsed);
+      localStorage.setItem('gom_used_verification_codes', JSON.stringify(updatedUsed));
 
-    // Update transaction status
-    const updatedTxs = transactions.map(t => t.id === txId ? { ...t, status: 'approved' as const } : t);
-    setTransactions(updatedTxs);
-    localStorage.setItem('gom_transactions', JSON.stringify(updatedTxs));
+      // Update in PostgreSQL database synchronously by hitting the status update endpoint
+      const res = await fetch(`/api/transactions/${txId}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'approved' })
+      });
 
-    // Update user wallet balance
-    const userToUpdate = users.find(u => u.id === tx.userId);
-    if (userToUpdate) {
-      const updatedUser = {
-        ...userToUpdate,
-        walletBalance: userToUpdate.walletBalance + tx.amount
-      };
-      const updatedUsers = users.map(u => u.id === tx.userId ? updatedUser : u);
-      setUsers(updatedUsers);
-      localStorage.setItem('gom_users', JSON.stringify(updatedUsers));
-
-      if (currentUser && currentUser.id === tx.userId) {
-        setRawCurrentUser(updatedUser);
-        localStorage.setItem('gom_current_user', JSON.stringify(updatedUser));
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || 'Failed to approve transaction on backend server.');
       }
+
+      const data = await res.json();
+      if (data.success) {
+        if (data.users) {
+          setUsers(data.users);
+          localStorage.setItem('gom_users', JSON.stringify(data.users));
+          if (currentUser) {
+            const updatedMe = data.users.find((u: any) => u.id === currentUser.id);
+            if (updatedMe) {
+              setRawCurrentUser(updatedMe);
+              localStorage.setItem('gom_current_user', JSON.stringify(updatedMe));
+            }
+          }
+        }
+        if (data.transactions) {
+          setTransactions(data.transactions);
+          localStorage.setItem('gom_transactions', JSON.stringify(data.transactions));
+        }
+      }
+
+      await logAudit(tx.userId, tx.userPhone, 'OFFLINE_RECHARGE_VERIFY', `Successfully verified offline code ${code} for deposit of ${tx.amount} ETB. Ref: ${tx.accountNumberOrRef}`);
+
+      return { success: true, message: 'Recharge Approved Successfully' };
+    } catch (e: any) {
+      console.error("Error in verifyRechargeOffline, falling back to local storage:", e);
+
+      // Fallback local state update
+      const updatedUsed = [...usedCodes, normalizedCode];
+      setUsedCodes(updatedUsed);
+      localStorage.setItem('gom_used_verification_codes', JSON.stringify(updatedUsed));
+
+      // Update transaction status
+      const updatedTxs = transactions.map(t => t.id === txId ? { ...t, status: 'approved' as const } : t);
+      setTransactions(updatedTxs);
+      localStorage.setItem('gom_transactions', JSON.stringify(updatedTxs));
+
+      // Update user wallet balance
+      const userToUpdate = users.find(u => u.id === tx.userId);
+      if (userToUpdate) {
+        const updatedUser = {
+          ...userToUpdate,
+          walletBalance: userToUpdate.walletBalance + tx.amount
+        };
+        const updatedUsers = users.map(u => u.id === tx.userId ? updatedUser : u);
+        setUsers(updatedUsers);
+        localStorage.setItem('gom_users', JSON.stringify(updatedUsers));
+
+        if (currentUser && currentUser.id === tx.userId) {
+          setRawCurrentUser(updatedUser);
+          localStorage.setItem('gom_current_user', JSON.stringify(updatedUser));
+        }
+      }
+
+      await logAudit(tx.userId, tx.userPhone, 'OFFLINE_RECHARGE_VERIFY', `Successfully verified offline code ${code} for deposit of ${tx.amount} ETB. Ref: ${tx.accountNumberOrRef} (Offline Fallback)`);
+
+      return { success: true, message: 'Recharge Approved Successfully (Offline Fallback)' };
     }
-
-    await logAudit(tx.userId, tx.userPhone, 'OFFLINE_RECHARGE_VERIFY', `Successfully verified offline code ${code} for deposit of ${tx.amount} ETB. Ref: ${tx.accountNumberOrRef}`);
-
-    return { success: true, message: 'Recharge Approved Successfully' };
   };
 
   return (

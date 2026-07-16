@@ -1383,129 +1383,155 @@ export const MyTab: React.FC<MyTabProps> = ({
 
         {selectedPendingRecharge && (
           <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center z-50 backdrop-blur-sm p-4">
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="bg-white rounded-[28px] w-full max-w-sm overflow-hidden shadow-2xl border border-slate-100 flex flex-col"
-            >
-              {/* Header */}
-              <div className="px-6 pt-6 pb-4 flex justify-between items-center bg-slate-50 border-b border-slate-100">
-                <div className="flex items-center gap-2">
-                  <ShieldCheck className="text-amber-500 animate-pulse" size={18} />
-                  <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest">
-                    {language === 'pt' ? 'Verificar Recarga' : 'Verify Recharge'}
-                  </h3>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setSelectedPendingRecharge(null)}
-                  className="w-7 h-7 rounded-full bg-slate-200/50 hover:bg-slate-200 flex items-center justify-center text-slate-500 hover:text-slate-800 transition-all cursor-pointer"
+            {(() => {
+              const currentTxInModal = transactions.find(t => t.id === selectedPendingRecharge.id) || selectedPendingRecharge;
+              return (
+                <motion.div
+                  initial={{ scale: 0.95, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.95, opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="bg-white rounded-[28px] w-full max-w-sm overflow-hidden shadow-2xl border border-slate-100 flex flex-col"
                 >
-                  <X size={14} />
-                </button>
-              </div>
+                  {/* Header */}
+                  <div className="px-6 pt-6 pb-4 flex justify-between items-center bg-slate-50 border-b border-slate-100">
+                    <div className="flex items-center gap-2">
+                      <ShieldCheck className="text-amber-500 animate-pulse" size={18} />
+                      <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest">
+                        {language === 'pt' ? 'Verificar Recarga' : 'Verify Recharge'}
+                      </h3>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedPendingRecharge(null)}
+                      className="w-7 h-7 rounded-full bg-slate-200/50 hover:bg-slate-200 flex items-center justify-center text-slate-500 hover:text-slate-800 transition-all cursor-pointer"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
 
-              {/* Form Content */}
-              <form onSubmit={async (e) => {
-                e.preventDefault();
-                setVerificationLoading(true);
-                setVerificationError('');
-                setVerificationSuccess('');
-                try {
-                  const res = await verifyRechargeOffline(selectedPendingRecharge.id, verificationCodeInput);
-                  if (res.success) {
-                    setVerificationSuccess(res.message);
-                    setVerificationCodeInput('');
-                    setTimeout(() => {
-                      setSelectedPendingRecharge(null);
-                    }, 2000);
-                  } else {
-                    setVerificationError(res.message);
-                  }
-                } catch (err: any) {
-                  setVerificationError(err.message || 'An error occurred during verification.');
-                } finally {
-                  setVerificationLoading(false);
-                }
-              }} className="p-6 space-y-4">
-                
-                {/* Details Card */}
-                <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 space-y-2">
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="text-slate-500 font-bold">{language === 'pt' ? 'Valor:' : 'Amount:'}</span>
-                    <span className="text-slate-900 font-black">{formatPrice(selectedPendingRecharge.amount)}</span>
-                  </div>
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="text-slate-500 font-bold">{language === 'pt' ? 'Banco:' : 'Bank:'}</span>
-                    <span className="text-slate-800 font-bold">{selectedPendingRecharge.bankName}</span>
-                  </div>
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="text-slate-500 font-bold">{language === 'pt' ? 'Referência:' : 'Reference:'}</span>
-                    <span className="text-slate-800 font-mono font-bold select-all bg-slate-200/60 px-2 py-0.5 rounded text-[10px]">{selectedPendingRecharge.accountNumberOrRef}</span>
-                  </div>
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="text-slate-500 font-bold">Status:</span>
-                    <span className="text-amber-600 font-black flex items-center gap-1">
-                      <Clock size={10} /> Pending
-                    </span>
-                  </div>
-                </div>
+                  {/* Form Content */}
+                  <form onSubmit={async (e) => {
+                    e.preventDefault();
+                    if (currentTxInModal.status === 'approved') return;
+                    setVerificationLoading(true);
+                    setVerificationError('');
+                    setVerificationSuccess('');
+                    try {
+                      const res = await verifyRechargeOffline(selectedPendingRecharge.id, verificationCodeInput);
+                      if (res.success) {
+                        setVerificationSuccess(res.message);
+                        setVerificationCodeInput('');
+                        setTimeout(() => {
+                          setSelectedPendingRecharge(null);
+                        }, 2000);
+                      } else {
+                        setVerificationError(res.message);
+                      }
+                    } catch (err: any) {
+                      setVerificationError(err.message || 'An error occurred during verification.');
+                    } finally {
+                      setVerificationLoading(false);
+                    }
+                  }} className="p-6 space-y-4">
+                    
+                    {/* Details Card */}
+                    <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 space-y-2">
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-slate-500 font-bold">{language === 'pt' ? 'Valor:' : 'Amount:'}</span>
+                        <span className="text-slate-900 font-black">{formatPrice(selectedPendingRecharge.amount)}</span>
+                      </div>
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-slate-500 font-bold">{language === 'pt' ? 'Banco:' : 'Bank:'}</span>
+                        <span className="text-slate-800 font-bold">{selectedPendingRecharge.bankName}</span>
+                      </div>
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-slate-500 font-bold">{language === 'pt' ? 'Referência:' : 'Reference:'}</span>
+                        <span className="text-slate-800 font-mono font-bold select-all bg-slate-200/60 px-2 py-0.5 rounded text-[10px]">{selectedPendingRecharge.accountNumberOrRef}</span>
+                      </div>
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-slate-500 font-bold">Status:</span>
+                        {currentTxInModal.status === 'approved' ? (
+                          <span className="text-emerald-600 font-black flex items-center gap-1">
+                            <CheckCircle2 size={12} className="text-emerald-600" /> {language === 'pt' ? 'Aprovado' : 'Approved'}
+                          </span>
+                        ) : (
+                          <span className="text-amber-600 font-black flex items-center gap-1 animate-pulse">
+                            <Clock size={10} /> Pending
+                          </span>
+                        )}
+                      </div>
+                    </div>
 
-                {verificationError && (
-                  <div className="bg-red-50 text-red-600 border border-red-100 text-[10px] font-bold p-3 rounded-xl flex items-center gap-2">
-                    <AlertCircle size={14} className="shrink-0 animate-bounce" />
-                    <span>{verificationError}</span>
-                  </div>
-                )}
+                    {verificationError && (
+                      <div className="bg-red-50 text-red-600 border border-red-100 text-[10px] font-bold p-3 rounded-xl flex items-center gap-2">
+                        <AlertCircle size={14} className="shrink-0 animate-bounce" />
+                        <span>{verificationError}</span>
+                      </div>
+                    )}
 
-                {verificationSuccess && (
-                  <div className="bg-emerald-50 text-emerald-600 border border-emerald-100 text-[10px] font-bold p-3 rounded-xl flex items-center gap-2">
-                    <CheckCircle2 size={14} className="shrink-0 animate-ping" />
-                    <span>{verificationSuccess}</span>
-                  </div>
-                )}
+                    {verificationSuccess && (
+                      <div className="bg-emerald-50 text-emerald-600 border border-emerald-100 text-[10px] font-bold p-3 rounded-xl flex items-center gap-2">
+                        <CheckCircle2 size={14} className="shrink-0 animate-ping" />
+                        <span>{verificationSuccess}</span>
+                      </div>
+                    )}
 
-                {/* Verification Code Input */}
-                <div className="space-y-1.5">
-                  <label className="block text-[9px] font-black uppercase tracking-wider text-slate-400">
-                    {language === 'pt' ? 'Código de Verificação do Admin' : 'Admin Verification Code'}
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={verificationCodeInput}
-                    onChange={(e) => setVerificationCodeInput(e.target.value)}
-                    placeholder="e.g. EXP36-SIG36"
-                    className="w-full bg-slate-50 border border-slate-200 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 focus:outline-none transition-all font-mono font-bold placeholder:font-sans placeholder:font-medium tracking-widest text-center"
-                  />
-                  <p className="text-[9px] text-slate-400 leading-normal pt-1 text-center font-medium">
-                    {language === 'pt' 
-                      ? 'Insira o código seguro obtido com o administrador (via Telegram/WhatsApp) para validar a transação de forma criptográfica offline.'
-                      : 'Enter the secure code obtained from the admin (via Telegram/WhatsApp) to cryptographically validate the transaction offline.'}
-                  </p>
-                </div>
+                    {/* Verification Code Input Section */}
+                    {currentTxInModal.status !== 'approved' && (
+                      <div className="space-y-1.5">
+                        <label className="block text-[9px] font-black uppercase tracking-wider text-slate-400">
+                          {language === 'pt' ? 'Código de Verificação do Admin' : 'Admin Verification Code'}
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={verificationCodeInput}
+                          onChange={(e) => setVerificationCodeInput(e.target.value)}
+                          placeholder="e.g. EXP36-SIG36"
+                          className="w-full bg-slate-50 border border-slate-200 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 focus:outline-none transition-all font-mono font-bold placeholder:font-sans placeholder:font-medium tracking-widest text-center"
+                        />
+                        <p className="text-[9px] text-slate-400 leading-normal pt-1 text-center font-medium">
+                          {language === 'pt' 
+                            ? 'Insira o código seguro obtido com o administrador (via Telegram/WhatsApp) para validar a transação de forma criptográfica offline.'
+                            : 'Enter the secure code obtained from the admin (via Telegram/WhatsApp) to cryptographically validate the transaction offline.'}
+                        </p>
+                      </div>
+                    )}
 
-                {/* Action Buttons */}
-                <div className="flex gap-2 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => setSelectedPendingRecharge(null)}
-                    className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 font-black text-[10px] uppercase tracking-wider py-3 rounded-xl text-center cursor-pointer transition-all active:scale-[0.98]"
-                  >
-                    {t('cancel')}
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={verificationLoading || !!verificationSuccess}
-                    className="flex-1 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 disabled:from-slate-300 disabled:to-slate-300 disabled:text-slate-400 text-white font-black text-[10px] uppercase tracking-wider py-3 rounded-xl text-center cursor-pointer transition-all active:scale-[0.98] shadow-sm flex items-center justify-center gap-1.5"
-                  >
-                    {verificationLoading ? (language === 'pt' ? 'Verificando...' : 'Verifying...') : (language === 'pt' ? 'Verificar Código' : 'Verify Code')}
-                  </button>
-                </div>
-              </form>
-            </motion.div>
+                    {/* Action Buttons */}
+                    <div className="flex gap-2 pt-2">
+                      {currentTxInModal.status === 'approved' ? (
+                        <button
+                          type="button"
+                          onClick={() => setSelectedPendingRecharge(null)}
+                          className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[10px] uppercase tracking-wider py-3 rounded-xl text-center cursor-pointer transition-all active:scale-[0.98]"
+                        >
+                          {language === 'pt' ? 'Fechar' : 'Close'}
+                        </button>
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedPendingRecharge(null)}
+                            className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 font-black text-[10px] uppercase tracking-wider py-3 rounded-xl text-center cursor-pointer transition-all active:scale-[0.98]"
+                          >
+                            {t('cancel')}
+                          </button>
+                          <button
+                            type="submit"
+                            disabled={verificationLoading || !!verificationSuccess}
+                            className="flex-1 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 disabled:from-slate-300 disabled:to-slate-300 disabled:text-slate-400 text-white font-black text-[10px] uppercase tracking-wider py-3 rounded-xl text-center cursor-pointer transition-all active:scale-[0.98] shadow-sm flex items-center justify-center gap-1.5"
+                          >
+                            {verificationLoading ? (language === 'pt' ? 'Verificando...' : 'Verifying...') : (language === 'pt' ? 'Verificar Código' : 'Verify Code')}
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </form>
+                </motion.div>
+              );
+            })()}
           </div>
         )}
       </AnimatePresence>

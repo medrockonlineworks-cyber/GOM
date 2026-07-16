@@ -2,7 +2,7 @@ import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { createServer as createViteServer } from 'vite';
-import { db } from './src/db/index.ts';
+import { db, eq, desc, and } from './src/db/index.ts';
 import { 
   users, 
   transactions, 
@@ -12,7 +12,6 @@ import {
   rechargeAccounts, 
   systemConfig 
 } from './src/db/schema.ts';
-import { eq, desc, and } from 'drizzle-orm';
 import * as dotenv from 'dotenv';
 
 dotenv.config();
@@ -797,6 +796,44 @@ app.delete('/api/users/:id', async (req, res) => {
     
     const finalUsers = await db.select().from(users);
     res.json({ success: true, users: finalUsers });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Developer / User Factory Reset Own Account
+app.post('/api/factory-reset', async (req, res) => {
+  try {
+    const { userId } = req.body;
+    if (!userId) {
+      return res.status(400).json({ error: 'userId is required' });
+    }
+
+    // Reset user fields in PostgreSQL
+    await db.update(users)
+      .set({
+        walletBalance: 0,
+        welcomeBonus: 0,
+        totalEarnings: 0,
+        currentOrderIndex: 0,
+        completedOrderIds: [],
+        lastOrderCompletedAt: null
+      })
+      .where(eq(users.id, userId));
+
+    // Delete related transactions
+    await db.delete(transactions).where(eq(transactions.userId, userId));
+
+    // Delete related support messages
+    await db.delete(supportMessages).where(eq(supportMessages.userId, userId));
+
+    // Delete related audit logs
+    await db.delete(auditLogs).where(eq(auditLogs.userId, userId));
+
+    // Log the action
+    await dbLogAudit(userId, 'USER', 'FACTORY_RESET', `User ${userId} initiated self factory reset`);
+
+    res.json({ success: true, message: 'Account factory reset completed successfully' });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }

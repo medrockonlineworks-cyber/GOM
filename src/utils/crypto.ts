@@ -78,13 +78,25 @@ export function rc4(key: string, str: string): string {
  * Encrypts data to a hexadecimal string
  */
 export function encryptData(data: string, key: string = 'gom_secure_salt'): string {
-  const cipherText = rc4(key, data);
-  let hex = '';
-  for (let i = 0; i < cipherText.length; i++) {
-    const code = cipherText.charCodeAt(i).toString(16);
-    hex += (code.length === 1 ? '0' : '') + code;
+  try {
+    const safeData = unescape(encodeURIComponent(data));
+    const cipherText = rc4(key, safeData);
+    let hex = '';
+    for (let i = 0; i < cipherText.length; i++) {
+      const code = cipherText.charCodeAt(i).toString(16);
+      hex += (code.length === 1 ? '0' : '') + code;
+    }
+    return hex;
+  } catch (e) {
+    console.error('Encryption failed:', e);
+    const cipherText = rc4(key, data);
+    let hex = '';
+    for (let i = 0; i < cipherText.length; i++) {
+      const code = (cipherText.charCodeAt(i) & 255).toString(16);
+      hex += (code.length === 1 ? '0' : '') + code;
+    }
+    return hex;
   }
-  return hex;
 }
 
 /**
@@ -97,7 +109,12 @@ export function decryptData(hex: string, key: string = 'gom_secure_salt'): strin
     for (let i = 0; i < hex.length; i += 2) {
       cipherText += String.fromCharCode(parseInt(hex.substring(i, i + 2), 16));
     }
-    return rc4(key, cipherText);
+    const decryptedBytes = rc4(key, cipherText);
+    try {
+      return decodeURIComponent(escape(decryptedBytes));
+    } catch (e) {
+      return decryptedBytes;
+    }
   } catch (e) {
     console.error('Decryption failed:', e);
     return '';
@@ -116,7 +133,20 @@ export const secureStorage = {
       // Otherwise, we gracefully fall back to the raw value (useful during migration of existing unencrypted keys).
       if (/^[0-9a-fA-F]+$/.test(rawValue)) {
         const decrypted = decryptData(rawValue, 'gom_secure_salt');
-        if (decrypted && (decrypted.startsWith('{') || decrypted.startsWith('[') || decrypted.startsWith('"') || /^[GOMa-zA-Z0-9_-]+$/.test(decrypted))) {
+        
+        // Ensure decrypted string doesn't contain bad control characters (< 32, except 9, 10, 13)
+        let hasBadControlChars = false;
+        if (decrypted) {
+          for (let i = 0; i < decrypted.length; i++) {
+            const code = decrypted.charCodeAt(i);
+            if (code < 32 && code !== 9 && code !== 10 && code !== 13) {
+              hasBadControlChars = true;
+              break;
+            }
+          }
+        }
+
+        if (!hasBadControlChars && decrypted && (decrypted.startsWith('{') || decrypted.startsWith('[') || decrypted.startsWith('"') || /^[GOMa-zA-Z0-9_-]+$/.test(decrypted))) {
           return decrypted;
         }
       }
@@ -141,13 +171,16 @@ export const secureStorage = {
 
 /**
  * Helper to format raw codes to readable hyphenated sections
- * e.g., "ABCD1234EFGH5678" -> "ABCD-1234-EFGH-5678"
+ * e.g., "ABCDEFGHIJ" -> "ABCDE-FGHIJ"
  */
 export function formatCode(raw: string): string {
   const cleaned = raw.replace(/[^A-Z0-9]/gi, '').toUpperCase();
+  if (cleaned.length === 10) {
+    return `${cleaned.substring(0, 5)}-${cleaned.substring(5)}`;
+  }
   const chunks: string[] = [];
-  for (let i = 0; i < cleaned.length; i += 4) {
-    chunks.push(cleaned.substring(i, i + 4));
+  for (let i = 0; i < cleaned.length; i += 5) {
+    chunks.push(cleaned.substring(i, i + 5));
   }
   return chunks.join('-');
 }
@@ -186,7 +219,7 @@ function parseBigInt36(str: string): bigint {
 
 /**
  * Generates a signed recharge verification code
- * Code format: [expiryBase36]-[signatureBase36]
+ * Code format: [expiryBase36][signatureBase36] (exactly 10 alphanumeric characters)
  */
 export function generateVerificationCode(
   phoneNumber: string,
@@ -195,37 +228,35 @@ export function generateVerificationCode(
   expiryMinutes: number,
   adminPasswordHash: string
 ): string | null {
-  const d = getPrivateKeyD(adminPasswordHash);
-  if (!d) {
-    console.error("Invalid admin key hash or failed private key derivation");
+  try {
+    const EPOCH = 1767225600; // Jan 1, 2026
+
+    // Calculate expiration timestamp (in seconds)
+    const expiryTimeSec = Math.floor((Date.now() + expiryMinutes * 60 * 1000) / 1000);
+    const expiryMinutesSinceEpoch = Math.max(0, Math.floor((expiryTimeSec - EPOCH) / 60));
+
+    // Normalize inputs to prevent formatting discrepancies
+    const normPhone = phoneNumber.trim();
+    const normAmount = Math.round(amount).toString();
+    const normRef = reference.trim().toUpperCase();
+
+    // Create cryptographic payload
+    const payload = `${normPhone}:${normAmount}:${normRef}:${expiryMinutesSinceEpoch}:gom_secure_offline_salt_2026`;
+    const hashHex = sha256(payload);
+    
+    // Convert hash to a 5-character Base36 signature
+    const hashBigInt = BigInt('0x' + hashHex);
+    const sigVal = Number(hashBigInt % 60466176n); // 36^5 = 60466176
+
+    const expiryBase36 = expiryMinutesSinceEpoch.toString(36).toUpperCase().padStart(5, '0');
+    const sigBase36 = sigVal.toString(36).toUpperCase().padStart(5, '0');
+
+    // Return formatted code (e.g., ABCDE-FGHIJ)
+    return formatCode(`${expiryBase36}${sigBase36}`);
+  } catch (e) {
+    console.error("Failed to generate verification code:", e);
     return null;
   }
-
-  // Calculate expiration timestamp (in seconds, divided by 10 to make it extremely compact)
-  const expiryTimeSec = Math.floor((Date.now() + expiryMinutes * 60 * 1000) / 1000);
-  const expiryCompact = Math.floor(expiryTimeSec / 10); // 10-second resolution for brevity
-
-  // Normalize inputs to prevent formatting discrepancies
-  const normPhone = phoneNumber.trim();
-  const normAmount = Math.round(amount).toString();
-  const normRef = reference.trim().toUpperCase();
-
-  // Create cryptographic payload
-  const payload = `${normPhone}:${normAmount}:${normRef}:${expiryCompact}`;
-  const hashHex = sha256(payload);
-  
-  // Convert SHA-256 hash to a BigInt and reduce modulo RSA_N
-  const hashBigInt = BigInt('0x' + hashHex) % RSA_N;
-
-  // Sign the hashBigInt using modular exponentiation
-  const signatureBigInt = modPow(hashBigInt, d, RSA_N);
-
-  // Encode expiry and signature to Base36
-  const expiryBase36 = expiryCompact.toString(36).toUpperCase();
-  const sigBase36 = toBase36(signatureBigInt);
-
-  // Return formatted code
-  return formatCode(`${expiryBase36}${sigBase36}`);
 }
 
 /**
@@ -239,33 +270,20 @@ export function verifyVerificationCode(
 ): { valid: boolean; expired: boolean; expiryDate: Date | null; error?: string } {
   try {
     const cleaned = code.replace(/[^A-Z0-9]/gi, '').toUpperCase();
-    if (cleaned.length < 8) {
-      return { valid: false, expired: false, expiryDate: null, error: "Code too short" };
+    if (cleaned.length !== 10) {
+      return { valid: false, expired: false, expiryDate: null, error: "Code must be exactly 10 characters long" };
     }
 
-    // In Base36, a compact 10-second resolution epoch timestamp for any date between 
-    // March 1989 and the year 2659 is mathematically guaranteed to be exactly 6 characters long.
-    // Therefore, the first 6 characters are always the expiryBase36, and the remaining characters form the RSA signature.
-    const expiryBase36 = cleaned.substring(0, 6);
-    const sigBase36 = cleaned.substring(6);
+    const expiryBase36 = cleaned.substring(0, 5);
+    const sigBase36 = cleaned.substring(5);
 
-    if (!expiryBase36 || !sigBase36) {
-      return { valid: false, expired: false, expiryDate: null, error: "Invalid code format" };
-    }
-
-    const expiryCompact = parseInt(expiryBase36, 36);
-    let signatureBigInt: bigint;
-    try {
-      signatureBigInt = parseBigInt36(sigBase36);
-    } catch (e) {
-      return { valid: false, expired: false, expiryDate: null, error: "Signature decoding failed" };
-    }
-
-    if (isNaN(expiryCompact) || !signatureBigInt) {
+    const expiryMinutesSinceEpoch = parseInt(expiryBase36, 36);
+    if (isNaN(expiryMinutesSinceEpoch)) {
       return { valid: false, expired: false, expiryDate: null, error: "Decoding failed" };
     }
 
-    const expiryTimeSec = expiryCompact * 10;
+    const EPOCH = 1767225600; // Jan 1, 2026
+    const expiryTimeSec = EPOCH + expiryMinutesSinceEpoch * 60;
     const expiryDate = new Date(expiryTimeSec * 1000);
     const nowSec = Math.floor(Date.now() / 1000);
 
@@ -276,14 +294,13 @@ export function verifyVerificationCode(
     const normAmount = Math.round(amount).toString();
     const normRef = reference.trim().toUpperCase();
 
-    const payload = `${normPhone}:${normAmount}:${normRef}:${expiryCompact}`;
+    const payload = `${normPhone}:${normAmount}:${normRef}:${expiryMinutesSinceEpoch}:gom_secure_offline_salt_2026`;
     const hashHex = sha256(payload);
-    const hashBigInt = BigInt('0x' + hashHex) % RSA_N;
+    const hashBigInt = BigInt('0x' + hashHex);
+    const expectedSigVal = Number(hashBigInt % 60466176n);
+    const expectedSigBase36 = expectedSigVal.toString(36).toUpperCase().padStart(5, '0');
 
-    // Recover hash using public key verification: recoveredHash = (signature ^ E) % N
-    const recoveredHash = modPow(signatureBigInt, RSA_E, RSA_N);
-
-    const isSignatureValid = (recoveredHash === hashBigInt);
+    const isSignatureValid = (sigBase36 === expectedSigBase36);
 
     return {
       valid: isSignatureValid,

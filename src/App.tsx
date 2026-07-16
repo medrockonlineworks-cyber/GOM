@@ -682,6 +682,136 @@ const getUserCountry = (phone?: string) => {
   return null;
 };
 
+const refValidationTranslations: Record<string, {
+  cbeStart: string;
+  cbeLength: string;
+  telebirrStart: string;
+  telebirrLength: string;
+  alphanumeric: string;
+  cbeValid: string;
+  telebirrValid: string;
+}> = {
+  en: {
+    cbeStart: 'Must start with "FT" (e.g. FT1234567890)',
+    cbeLength: 'Must be exactly 12 characters',
+    telebirrStart: 'Must start with "PP" (e.g. PP12345678)',
+    telebirrLength: 'Must be exactly 10 characters',
+    alphanumeric: 'Must contain only letters and numbers',
+    cbeValid: '✓ Valid CBE reference ID format',
+    telebirrValid: '✓ Valid Telebirr ID format'
+  },
+  am: {
+    cbeStart: 'በ "FT" መጀመር አለበት (ምሳሌ፡ FT1234567890)',
+    cbeLength: 'በትክክል 12 ቁምፊዎች መሆን አለበት',
+    telebirrStart: 'በ "PP" መጀመር አለበት (ምሳሌ፡ PP12345678)',
+    telebirrLength: 'በትክክል 10 ቁምፊዎች መሆን አለበት',
+    alphanumeric: 'ፊደላትን እና ቁጥሮችን ብቻ መያዝ አለበት',
+    cbeValid: '✓ ትክክለኛ የCBE ማጣቀሻ ኮድ ቅርጸት',
+    telebirrValid: '✓ ትክክለኛ የቴሌብር መለያ ቅርጸት'
+  },
+  ar: {
+    cbeStart: 'يجب أن يبدأ بـ "FT" (مثل FT1234567890)',
+    cbeLength: 'يجب أن يكون 12 حرفًا بالضبط',
+    telebirrStart: 'يجب أن يبدأ بـ "PP" (مثل PP12345678)',
+    telebirrLength: 'يجب أن يكون 10 أحرف بالضبط',
+    alphanumeric: 'يجب أن يحتوي على أحرف وأرقام فقط',
+    cbeValid: '✓ تنسيق معرف مرجع CBE صالح',
+    telebirrValid: '✓ تنسيق معرف Telebirr صالح'
+  },
+  zh: {
+    cbeStart: '必须以“FT”开头（例如 FT1234567890）',
+    cbeLength: '必须刚好是 12 位字符',
+    telebirrStart: '必须以“PP”开头（例如 PP12345678）',
+    telebirrLength: '必须刚好是 10 位字符',
+    alphanumeric: '只能包含字母和数字',
+    cbeValid: '✓ 有效的 CBE 参考 ID 格式',
+    telebirrValid: '✓ 有效的 Telebirr ID 格式'
+  },
+  es: {
+    cbeStart: 'Debe comenzar con "FT" (ej. FT1234567890)',
+    cbeLength: 'Debe tener exactamente 12 caracteres',
+    telebirrStart: 'Debe comenzar con "PP" (ej. PP12345678)',
+    telebirrLength: 'Debe tener exactamente 10 caracteres',
+    alphanumeric: 'Debe contener solo letras y números',
+    cbeValid: '✓ Formato de ID de referencia CBE válido',
+    telebirrValid: '✓ Formato de ID de Telebirr válido'
+  },
+  fr: {
+    cbeStart: 'Doit commencer par "FT" (ex. FT1234567890)',
+    cbeLength: 'Doit faire exactement 12 caractères',
+    telebirrStart: 'Doit commencer par "PP" (ex. PP12345678)',
+    telebirrLength: 'Doit faire exactement 10 caractères',
+    alphanumeric: 'Doit contenir uniquement des lettres et des chiffres',
+    cbeValid: '✓ Format d\'ID de référence CBE valide',
+    telebirrValid: '✓ Format d\'ID Telebirr valide'
+  },
+  sw: {
+    cbeStart: 'Lazima ianze na "FT" (mfano FT1234567890)',
+    cbeLength: 'Lazima iwe herufi 12 hasa',
+    telebirrStart: 'Lazima ianze na "PP" (mfano PP12345678)',
+    telebirrLength: 'Lazima iwe herufi 10 hasa',
+    alphanumeric: 'Lazima iwe na herufi na nambari tu',
+    cbeValid: '✓ Muundo halali wa kumbukumbu ya CBE',
+    telebirrValid: '✓ Muundo halali wa ID ya Telebirr'
+  },
+  so: {
+    cbeStart: 'Waa inuu ka bilaabmaa "FT" (tusaale FT1234567890)',
+    cbeLength: 'Waa inuu ahaadaa sax 12 xaraf',
+    telebirrStart: 'Waa inuu ka bilaabmaa "PP" (tusaale PP12345678)',
+    telebirrLength: 'Waa inuu ahaadaa sax 10 xaraf',
+    alphanumeric: 'Waa inuu ka koobnaadaa xarfo iyo lambaro kaliya',
+    cbeValid: '✓ Qaabka aqoonsiga tixraaca CBE ee saxda ah',
+    telebirrValid: '✓ Qaabka aqoonsiga Telebirr ee saxda ah'
+  },
+  pt: {
+    cbeStart: 'Deve começar com "FT" (ex: FT1234567890)',
+    cbeLength: 'Deve ter exatamente 12 caracteres',
+    telebirrStart: 'Deve começar com "PP" (ex: PP12345678)',
+    telebirrLength: 'Deve ter exatamente 10 caracteres',
+    alphanumeric: 'Deve conter apenas letras e números',
+    cbeValid: '✓ Formato de ID de referência CBE válido',
+    telebirrValid: '✓ Formato de ID do Telebirr válido'
+  }
+};
+
+const getRefValidationResult = (bank: string, ref: string, lang: string) => {
+  if (!ref) return null;
+  const isCbe = bank === 'Commercial Bank of Ethiopia (CBE)' || bank.includes('CBE') || bank.toLowerCase().includes('commercial bank');
+  const isTelebirr = bank === 'Telebirr' || bank.toLowerCase().includes('telebirr');
+
+  if (!isCbe && !isTelebirr) return null;
+
+  const tVal = refValidationTranslations[lang] || refValidationTranslations.en;
+  
+  if (isCbe) {
+    if (!ref.toLowerCase().startsWith('ft')) {
+      return { isValid: false, message: tVal.cbeStart, isError: true };
+    }
+    if (ref.length !== 12) {
+      return { isValid: false, message: `${tVal.cbeLength} (current: ${ref.length}/12)`, isError: true };
+    }
+    if (!/^[a-zA-Z0-9]+$/.test(ref)) {
+      return { isValid: false, message: tVal.alphanumeric, isError: true };
+    }
+    return { isValid: true, message: tVal.cbeValid, isError: false };
+  }
+
+  if (isTelebirr) {
+    if (!ref.toLowerCase().startsWith('pp')) {
+      return { isValid: false, message: tVal.telebirrStart, isError: true };
+    }
+    if (ref.length !== 10) {
+      return { isValid: false, message: `${tVal.telebirrLength} (current: ${ref.length}/10)`, isError: true };
+    }
+    if (!/^[a-zA-Z0-9]+$/.test(ref)) {
+      return { isValid: false, message: tVal.alphanumeric, isError: true };
+    }
+    return { isValid: true, message: tVal.telebirrValid, isError: false };
+  }
+
+  return null;
+};
+
 type UserTab = 'home' | 'orders' | 'my';
 
 function AppContent() {
@@ -952,6 +1082,12 @@ function AppContent() {
 
     if (!rechargeRef.trim()) {
       setRechargeError('Please provide the transaction reference number (TXID) or transfer ID.');
+      return;
+    }
+
+    const validationResult = getRefValidationResult(rechargeBank, rechargeRef, language);
+    if (validationResult && !validationResult.isValid) {
+      setRechargeError(validationResult.message);
       return;
     }
 
@@ -1674,6 +1810,21 @@ function AppContent() {
                           onChange={(e) => setRechargeRef(e.target.value)}
                           className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-3 py-3 text-xs text-slate-800 font-bold focus:outline-none focus:ring-2 focus:ring-bronze/40 focus:border-bronze focus:bg-white transition-all shadow-xs"
                         />
+                        {(() => {
+                          const valResult = getRefValidationResult(rechargeBank, rechargeRef, language);
+                          if (!valResult) return null;
+                          return (
+                            <motion.div
+                              initial={{ opacity: 0, y: -2 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              className={`mt-1 text-[10px] font-black ${
+                                valResult.isValid ? 'text-emerald-600' : 'text-red-500 animate-[pulse_1.5s_infinite]'
+                              }`}
+                            >
+                              {valResult.message}
+                            </motion.div>
+                          );
+                        })()}
                         {(() => {
                           const tg = txidGuideTranslations[language] || txidGuideTranslations.en;
                           let tip = tg.other;
