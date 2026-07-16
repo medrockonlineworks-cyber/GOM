@@ -293,25 +293,39 @@ export function verifyVerificationCode(
   reference: string
 ): { valid: boolean; expired: boolean; expiryDate: Date | null; error?: string } {
   try {
-    const cleaned = code.replace(/[^A-Z0-9]/gi, '').toUpperCase();
-    if (cleaned.length !== 10) {
+    const rawCleaned = code.replace(/[^A-Z0-9]/gi, '').toUpperCase();
+    if (rawCleaned.length !== 10) {
       return { valid: false, expired: false, expiryDate: null, error: "Code must be exactly 10 characters long" };
     }
 
-    const expiryBase36 = cleaned.substring(0, 5);
-    const sigBase36 = cleaned.substring(5);
+    const confusions: Record<string, string[]> = {
+      '0': ['0', 'O'],
+      'O': ['0', 'O'],
+      '1': ['1', 'I', 'L'],
+      'I': ['1', 'I', 'L'],
+      'L': ['1', 'I', 'L'],
+    };
 
-    const expiryMinutesSinceEpoch = parseInt(expiryBase36, 36);
-    if (isNaN(expiryMinutesSinceEpoch)) {
-      return { valid: false, expired: false, expiryDate: null, error: "Decoding failed" };
-    }
+    const getCodeVariations = (src: string): string[] => {
+      const results: string[] = [];
+      const dfs = (index: number, current: string) => {
+        if (results.length >= 16) return; // safety cap
+        if (index === src.length) {
+          results.push(current);
+          return;
+        }
+        const char = src[index];
+        const options = confusions[char] || [char];
+        for (const opt of options) {
+          dfs(index + 1, current + opt);
+        }
+      };
+      dfs(0, '');
+      return results;
+    };
 
-    const EPOCH = 1767225600; // Jan 1, 2026
-    const expiryTimeSec = EPOCH + expiryMinutesSinceEpoch * 60;
-    const expiryDate = new Date(expiryTimeSec * 1000);
-    const nowSec = Math.floor(Date.now() / 1000);
-
-    const isExpired = nowSec > expiryTimeSec;
+    const codeVariations = getCodeVariations(rawCleaned);
+    let bestResult: { valid: boolean; expired: boolean; expiryDate: Date | null } | null = null;
 
     // Helper to generate visual typo variations of a string (O<->0, I/L<->1, etc.)
     const getRefVariations = (refStr: string): string[] => {
@@ -335,6 +349,18 @@ export function verifyVerificationCode(
 
       variations.add(base.replace(/G/g, '6'));
       variations.add(base.replace(/6/g, 'G'));
+
+      // Add variations by removing any single character (to handle insertion typos)
+      for (let i = 0; i < base.length; i++) {
+        const truncated = base.substring(0, i) + base.substring(i + 1);
+        if (truncated.length >= 3) {
+          variations.add(truncated);
+          variations.add(truncated.replace(/O/g, '0'));
+          variations.add(truncated.replace(/0/g, 'O'));
+          variations.add(truncated.replace(/I/g, '1').replace(/L/g, '1'));
+          variations.add(truncated.replace(/1/g, 'I'));
+        }
+      }
 
       return Array.from(variations);
     };
@@ -387,33 +413,59 @@ export function verifyVerificationCode(
     const amountVars = getAmountVariations(amount);
     const refVars = getRefVariations(reference);
 
-    let isSignatureValid = false;
+    for (const cleaned of codeVariations) {
+      const expiryBase36 = cleaned.substring(0, 5);
+      const sigBase36 = cleaned.substring(5);
 
-    // Check all variation combinations to find a match
-    for (const p of phoneVars) {
-      for (const a of amountVars) {
-        for (const r of refVars) {
-          const payload = `${p}:${a}:${r}:${expiryMinutesSinceEpoch}:gom_secure_offline_salt_2026`;
-          const hashHex = sha256(payload);
-          const hashBigInt = BigInt('0x' + hashHex);
-          const expectedSigVal = Number(hashBigInt % 60466176n);
-          const expectedSigBase36 = expectedSigVal.toString(36).toUpperCase().padStart(5, '0');
+      const expiryMinutesSinceEpoch = parseInt(expiryBase36, 36);
+      if (isNaN(expiryMinutesSinceEpoch)) continue;
 
-          if (sigBase36 === expectedSigBase36) {
-            isSignatureValid = true;
-            break;
+      const EPOCH = 1767225600; // Jan 1, 2026
+      const expiryTimeSec = EPOCH + expiryMinutesSinceEpoch * 60;
+      const expiryDate = new Date(expiryTimeSec * 1000);
+      const nowSec = Math.floor(Date.now() / 1000);
+      const isExpired = nowSec > expiryTimeSec;
+
+      let isSignatureValid = false;
+
+      // Check all variation combinations to find a match
+      for (const p of phoneVars) {
+        for (const a of amountVars) {
+          for (const r of refVars) {
+            const payload = `${p}:${a}:${r}:${expiryMinutesSinceEpoch}:gom_secure_offline_salt_2026`;
+            const hashHex = sha256(payload);
+            const hashBigInt = BigInt('0x' + hashHex);
+            const expectedSigVal = Number(hashBigInt % 60466176n);
+            const expectedSigBase36 = expectedSigVal.toString(36).toUpperCase().padStart(5, '0');
+
+            if (sigBase36 === expectedSigBase36) {
+              isSignatureValid = true;
+              break;
+            }
           }
+          if (isSignatureValid) break;
         }
         if (isSignatureValid) break;
       }
-      if (isSignatureValid) break;
+
+      if (isSignatureValid) {
+        const result = { valid: true, expired: isExpired, expiryDate };
+        if (!isExpired) {
+          return result; // Found a perfectly valid, non-expired match!
+        }
+        bestResult = result; // Keep this expired valid result as fallback
+      }
+    }
+
+    if (bestResult) {
+      return bestResult;
     }
 
     return {
-      valid: isSignatureValid,
-      expired: isExpired,
-      expiryDate,
-      error: !isSignatureValid ? "Cryptographic signature mismatch" : undefined
+      valid: false,
+      expired: false,
+      expiryDate: null,
+      error: "Cryptographic signature mismatch"
     };
   } catch (e: any) {
     console.error("Verification error:", e);

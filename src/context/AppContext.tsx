@@ -48,18 +48,19 @@ const DEFAULT_MARKETPLACE_LOGOS: { [key: string]: string } = {
   airbnb: 'https://www.vectorlogo.zone/logos/airbnb/airbnb-ar21.svg'
 };
 
-// Global Firestore compatibility stubs for legacy unused / bypassed code paths
-const db = null as any;
-const doc = null as any;
-const collection = null as any;
-const query = null as any;
-const where = null as any;
-const getDocs = null as any;
-const setDoc = null as any;
-const deleteDoc = null as any;
-const updateDoc = null as any;
-const writeBatch = null as any;
-const onSnapshot = null as any;
+import { db } from '../lib/firebase';
+import { 
+  doc, 
+  collection, 
+  query, 
+  where, 
+  getDocs, 
+  setDoc, 
+  deleteDoc, 
+  updateDoc, 
+  writeBatch, 
+  onSnapshot 
+} from 'firebase/firestore';
 
 export const isSamePhone = (phoneA: string, phoneB: string): boolean => {
   const cleanA = (phoneA || '').replace(/\D/g, '');
@@ -1105,11 +1106,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     syncOfflineUsers();
 
     const interval = setInterval(fetchAllData, 8000);
-    return () => clearInterval(interval);
 
-    // Old unused Firestore onSnapshot code (bypassed)
-
-    const dummyUnsubUsers = onSnapshot(collection(db, 'users'), (snapshot: any) => {
+    // Active Firestore onSnapshot real-time listeners
+    const unsubUsers = onSnapshot(collection(db, 'users'), (snapshot: any) => {
       const list: User[] = [];
       snapshot.forEach((docSnap) => {
         const u = docSnap.data() as User;
@@ -1370,7 +1369,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
 
     return () => {
-      // Cleanup legacy unsubscribers (bypassed)
+      clearInterval(interval);
+      if (typeof unsubUsers === 'function') unsubUsers();
+      if (typeof unsubTx === 'function') unsubTx();
+      if (typeof unsubAnn === 'function') unsubAnn();
+      if (typeof unsubSup === 'function') unsubSup();
+      if (typeof unsubLogs === 'function') unsubLogs();
+      if (typeof unsubAcc === 'function') unsubAcc();
+      if (typeof unsubConfig === 'function') unsubConfig();
     };
   }, []);
 
@@ -3466,8 +3472,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return { success: false, message: 'Recharge record not found or already processed.' };
     }
 
-    const normalizedCode = code.replace(/[^A-Z0-9]/gi, '').toUpperCase();
-    if (usedCodes.includes(normalizedCode)) {
+    const normalizeBase36 = (str: string): string => {
+      return str.replace(/[^A-Z0-9]/gi, '').toUpperCase()
+        .replace(/O/g, '0')
+        .replace(/I/g, '1')
+        .replace(/L/g, '1');
+    };
+
+    const normalizedCode = normalizeBase36(code);
+    const usedCodesNormalized = usedCodes.map(c => normalizeBase36(c));
+    if (usedCodesNormalized.includes(normalizedCode)) {
       return { success: false, message: 'This verification code has already been used.' };
     }
 
@@ -3477,7 +3491,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     let decodedExpiryDate: Date | null = null;
 
     const matchedCacheRecord = adminGeneratedCodes.find(c => {
-      const savedCodeNorm = (c.code || '').replace(/[^A-Z0-9]/gi, '').toUpperCase();
+      const savedCodeNorm = normalizeBase36(c.code || '');
       if (savedCodeNorm !== normalizedCode) return false;
       
       // Check if amount matches roughly

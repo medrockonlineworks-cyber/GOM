@@ -1,0 +1,143 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "User profile with role, wallet balance, stage, and referral links.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "phoneNumber": { "type": "string", "maxLength": 20 },
+        "password": { "type": "string", "maxLength": 256 },
+        "role": { "type": "string", "enum": ["user", "admin"] },
+        "stage": { "type": "integer" },
+        "walletBalance": { "type": "number" },
+        "totalEarnings": { "type": "number" },
+        "referralEarnings": { "type": "number" },
+        "referralCount": { "type": "integer" },
+        "welcomeBonus": { "type": "number" },
+        "referredBy": { "type": "string", "maxLength": 128 },
+        "inviteCode": { "type": "string", "maxLength": 32 },
+        "completedOrderIds": { "type": "array" },
+        "currentOrderIndex": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "phoneNumber", "password", "role"]
+    },
+    "Transaction": {
+      "title": "Transaction Record",
+      "description": "Financial ledger transactions including deposits, withdrawals, and commission rewards.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "userId": { "type": "string", "maxLength": 128 },
+        "userPhone": { "type": "string", "maxLength": 20 },
+        "type": { "type": "string", "enum": ["recharge", "withdraw", "order_commission", "order_cost", "welcome_bonus", "referral_bonus", "bonus_credit"] },
+        "amount": { "type": "number" },
+        "bankName": { "type": "string", "maxLength": 128 },
+        "accountNumberOrRef": { "type": "string", "maxLength": 128 },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "description": { "type": "string", "maxLength": 1000 },
+        "screenshot": { "type": "string" }
+      },
+      "required": ["id", "userId", "userPhone", "type", "amount", "status", "createdAt"]
+    },
+    "Announcement": {
+      "title": "Announcement",
+      "description": "System broadcast announcement.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "title": { "type": "string", "maxLength": 256 },
+        "content": { "type": "string", "maxLength": 5000 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "title", "content", "createdAt"]
+    },
+    "SupportMessage": {
+      "title": "Support Ticket",
+      "description": "Support messages and tickets created by users and replied to by administrators.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "userId": { "type": "string", "maxLength": 128 },
+        "userPhone": { "type": "string", "maxLength": 20 },
+        "subject": { "type": "string", "maxLength": 256 },
+        "message": { "type": "string", "maxLength": 5000 },
+        "status": { "type": "string", "enum": ["open", "replied", "closed"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "reply": { "type": "string", "maxLength": 5000 },
+        "repliedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "userPhone", "subject", "message", "status", "createdAt"]
+    },
+    "AuditLog": {
+      "title": "Audit Log",
+      "description": "System security audit trace logs.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "userId": { "type": "string", "maxLength": 128 },
+        "userPhone": { "type": "string", "maxLength": 20 },
+        "action": { "type": "string", "maxLength": 128 },
+        "details": { "type": "string", "maxLength": 2000 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "userPhone", "action", "details", "createdAt"]
+    },
+    "RechargeAccount": {
+      "title": "Recharge Account",
+      "description": "Active bank accounts accepted for recharges.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "bank": { "type": "string", "maxLength": 128 },
+        "accName": { "type": "string", "maxLength": 128 },
+        "accNo": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["id", "bank", "accName", "accNo"]
+    },
+    "SystemConfig": {
+      "title": "System Configuration",
+      "description": "Global config multipliers, scaling factors, costs, and assets logos.",
+      "type": "object",
+      "properties": {
+        "scalingMultiplier": { "type": "number" },
+        "productCosts": { "type": "array" },
+        "bankLogos": { "type": "object" },
+        "marketplaceLogos": { "type": "object" }
+      }
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "User profile collection."
+    },
+    "/transactions/{txId}": {
+      "schema": { "$ref": "#/entities/Transaction" },
+      "description": "Ledger transactions collection."
+    },
+    "/announcements/{annId}": {
+      "schema": { "$ref": "#/entities/Announcement" },
+      "description": "System wide broadcast announcements."
+    },
+    "/support/{msgId}": {
+      "schema": { "$ref": "#/entities/SupportMessage" },
+      "description": "Customer support messages/tickets."
+    },
+    "/auditLogs/{logId}": {
+      "schema": { "$ref": "#/entities/AuditLog" },
+      "description": "Security audit logs collection."
+    },
+    "/rechargeAccounts/{accId}": {
+      "schema": { "$ref": "#/entities/RechargeAccount" },
+      "description": "Official admin bank accounts to accept deposits."
+    },
+    "/systemConfig/{docId}": {
+      "schema": { "$ref": "#/entities/SystemConfig" },
+      "description": "Global config attributes."
+    }
+  }
+}

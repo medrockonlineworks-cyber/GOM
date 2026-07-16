@@ -1,32 +1,179 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    // Global default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- REUSABLE SECURITY HELPERS ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function getUser(uid) {
+      return get(/databases/$(database)/documents/users/$(uid));
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email == 'leykunjemaneh3@gmail.com' ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && getUser(request.auth.uid).data.role == 'admin')
+      );
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // --- VALIDATION BLUEPRINTS ---
+    function isValidUser(data) {
+      return data.id is string && data.id.size() <= 128
+        && data.phoneNumber is string && data.phoneNumber.size() <= 20
+        && data.password is string && data.password.size() <= 256
+        && data.role in ['user', 'admin']
+        && (!('stage' in data) || data.stage is int)
+        && (!('walletBalance' in data) || data.walletBalance is number)
+        && (!('totalEarnings' in data) || data.totalEarnings is number)
+        && (!('referralEarnings' in data) || data.referralEarnings is number)
+        && (!('referralCount' in data) || data.referralCount is int)
+        && (!('welcomeBonus' in data) || data.welcomeBonus is number)
+        && (!('referredBy' in data) || data.referredBy is string)
+        && (!('inviteCode' in data) || data.inviteCode is string)
+        && (!('completedOrderIds' in data) || data.completedOrderIds is list)
+        && (!('currentOrderIndex' in data) || data.currentOrderIndex is int);
+    }
+
+    function isValidTransaction(data) {
+      return data.id is string && data.id.size() <= 128
+        && data.userId is string && data.userId.size() <= 128
+        && data.userPhone is string && data.userPhone.size() <= 20
+        && data.type in ['recharge', 'withdraw', 'order_commission', 'order_cost', 'welcome_bonus', 'referral_bonus', 'bonus_credit']
+        && data.amount is number
+        && data.status in ['pending', 'approved', 'rejected']
+        && (!('bankName' in data) || data.bankName is string)
+        && (!('accountNumberOrRef' in data) || data.accountNumberOrRef is string)
+        && (!('description' in data) || data.description is string)
+        && (!('screenshot' in data) || data.screenshot is string);
+    }
+
+    // Path variables ID Poisoning check
+    function isHardenedUserId(id) {
+      return isValidId(id) && id.size() >= 3;
+    }
+
+    function isValidAnnouncement(data) {
+      return data.id is string && data.id.size() <= 128
+        && data.title is string && data.title.size() <= 256
+        && data.content is string && data.content.size() <= 5000;
+    }
+
+    function isValidSupportMessage(data) {
+      return data.id is string && data.id.size() <= 128
+        && data.userId is string && data.userId.size() <= 128
+        && data.userPhone is string && data.userPhone.size() <= 20
+        && data.subject is string && data.subject.size() <= 256
+        && data.message is string && data.message.size() <= 5000
+        && data.status in ['open', 'replied', 'closed']
+        && (!('reply' in data) || data.reply is string);
+    }
+
+    function isValidAuditLog(data) {
+      return data.id is string && data.id.size() <= 128
+        && data.userId is string && data.userId.size() <= 128
+        && data.userPhone is string && data.userPhone.size() <= 20
+        && data.action is string && data.action.size() <= 128
+        && data.details is string && data.details.size() <= 2000;
+    }
+
+    function isValidRechargeAccount(data) {
+      return data.id is string && data.id.size() <= 128
+        && data.bank is string && data.bank.size() <= 128
+        && data.accName is string && data.accName.size() <= 128
+        && data.accNo is string && data.accNo.size() <= 64;
+    }
+
+    function isValidSystemConfig(data) {
+      return (!('scalingMultiplier' in data) || data.scalingMultiplier is number)
+        && (!('productCosts' in data) || data.productCosts is list)
+        && (!('bankLogos' in data) || data.bankLogos is map)
+        && (!('marketplaceLogos' in data) || data.marketplaceLogos is map);
+    }
+
+    // --- COLLECTION MATCH BLOCKS ---
+
     match /users/{userId} {
-      allow read, write: if true;
+      allow get: if isHardenedUserId(userId) && (isOwner(userId) || isAdmin());
+      allow list: if isAdmin();
+      allow create: if isHardenedUserId(userId) && (
+        (isOwner(userId) && isValidUser(request.resource.data) && request.resource.data.role == 'user') || isAdmin()
+      );
+      allow update: if isHardenedUserId(userId) && (
+        (isOwner(userId) && isValidUser(request.resource.data) && request.resource.data.role == resource.data.role) || isAdmin()
+      );
+      allow delete: if isHardenedUserId(userId) && isAdmin();
     }
 
     match /transactions/{txId} {
-      allow read, write: if true;
+      allow get: if isValidId(txId) && (isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin()));
+      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isValidId(txId) && (
+        isSignedIn() && (request.resource.data.userId == request.auth.uid && isValidTransaction(request.resource.data)) || isAdmin()
+      );
+      allow update: if isValidId(txId) && isAdmin();
+      allow delete: if isValidId(txId) && isAdmin();
     }
 
     match /announcements/{annId} {
-      allow read, write: if true;
+      allow get: if isValidId(annId) && isSignedIn();
+      allow list: if isSignedIn();
+      allow create, update: if isValidId(annId) && (isAdmin() && isValidAnnouncement(request.resource.data));
+      allow delete: if isValidId(annId) && isAdmin();
     }
 
     match /support/{msgId} {
-      allow read, write: if true;
+      allow get: if isValidId(msgId) && (isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin()));
+      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isValidId(msgId) && (
+        isSignedIn() && (request.resource.data.userId == request.auth.uid && isValidSupportMessage(request.resource.data)) || isAdmin()
+      );
+      allow update: if isValidId(msgId) && (
+        isAdmin() || (
+          isOwner(resource.data.userId) 
+          && isValidSupportMessage(request.resource.data)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']) 
+          && request.resource.data.status == 'closed'
+        )
+      );
+      allow delete: if isValidId(msgId) && isAdmin();
     }
 
     match /auditLogs/{logId} {
-      allow read, write: if true;
+      allow get: if isValidId(logId) && isAdmin();
+      allow list: if isAdmin();
+      allow create: if isValidId(logId) && (
+        isSignedIn() && (request.resource.data.userId == request.auth.uid && isValidAuditLog(request.resource.data)) || isAdmin()
+      );
+      allow update, delete: if isValidId(logId) && isAdmin();
     }
 
     match /rechargeAccounts/{accId} {
-      allow read, write: if true;
+      allow get: if isValidId(accId) && isSignedIn();
+      allow list: if isSignedIn();
+      allow create, update: if isValidId(accId) && (isAdmin() && isValidRechargeAccount(request.resource.data));
+      allow delete: if isValidId(accId) && isAdmin();
     }
 
     match /systemConfig/{docId} {
-      allow read, write: if true;
+      allow get: if isValidId(docId) && isSignedIn();
+      allow list: if isAdmin();
+      allow create, update: if isValidId(docId) && (isAdmin() && isValidSystemConfig(request.resource.data));
+      allow delete: if isValidId(docId) && isAdmin();
     }
   }
 }
