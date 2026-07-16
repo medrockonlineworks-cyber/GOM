@@ -218,6 +218,30 @@ function parseBigInt36(str: string): bigint {
 }
 
 /**
+ * Normalizes a phone number to standard digits only, stripping common country and zero prefixes
+ * to prevent mismatch between admin entry and user database phone numbers.
+ */
+export function normalizePhoneForCrypto(phone: string): string {
+  let cleaned = (phone || '').replace(/\D/g, '');
+  
+  // Strip common country prefixes if present
+  const countryPrefixes = ['251', '254', '234'];
+  for (const prefix of countryPrefixes) {
+    if (cleaned.startsWith(prefix) && cleaned.length > prefix.length) {
+      cleaned = cleaned.substring(prefix.length);
+      break;
+    }
+  }
+  
+  // Strip leading zeroes
+  while (cleaned.startsWith('0') && cleaned.length > 1) {
+    cleaned = cleaned.substring(1);
+  }
+  
+  return cleaned;
+}
+
+/**
  * Generates a signed recharge verification code
  * Code format: [expiryBase36][signatureBase36] (exactly 10 alphanumeric characters)
  */
@@ -236,7 +260,7 @@ export function generateVerificationCode(
     const expiryMinutesSinceEpoch = Math.max(0, Math.floor((expiryTimeSec - EPOCH) / 60));
 
     // Normalize inputs to prevent formatting discrepancies
-    const normPhone = phoneNumber.trim();
+    const normPhone = normalizePhoneForCrypto(phoneNumber);
     const normAmount = Math.round(amount).toString();
     const normRef = reference.trim().toUpperCase();
 
@@ -289,18 +313,47 @@ export function verifyVerificationCode(
 
     const isExpired = nowSec > expiryTimeSec;
 
-    // Verify signature against payload
-    const normPhone = phoneNumber.trim();
+    // Normalize inputs
+    const normPhone = normalizePhoneForCrypto(phoneNumber);
     const normAmount = Math.round(amount).toString();
     const normRef = reference.trim().toUpperCase();
 
+    // Strategy 1: Check with newly normalized phone format
     const payload = `${normPhone}:${normAmount}:${normRef}:${expiryMinutesSinceEpoch}:gom_secure_offline_salt_2026`;
     const hashHex = sha256(payload);
     const hashBigInt = BigInt('0x' + hashHex);
     const expectedSigVal = Number(hashBigInt % 60466176n);
     const expectedSigBase36 = expectedSigVal.toString(36).toUpperCase().padStart(5, '0');
 
-    const isSignatureValid = (sigBase36 === expectedSigBase36);
+    let isSignatureValid = (sigBase36 === expectedSigBase36);
+
+    // Strategy 2 (Fallback): Check with legacy raw trimmed phone format
+    if (!isSignatureValid) {
+      const fallbackPhone = phoneNumber.trim();
+      const fallbackPayload = `${fallbackPhone}:${normAmount}:${normRef}:${expiryMinutesSinceEpoch}:gom_secure_offline_salt_2026`;
+      const fbHashHex = sha256(fallbackPayload);
+      const fbHashBigInt = BigInt('0x' + fbHashHex);
+      const fbExpectedSigVal = Number(fbHashBigInt % 60466176n);
+      const fbExpectedSigBase36 = fbExpectedSigVal.toString(36).toUpperCase().padStart(5, '0');
+      
+      if (sigBase36 === fbExpectedSigBase36) {
+        isSignatureValid = true;
+      }
+    }
+
+    // Strategy 3 (Fallback): Check with double-cleaned phone (only digits)
+    if (!isSignatureValid) {
+      const fallbackPhone2 = phoneNumber.replace(/\D/g, '');
+      const fallbackPayload2 = `${fallbackPhone2}:${normAmount}:${normRef}:${expiryMinutesSinceEpoch}:gom_secure_offline_salt_2026`;
+      const fbHashHex2 = sha256(fallbackPayload2);
+      const fbHashBigInt2 = BigInt('0x' + fbHashHex2);
+      const fbExpectedSigVal2 = Number(fbHashBigInt2 % 60466176n);
+      const fbExpectedSigBase362 = fbExpectedSigVal2.toString(36).toUpperCase().padStart(5, '0');
+      
+      if (sigBase36 === fbExpectedSigBase362) {
+        isSignatureValid = true;
+      }
+    }
 
     return {
       valid: isSignatureValid,
