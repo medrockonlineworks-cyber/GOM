@@ -1086,22 +1086,30 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
 
                   {/* Invited Users List */}
                   {(() => {
-                    const invitedPersons = users.filter(u => u.referredBy === user.id || u.referredBy === user.phoneNumber);
+                    const invitedPersons = users.filter(u => 
+                      u.referredBy === user.id || 
+                      (u.referredBy && (
+                        u.referredBy === user.phoneNumber || 
+                        u.referredBy.replace(/[^0-9]/g, '') === user.phoneNumber.replace(/[^0-9]/g, '')
+                      )) ||
+                      (u.referredBy && user.inviteCode && u.referredBy.toUpperCase() === user.inviteCode.toUpperCase())
+                    );
                     const invitedCount = invitedPersons.length;
+                    const isExpanded = expandedInvites[user.id] !== false;
                     return (
                       <div className="bg-slate-50 border border-slate-200/60 rounded-xl p-2.5 text-[11px] text-slate-600 space-y-1.5">
                         <button
                           type="button"
-                          onClick={() => setExpandedInvites(prev => ({ ...prev, [user.id]: !prev[user.id] }))}
+                          onClick={() => setExpandedInvites(prev => ({ ...prev, [user.id]: isExpanded ? false : true }))}
                           className="w-full flex justify-between items-center text-[9px] font-black text-slate-500 uppercase tracking-wider hover:text-slate-700 transition-colors focus:outline-none cursor-pointer"
                         >
                           <span className="flex items-center gap-1 text-slate-600">
                             👥 Invited Partners ({invitedCount})
                           </span>
-                          <span className="text-slate-400 font-extrabold">{expandedInvites[user.id] ? '▼ Hide' : '▶ Show'}</span>
+                          <span className="text-slate-400 font-extrabold">{isExpanded ? '▼ Hide' : '▶ Show'}</span>
                         </button>
                         
-                        {expandedInvites[user.id] && (
+                        {isExpanded && (
                           <div className="pt-1.5 space-y-1.5 border-t border-slate-200/60 max-h-[160px] overflow-y-auto pr-0.5">
                             {invitedCount === 0 ? (
                               <div className="text-[10px] text-slate-400 text-center py-1 font-semibold italic">No invites yet.</div>

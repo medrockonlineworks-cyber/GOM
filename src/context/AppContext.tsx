@@ -24,19 +24,6 @@ import {
   ALTERNATIVE_PRODUCTS_POOLS
 } from '../utils/mockData';
 import { Language } from '../utils/translations';
-import { 
-  collection, 
-  doc, 
-  setDoc, 
-  updateDoc,
-  onSnapshot, 
-  deleteDoc, 
-  writeBatch,
-  query,
-  where,
-  getDocs
-} from 'firebase/firestore';
-import { db } from '../lib/firebase';
 
 const DEFAULT_BANK_LOGOS: { [key: string]: string } = {
   cbe: 'https://upload.wikimedia.org/wikipedia/commons/2/23/Commercial_Bank_of_Ethiopia_Logo.svg',
@@ -56,6 +43,19 @@ const DEFAULT_MARKETPLACE_LOGOS: { [key: string]: string } = {
   shopify: 'https://www.vectorlogo.zone/logos/shopify/shopify-ar21.svg',
   airbnb: 'https://www.vectorlogo.zone/logos/airbnb/airbnb-ar21.svg'
 };
+
+// Global Firestore compatibility stubs for legacy unused / bypassed code paths
+const db = null as any;
+const doc = null as any;
+const collection = null as any;
+const query = null as any;
+const where = null as any;
+const getDocs = null as any;
+const setDoc = null as any;
+const deleteDoc = null as any;
+const updateDoc = null as any;
+const writeBatch = null as any;
+const onSnapshot = null as any;
 
 export const isSamePhone = (phoneA: string, phoneB: string): boolean => {
   const cleanA = (phoneA || '').replace(/\D/g, '');
@@ -715,10 +715,94 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Dynamic calculated orders for the active user
   const [orders, setOrders] = useState<Order[]>([]);
 
-  // Seeding helper for empty Firestore database
-  const seedInitialData = async () => {
+  // Poll and sync all data from PostgreSQL via server-side APIs
+  const fetchAllData = async () => {
     try {
-      const batch = writeBatch(db);
+      const resUsers = await fetch('/api/users');
+      if (resUsers.ok) {
+        const uList = await resUsers.json();
+        setUsers(uList);
+        localStorage.setItem('gom_users', JSON.stringify(uList));
+        
+        // Sync rawCurrentUser with the updated data from database
+        setRawCurrentUser(prev => {
+          if (!prev) return null;
+          const match = uList.find((u: any) => u.id === prev.id);
+          if (!match) return prev;
+          if (JSON.stringify(match) !== JSON.stringify(prev)) {
+            const updated = { ...prev, ...match };
+            localStorage.setItem('gom_current_user', JSON.stringify(updated));
+            return updated;
+          }
+          return prev;
+        });
+      }
+      
+      const resTxs = await fetch('/api/transactions');
+      if (resTxs.ok) {
+        const tList = await resTxs.json();
+        setTransactions(tList);
+        localStorage.setItem('gom_transactions', JSON.stringify(tList));
+      }
+      
+      const resAnn = await fetch('/api/announcements');
+      if (resAnn.ok) {
+        const aList = await resAnn.json();
+        setAnnouncements(aList);
+        localStorage.setItem('gom_announcements', JSON.stringify(aList));
+      }
+      
+      const resSup = await fetch('/api/support');
+      if (resSup.ok) {
+        const sList = await resSup.json();
+        setSupportMessages(sList);
+        localStorage.setItem('gom_support', JSON.stringify(sList));
+      }
+      
+      const resLogs = await fetch('/api/audit-logs');
+      if (resLogs.ok) {
+        const lList = await resLogs.json();
+        setAuditLogs(lList);
+        localStorage.setItem('gom_audit_logs', JSON.stringify(lList));
+      }
+      
+      const resAcc = await fetch('/api/recharge-accounts');
+      if (resAcc.ok) {
+        const accList = await resAcc.json();
+        setRechargeAccounts(accList);
+        localStorage.setItem('gom_recharge_accounts', JSON.stringify(accList));
+      }
+      
+      const resConfig = await fetch('/api/system-config');
+      if (resConfig.ok) {
+        const data = await resConfig.json();
+        if (typeof data.scalingMultiplier === 'number') {
+          setScalingMultiplier(data.scalingMultiplier);
+          localStorage.setItem('gom_scaling_multiplier', data.scalingMultiplier.toString());
+        }
+        if (Array.isArray(data.productCosts)) {
+          setProductCosts(data.productCosts);
+          localStorage.setItem('gom_product_costs', JSON.stringify(data.productCosts));
+        }
+        if (data.bankLogos) {
+          setBankLogos(data.bankLogos);
+        }
+        if (data.marketplaceLogos) {
+          setMarketplaceLogos(data.marketplaceLogos);
+        }
+      }
+    } catch (err) {
+      console.error('[fetchAllData] Error polling PostgreSQL database:', err);
+    }
+  };
+
+  const seedInitialData = async () => {
+    return;
+  };
+
+  const unused_seedInitialData = async () => {
+    try {
+      const batch = { set: (...args: any[]) => {}, commit: () => {} };
       
       // 1. Seed users
       INITIAL_USERS.forEach((u) => {
@@ -812,8 +896,33 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Real-time synchronization listeners
   useEffect(() => {
-    // 1. Users sync
-    const unsubUsers = onSnapshot(collection(db, 'users'), (snapshot) => {
+    // Short-circuit Firestore entirely and poll our new Cloud SQL backend
+    fetchAllData();
+    // Bulk sync offline-created users on boot
+    const syncOfflineUsers = async () => {
+      const saved = localStorage.getItem('gom_users');
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            await fetch('/api/users/sync-bulk', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ localUsers: parsed })
+            });
+            fetchAllData();
+          }
+        } catch (e) {}
+      }
+    };
+    syncOfflineUsers();
+
+    const interval = setInterval(fetchAllData, 8000);
+    return () => clearInterval(interval);
+
+    // Old unused Firestore onSnapshot code (bypassed)
+
+    const dummyUnsubUsers = onSnapshot(collection(db, 'users'), (snapshot: any) => {
       const list: User[] = [];
       snapshot.forEach((docSnap) => {
         const u = docSnap.data() as User;
@@ -1074,13 +1183,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
 
     return () => {
-      unsubUsers();
-      unsubTx();
-      unsubAnn();
-      unsubSup();
-      unsubLogs();
-      unsubAcc();
-      unsubConfig();
+      // Cleanup legacy unsubscribers (bypassed)
     };
   }, []);
 
@@ -1383,7 +1486,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       createdAt: new Date().toISOString()
     };
     try {
-      await setDoc(doc(db, 'auditLogs', log.id), log);
+      await fetch('/api/audit-logs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(log)
+      });
     } catch (e) {
       console.warn("Error writing audit log to Firestore, saving locally:", e);
       // Fallback: update local auditLogs state
@@ -1587,18 +1694,28 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
 
     try {
-      const batch = writeBatch(db);
-
-      // Write user and welcome bonus
-      batch.set(doc(db, 'users', userId), cleanFirestoreData(newUser));
-      batch.set(doc(db, 'transactions', welcomeBonusTransaction.id), cleanFirestoreData(welcomeBonusTransaction));
-
-      // Add referral transactions
-      additionalTxs.forEach((tx) => {
-        batch.set(doc(db, 'transactions', tx.id), cleanFirestoreData(tx));
+      // Write user and welcome bonus to PostgreSQL
+      await fetch('/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newUser)
+      });
+      await fetch('/api/transactions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(welcomeBonusTransaction)
       });
 
-      // Update referrer user in Firestore
+      // Add referral transactions
+      for (const tx of additionalTxs) {
+        await fetch('/api/transactions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(tx)
+        });
+      }
+
+      // Update referrer user in PostgreSQL
       if (referredBy) {
         const referrerToUpdate = users.find(u => u.id === referredBy);
         if (referrerToUpdate) {
@@ -1608,11 +1725,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             referralEarnings: (referrerToUpdate.referralEarnings || 0) + 196,
             referralCount: (referrerToUpdate.referralCount || 0) + 1
           };
-          batch.set(doc(db, 'users', referredBy), cleanFirestoreData(updatedReferrer));
+          await fetch('/api/users', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(updatedReferrer)
+          });
         }
       }
-
-      await batch.commit();
 
       // Sync active session
       setCurrentUser(newUser);
@@ -1692,38 +1811,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // especially if local `users` array is empty, out of date, or missing the admin password change.
     let directMatches: User[] = [];
     try {
-      const q = query(collection(db, 'users'), where('phoneNumber', '==', trimmedPhone));
-      const querySnapshot = await getDocs(q);
-      querySnapshot.forEach((doc) => {
-        directMatches.push(doc.data() as User);
-      });
+      const res = await fetch('/api/users');
+      if (res.ok) {
+        const freshUsers: User[] = await res.json();
+        directMatches = freshUsers.filter(u => isSamePhone(u.phoneNumber, trimmedPhone));
+        if (directMatches.length === 0) {
+          const cleanDigits = trimmedPhone.replace(/\D/g, '');
+          const variations = [
+            trimmedPhone,
+            cleanDigits,
+            cleanDigits.startsWith('251') ? '0' + cleanDigits.substring(3) : '',
+            cleanDigits.startsWith('251') ? cleanDigits.substring(3) : '',
+            !cleanDigits.startsWith('251') && cleanDigits.startsWith('0') ? '251' + cleanDigits.substring(1) : '',
+            !cleanDigits.startsWith('251') && cleanDigits.startsWith('0') ? '+' + '251' + cleanDigits.substring(1) : '',
+          ].filter(Boolean);
 
-      // Try phone variations if directMatch is empty
-      if (directMatches.length === 0) {
-        const cleanDigits = trimmedPhone.replace(/\D/g, '');
-        const variations = [
-          trimmedPhone,
-          cleanDigits,
-          cleanDigits.startsWith('251') ? '0' + cleanDigits.substring(3) : '',
-          cleanDigits.startsWith('251') ? cleanDigits.substring(3) : '',
-          !cleanDigits.startsWith('251') && cleanDigits.startsWith('0') ? '251' + cleanDigits.substring(1) : '',
-          !cleanDigits.startsWith('251') && cleanDigits.startsWith('0') ? '+' + '251' + cleanDigits.substring(1) : '',
-        ].filter(Boolean);
-
-        for (const variant of variations) {
-          if (variant !== trimmedPhone) {
-            const qVar = query(collection(db, 'users'), where('phoneNumber', '==', variant));
-            const snapVar = await getDocs(qVar);
-            snapVar.forEach((doc) => {
-              if (!directMatches.some(u => u.id === doc.id)) {
-                directMatches.push(doc.data() as User);
-              }
-            });
-          }
+          directMatches = freshUsers.filter(u => variations.some(variant => isSamePhone(u.phoneNumber, variant)));
         }
       }
     } catch (e) {
-      console.warn("[Login] Direct Firestore query failed:", e);
+      console.warn("[Login] Direct database check failed:", e);
     }
 
     // Find local memory matches
@@ -1791,14 +1898,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           const secondary = sortedMatching[i];
           primary = mergeUserRecords(primary, secondary);
           
-          // Delete secondary in Firestore
-          deleteDoc(doc(db, 'users', secondary.id)).catch(e => {
+          // Delete secondary in PostgreSQL
+          fetch(`/api/users/${secondary.id}`, { method: 'DELETE' }).catch(e => {
             console.warn(`[Login] Could not delete duplicate user ${secondary.phoneNumber} (ID: ${secondary.id}) on login:`, e.message || e);
           });
         }
         
-        // Save merged primary to Firestore
-        await setDoc(doc(db, 'users', primary.id), cleanFirestoreData(primary));
+        // Save merged primary to PostgreSQL
+        await fetch('/api/users', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(primary)
+        });
         
         // Update local users state
         setUsers(prev => {
@@ -1859,9 +1970,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         };
 
         try {
-          await setDoc(doc(db, 'users', userId), cleanFirestoreData(newUser));
+          await fetch('/api/users', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(newUser)
+          });
         } catch (e) {
-          console.error("[Login] Firestore auto-register write failed, using local storage:", e);
+          console.error("[Login] PostgreSQL auto-register write failed, using local storage:", e);
         }
         const updatedUsers = [...users, newUser];
         setUsers(updatedUsers);
@@ -1872,9 +1987,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (matchedUser.passwordHash !== hashed) {
           matchedUser.passwordHash = hashed;
           try {
-            await setDoc(doc(db, 'users', matchedUser.id), cleanFirestoreData(matchedUser));
+            await fetch('/api/users', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(matchedUser)
+            });
           } catch (e) {
-            console.error("[Login] Firestore auto-password update failed, using local storage:", e);
+            console.error("[Login] PostgreSQL auto-password update failed, using local storage:", e);
           }
           const updatedUsers = users.map(u => u.id === matchedUser!.id ? { ...u, passwordHash: hashed } : u);
           setUsers(updatedUsers);
@@ -1933,7 +2052,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (!matchedUser.deviceId) {
         try {
           const updatedUser = { ...matchedUser, deviceId: currentDeviceId };
-          await setDoc(doc(db, 'users', matchedUser.id), cleanFirestoreData(updatedUser));
+          await fetch('/api/users', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(updatedUser)
+          });
         } catch (e) {
           console.error("Error binding deviceId to user on login, falling back to local storage:", e);
           const updatedUsers = users.map(u => u.id === matchedUser.id ? { ...u, deviceId: currentDeviceId } : u);
@@ -1947,7 +2070,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (matchedUser.deviceId !== currentDeviceId) {
         try {
           const updatedUser = { ...matchedUser, deviceId: currentDeviceId };
-          await setDoc(doc(db, 'users', matchedUser.id), cleanFirestoreData(updatedUser));
+          await fetch('/api/users', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(updatedUser)
+          });
         } catch (e) {
           console.error("Error binding deviceId to admin on login, falling back to local storage:", e);
           const updatedUsers = users.map(u => u.id === matchedUser.id ? { ...u, deviceId: currentDeviceId } : u);
@@ -1984,7 +2111,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
 
     try {
-      await setDoc(doc(db, 'users', matchedUser.id), cleanFirestoreData(updatedUser));
+      await fetch('/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedUser)
+      });
       await logAudit(matchedUser.id, trimmedPhone, 'RESET_PASSWORD', 'Password reset successfully.');
       return { success: true, message: 'Password reset successfully.' };
     } catch (e) {
@@ -2022,7 +2153,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     try {
-      await setDoc(doc(db, 'users', currentUser.id), cleanFirestoreData(updatedUser));
+      await fetch('/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedUser)
+      });
       setCurrentUser(updatedUser);
       await logAudit(currentUser.id, trimmedPhone, 'UPDATE_ACCOUNT_DETAILS', 'Updated account login details.');
       return { success: true, message: 'Account details updated successfully.' };
@@ -2056,7 +2191,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
 
     try {
-      await setDoc(doc(db, 'users', currentUser.id), cleanFirestoreData(updatedUser));
+      await fetch('/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedUser)
+      });
       setCurrentUser(updatedUser);
       const updatedUsers = users.map(u => u.id === currentUser.id ? updatedUser : u);
       setUsers(updatedUsers);
@@ -2108,7 +2247,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
 
     try {
-      await setDoc(doc(db, 'transactions', depositTx.id), cleanFirestoreData(depositTx));
+      await fetch('/api/transactions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(depositTx)
+      });
       await logAudit(currentUser.id, currentUser.phoneNumber, 'DEPOSIT_REQUEST', `Requested deposit of ${amount} ETB via ${bankName}`);
       
       const updatedTxs = [depositTx, ...transactions];
@@ -2399,10 +2542,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     localStorage.removeItem(`gom_cart_${currentUser.id}_${orderId}`);
 
     try {
-      const batch = writeBatch(db);
-      batch.set(doc(db, 'users', currentUser.id), cleanFirestoreData(updatedUser));
-      batch.set(doc(db, 'transactions', orderTx.id), cleanFirestoreData(orderTx));
-      await batch.commit();
+      await fetch('/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedUser)
+      });
+      await fetch('/api/transactions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(orderTx)
+      });
 
       await logAudit(currentUser.id, currentUser.phoneNumber, 'COMPLETE_ORDER', `Completed Order ${orderId}. Commission: ${reward} ETB.`);
 
@@ -2495,13 +2644,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
 
     try {
-      const batch = writeBatch(db);
-      batch.set(doc(db, 'users', currentUser.id), cleanFirestoreData(updatedUser));
-      batch.set(doc(db, 'systemConfig', 'global'), {
-        scalingMultiplier,
-        productCosts: updatedCosts
+      await fetch('/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedUser)
       });
-      await batch.commit();
+      await fetch('/api/system-config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          scalingMultiplier,
+          productCosts: updatedCosts
+        })
+      });
 
       await logAudit(currentUser.id, currentUser.phoneNumber, 'RESET_CYCLE', `Reset task cycle. Loaded brand new materials & equipment. Configured dynamic Level 1 cost: ${newLevel1Base} ETB.`);
       return { 
@@ -2529,9 +2684,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // ADMIN SETTINGS & MANAGEMENT
   const updateScalingMultiplier = async (multiplier: number) => {
     try {
-      await setDoc(doc(db, 'systemConfig', 'global'), {
-        scalingMultiplier: multiplier,
-        productCosts
+      await fetch('/api/system-config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          scalingMultiplier: multiplier,
+          productCosts
+        })
       });
       await logAudit('ADMIN', 'ADMIN', 'CONFIG_SCALE', `Updated progressive order scaling multiplier to ${multiplier}`);
     } catch (e) {
@@ -2550,9 +2709,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
     const updatedCosts = sanitizeProductCosts(rawCosts);
     try {
-      await setDoc(doc(db, 'systemConfig', 'global'), {
-        scalingMultiplier,
-        productCosts: updatedCosts
+      await fetch('/api/system-config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          scalingMultiplier,
+          productCosts: updatedCosts
+        })
       });
       await logAudit('ADMIN', 'ADMIN', 'CONFIG_PRODUCT', `Updated Order ${id} base material cost to ${cost} ETB, reward commission to ${rewardPercent}% (Subsequent levels sanitized if necessary)`);
     } catch (e) {
@@ -2565,9 +2728,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const updateAllProductCosts = async (newCosts: { id: number; baseCost: number; rewardMultiplier: number }[]) => {
     const sanitized = sanitizeProductCosts(newCosts);
     try {
-      await setDoc(doc(db, 'systemConfig', 'global'), {
-        scalingMultiplier,
-        productCosts: sanitized
+      await fetch('/api/system-config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          scalingMultiplier,
+          productCosts: sanitized
+        })
       });
       await logAudit('ADMIN', 'ADMIN', 'CONFIG_ALL_PRODUCTS', `Updated and progressively auto-scaled all 15 product levels according to progressive greater-than cost constraints.`);
     } catch (e) {
@@ -2585,7 +2752,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       createdAt: new Date().toISOString()
     };
     try {
-      await setDoc(doc(db, 'announcements', newAnn.id), newAnn);
+      await fetch('/api/announcements', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newAnn)
+      });
       await logAudit('ADMIN', 'ADMIN', 'ADD_ANNOUNCEMENT', `Created announcement: "${title}"`);
     } catch (e) {
       console.error("Error adding announcement, falling back to local storage:", e);
@@ -2597,7 +2768,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const deleteAnnouncement = async (id: string) => {
     try {
-      await deleteDoc(doc(db, 'announcements', id));
+      await fetch('/api/announcements/' + id, { method: 'DELETE' });
       await logAudit('ADMIN', 'ADMIN', 'DELETE_ANNOUNCEMENT', `Deleted announcement with ID ${id}`);
     } catch (e) {
       console.error("Error deleting announcement, falling back to local storage:", e);
@@ -2619,7 +2790,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       createdAt: new Date().toISOString()
     };
     try {
-      await setDoc(doc(db, 'support', newMsg.id), newMsg);
+      await fetch('/api/support', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newMsg)
+      });
       await logAudit(currentUser.id, currentUser.phoneNumber, 'SUPPORT_CREATE', `Opened support ticket: "${subject}"`);
     } catch (e) {
       console.error("Error opening support ticket, falling back to local storage:", e);
@@ -2638,7 +2813,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       status: 'resolved' as const
     };
     try {
-      await setDoc(doc(db, 'support', id), updatedTicket);
+      await fetch('/api/support', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedTicket)
+      });
       await logAudit('ADMIN', 'ADMIN', 'SUPPORT_REPLY', `Resolved and replied to support ticket ${id}`);
     } catch (e) {
       console.error("Error replying to support, falling back to local storage:", e);
@@ -2675,10 +2854,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
 
     try {
-      const batch = writeBatch(db);
-      batch.set(doc(db, 'users', userId), cleanFirestoreData(updatedUser));
-      batch.set(doc(db, 'transactions', manualTx.id), cleanFirestoreData(manualTx));
-      await batch.commit();
+      await fetch('/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedUser)
+      });
+      await fetch('/api/transactions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(manualTx)
+      });
 
       const logMsg = amount >= 0 
         ? `Admin manually added ${amount} ETB to User ID ${userId} balance.` 
@@ -2709,7 +2894,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       accNo: accNo.trim()
     };
     try {
-      await setDoc(doc(db, 'rechargeAccounts', newAcc.id), newAcc);
+      await fetch('/api/recharge-accounts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newAcc)
+      });
       await logAudit('ADMIN', 'ADMIN', 'ADD_RECHARGE_ACCOUNT', `Added recharge bank account: ${bank} - ${accNo}`);
     } catch (e) {
       console.error("Error adding recharge account, falling back to local storage:", e);
@@ -2724,7 +2913,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (!acc) return;
     const updatedAcc = { ...acc, bank, accName, accNo: accNo.trim() };
     try {
-      await setDoc(doc(db, 'rechargeAccounts', id), updatedAcc);
+      await fetch('/api/recharge-accounts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedAcc)
+      });
       await logAudit('ADMIN', 'ADMIN', 'UPDATE_RECHARGE_ACCOUNT', `Updated recharge bank account: ${bank} - ${accNo}`);
     } catch (e) {
       console.error("Error updating recharge account, falling back to local storage:", e);
@@ -2738,7 +2931,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const acc = rechargeAccounts.find(a => a.id === id);
     if (!acc) return;
     try {
-      await deleteDoc(doc(db, 'rechargeAccounts', id));
+      await fetch('/api/recharge-accounts/' + id, { method: 'DELETE' });
       await logAudit('ADMIN', 'ADMIN', 'DELETE_RECHARGE_ACCOUNT', `Deleted recharge bank account: ${acc.bank} - ${acc.accNo}`);
     } catch (e) {
       console.error("Error deleting recharge account, falling back to local storage:", e);
@@ -2754,11 +2947,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setBankLogos(updatedLogos);
       localStorage.setItem('gom_bank_logos', JSON.stringify(updatedLogos));
       
-      const configRef = doc(db, 'systemConfig', 'global');
-      await setDoc(configRef, { bankLogos: updatedLogos }, { merge: true });
+      await fetch('/api/system-config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bankLogos: updatedLogos })
+      });
       await logAudit('ADMIN', 'ADMIN', 'UPDATE_BANK_LOGO', `Updated bank logo for key ${bankKey}`);
     } catch (e) {
-      console.error("Error updating bank logo in Firestore:", e);
+      console.error("Error updating bank logo in database:", e);
     }
   };
 
@@ -2768,11 +2964,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setMarketplaceLogos(updatedLogos);
       localStorage.setItem('gom_marketplace_logos', JSON.stringify(updatedLogos));
       
-      const configRef = doc(db, 'systemConfig', 'global');
-      await setDoc(configRef, { marketplaceLogos: updatedLogos }, { merge: true });
+      await fetch('/api/system-config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ marketplaceLogos: updatedLogos })
+      });
       await logAudit('ADMIN', 'ADMIN', 'UPDATE_MARKET_LOGO', `Updated marketplace logo for key ${marketKey}`);
     } catch (e) {
-      console.error("Error updating marketplace logo in Firestore:", e);
+      console.error("Error updating marketplace logo in database:", e);
     }
   };
 
@@ -2783,11 +2982,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setBankLogos(updatedLogos);
       localStorage.setItem('gom_bank_logos', JSON.stringify(updatedLogos));
       
-      const configRef = doc(db, 'systemConfig', 'global');
-      await setDoc(configRef, { bankLogos: updatedLogos }, { merge: true });
+      await fetch('/api/system-config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bankLogos: updatedLogos })
+      });
       await logAudit('ADMIN', 'ADMIN', 'DELETE_BANK_LOGO', `Reset bank logo for key ${bankKey} to default`);
     } catch (e) {
-      console.error("Error resetting bank logo in Firestore:", e);
+      console.error("Error resetting bank logo in database:", e);
     }
   };
 
@@ -2798,11 +3000,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setMarketplaceLogos(updatedLogos);
       localStorage.setItem('gom_marketplace_logos', JSON.stringify(updatedLogos));
       
-      const configRef = doc(db, 'systemConfig', 'global');
-      await setDoc(configRef, { marketplaceLogos: updatedLogos }, { merge: true });
+      await fetch('/api/system-config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ marketplaceLogos: updatedLogos })
+      });
       await logAudit('ADMIN', 'ADMIN', 'DELETE_MARKET_LOGO', `Reset marketplace logo for key ${marketKey} to default`);
     } catch (e) {
-      console.error("Error resetting marketplace logo in Firestore:", e);
+      console.error("Error resetting marketplace logo in database:", e);
     }
   };
 
@@ -2904,21 +3109,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const adminChangeUserPassword = async (userId: string, newPasswordPlain: string): Promise<{ success: boolean; message: string }> => {
+    const userToUpdate = users.find(u => u.id === userId);
+    if (!userToUpdate) {
+      return { success: false, message: 'User not found.' };
+    }
     try {
-      const userToUpdate = users.find(u => u.id === userId);
-      if (!userToUpdate) {
-        return { success: false, message: 'User not found.' };
-      }
       const hashed = await hashPassword(newPasswordPlain);
       const updatedUser = {
         ...userToUpdate,
         passwordHash: hashed
       };
 
-      await setDoc(doc(db, 'users', userId), cleanFirestoreData(updatedUser));
-      await logAudit('ADMIN', 'ADMIN', 'ADMIN_CHANGE_PASSWORD', `Admin updated password for User ID ${userId}`);
-
-      // Update state
+      // Always update local state first to guarantee instant response regardless of database connectivity/quota
       const updatedUsers = users.map(u => u.id === userId ? updatedUser : u);
       setUsers(updatedUsers);
       localStorage.setItem('gom_users', JSON.stringify(updatedUsers));
@@ -2926,6 +3128,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (currentUser && currentUser.id === userId) {
         setCurrentUser(updatedUser);
         localStorage.setItem('gom_current_user', JSON.stringify(updatedUser));
+      }
+
+      try {
+        await fetch('/api/users', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updatedUser)
+        });
+        await logAudit('ADMIN', 'ADMIN', 'ADMIN_CHANGE_PASSWORD', `Admin updated password for User ID ${userId}`);
+      } catch (dbErr: any) {
+        console.warn("[Admin Password Change] Database write failed, saved locally:", dbErr);
+        return { success: true, message: 'User password changed successfully (Offline Fallback).' };
       }
 
       return { success: true, message: 'User password successfully changed.' };
@@ -2936,73 +3150,77 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const adminDeleteUser = async (userId: string): Promise<{ success: boolean; message: string }> => {
-    try {
-      const userToDelete = users.find(u => u.id === userId);
-      if (!userToDelete) {
-        return { success: false, message: 'User not found.' };
-      }
-      
-      // Delete user document
-      await deleteDoc(doc(db, 'users', userId));
-      await logAudit('ADMIN', 'ADMIN', 'ADMIN_DELETE_USER', `Admin deleted User ID ${userId} (Phone: ${userToDelete.phoneNumber})`);
-
-      // Update state
-      const updatedUsers = users.filter(u => u.id !== userId);
-      setUsers(updatedUsers);
-      localStorage.setItem('gom_users', JSON.stringify(updatedUsers));
-
-      // If deleted current user, log them out
-      if (currentUser && currentUser.id === userId) {
-        logout();
-      }
-
-      return { success: true, message: 'User deleted successfully.' };
-    } catch (e: any) {
-      console.error("Error deleting user as admin:", e);
-      return { success: false, message: e.message || 'Failed to delete user.' };
+    const userToDelete = users.find(u => u.id === userId);
+    if (!userToDelete) {
+      return { success: false, message: 'User not found.' };
     }
+
+    // Update state first
+    const updatedUsers = users.filter(u => u.id !== userId);
+    setUsers(updatedUsers);
+    localStorage.setItem('gom_users', JSON.stringify(updatedUsers));
+
+    // If deleted current user, log them out
+    if (currentUser && currentUser.id === userId) {
+      logout();
+    }
+
+    try {
+      // Delete user document
+      await fetch('/api/users/' + userId, { method: 'DELETE' });
+      await logAudit('ADMIN', 'ADMIN', 'ADMIN_DELETE_USER', `Admin deleted User ID ${userId} (Phone: ${userToDelete.phoneNumber})`);
+    } catch (e: any) {
+      console.warn("[Admin Delete User] Database delete failed, deleted locally:", e);
+      return { success: true, message: 'User deleted successfully (Offline Fallback).' };
+    }
+
+    return { success: true, message: 'User deleted successfully.' };
   };
 
   const adminUpdateUserStage = async (userId: string, newStage: number): Promise<{ success: boolean; message: string }> => {
-    try {
-      const userToUpdate = users.find(u => u.id === userId);
-      if (!userToUpdate) {
-        return { success: false, message: 'User not found.' };
-      }
-
-      // Convert newStage (1 to 15) to currentOrderIndex (0 to 14)
-      const newIndex = Math.max(0, Math.min(14, newStage - 1));
-      
-      // Ensure completedOrderIds contains all levels completed up to newIndex
-      const completedOrderIds: number[] = [];
-      for (let i = 1; i <= newIndex; i++) {
-        completedOrderIds.push(i);
-      }
-
-      const updatedUser = {
-        ...userToUpdate,
-        currentOrderIndex: newIndex,
-        completedOrderIds
-      };
-
-      await setDoc(doc(db, 'users', userId), cleanFirestoreData(updatedUser));
-      await logAudit('ADMIN', 'ADMIN', 'ADMIN_UPDATE_STAGE', `Admin updated task stage for User ID ${userId} to Level ${newStage}`);
-
-      // Update state
-      const updatedUsers = users.map(u => u.id === userId ? updatedUser : u);
-      setUsers(updatedUsers);
-      localStorage.setItem('gom_users', JSON.stringify(updatedUsers));
-
-      if (currentUser && currentUser.id === userId) {
-        setCurrentUser(updatedUser);
-        localStorage.setItem('gom_current_user', JSON.stringify(updatedUser));
-      }
-
-      return { success: true, message: `Successfully updated user stage to Level ${newStage}.` };
-    } catch (e: any) {
-      console.error("Error updating user stage as admin:", e);
-      return { success: false, message: e.message || 'Failed to update user stage.' };
+    const userToUpdate = users.find(u => u.id === userId);
+    if (!userToUpdate) {
+      return { success: false, message: 'User not found.' };
     }
+
+    // Convert newStage (1 to 15) to currentOrderIndex (0 to 14)
+    const newIndex = Math.max(0, Math.min(14, newStage - 1));
+    
+    // Ensure completedOrderIds contains all levels completed up to newIndex
+    const completedOrderIds: number[] = [];
+    for (let i = 1; i <= newIndex; i++) {
+      completedOrderIds.push(i);
+    }
+
+    const updatedUser = {
+      ...userToUpdate,
+      currentOrderIndex: newIndex,
+      completedOrderIds
+    };
+
+    // Update local state first
+    const updatedUsers = users.map(u => u.id === userId ? updatedUser : u);
+    setUsers(updatedUsers);
+    localStorage.setItem('gom_users', JSON.stringify(updatedUsers));
+
+    if (currentUser && currentUser.id === userId) {
+      setCurrentUser(updatedUser);
+      localStorage.setItem('gom_current_user', JSON.stringify(updatedUser));
+    }
+
+    try {
+      await fetch('/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedUser)
+      });
+      await logAudit('ADMIN', 'ADMIN', 'ADMIN_UPDATE_STAGE', `Admin updated task stage for User ID ${userId} to Level ${newStage}`);
+    } catch (e: any) {
+      console.warn("[Admin Stage Update] Database write failed, saved locally:", e);
+      return { success: true, message: `Successfully updated user stage to Level ${newStage} (Offline Fallback).` };
+    }
+
+    return { success: true, message: `Successfully updated user stage to Level ${newStage}.` };
   };
 
   return (
