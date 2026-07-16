@@ -839,6 +839,87 @@ app.post('/api/factory-reset', async (req, res) => {
   }
 });
 
+// GET used and generated codes
+app.get('/api/recharge-codes', async (req, res) => {
+  try {
+    const usedList = await db.select().from(systemConfig).where(eq(systemConfig.key, 'used_codes'));
+    const generatedList = await db.select().from(systemConfig).where(eq(systemConfig.key, 'generated_codes'));
+    
+    const usedCodes = usedList.length > 0 ? (usedList[0].productCosts as string[]) : [];
+    const generatedCodes = generatedList.length > 0 ? (generatedList[0].productCosts as any[]) : [];
+    
+    res.json({ usedCodes, generatedCodes });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST used code
+app.post('/api/recharge-codes/used', async (req, res) => {
+  try {
+    const { code } = req.body;
+    if (!code) {
+      return res.status(400).json({ error: 'Code is required.' });
+    }
+    const normalized = code.trim().toUpperCase();
+    
+    const existing = await db.select().from(systemConfig).where(eq(systemConfig.key, 'used_codes'));
+    let currentUsed: string[] = [];
+    if (existing.length > 0) {
+      currentUsed = existing[0].productCosts as string[];
+    }
+    
+    if (!currentUsed.includes(normalized)) {
+      currentUsed.push(normalized);
+    }
+    
+    if (existing.length > 0) {
+      await db.update(systemConfig)
+        .set({ productCosts: currentUsed })
+        .where(eq(systemConfig.key, 'used_codes'));
+    } else {
+      await db.insert(systemConfig).values({
+        key: 'used_codes',
+        productCosts: currentUsed,
+        bankLogos: {},
+        marketplaceLogos: {},
+      });
+    }
+    
+    res.json({ success: true, usedCodes: currentUsed });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST generated codes list
+app.post('/api/recharge-codes/generated', async (req, res) => {
+  try {
+    const { generatedCodes } = req.body;
+    if (!Array.isArray(generatedCodes)) {
+      return res.status(400).json({ error: 'generatedCodes must be an array.' });
+    }
+    
+    const existing = await db.select().from(systemConfig).where(eq(systemConfig.key, 'generated_codes'));
+    if (existing.length > 0) {
+      await db.update(systemConfig)
+        .set({ productCosts: generatedCodes })
+        .where(eq(systemConfig.key, 'generated_codes'));
+    } else {
+      await db.insert(systemConfig).values({
+        key: 'generated_codes',
+        productCosts: generatedCodes,
+        bankLogos: {},
+        marketplaceLogos: {},
+      });
+    }
+    
+    res.json({ success: true, generatedCodes });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 
 // Serve the React frontend (Vite or Static Build)
 async function startServer() {

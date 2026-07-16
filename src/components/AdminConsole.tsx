@@ -915,104 +915,122 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
             ) : (
               (rechargeStatusFilter === 'pending' ? pendingRecharges :
                rechargeStatusFilter === 'approved' ? approvedRecharges :
-               rejectedRecharges).map(tx => (
-                <div key={tx.id} className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm space-y-3.5">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-black text-slate-800">{tx.bankName}</span>
-                        {tx.status === 'approved' && (
-                          <span className="text-[9px] font-black bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full uppercase">Approved</span>
-                        )}
-                        {tx.status === 'rejected' && (
-                          <span className="text-[9px] font-black bg-rose-100 text-rose-800 px-2 py-0.5 rounded-full uppercase">Rejected</span>
-                        )}
-                        {tx.status === 'pending' && (
-                          <span className="text-[9px] font-black bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full uppercase">Pending</span>
-                        )}
-                      </div>
-                      <div className="mt-1 space-y-0.5">
-                        <span className="block text-[10px] text-slate-500">User ID: <span className="font-mono text-slate-700 font-bold">{tx.userId}</span></span>
-                        <span className="block text-[10px] text-slate-500">Phone (Raw): <span className="font-bold text-slate-700">{tx.userPhone}</span></span>
-                        <span className="block text-[10px] text-slate-500">Phone (Hidden): <span className="font-bold text-slate-700">{formatUserPhoneId(tx.userPhone)}</span></span>
-                        <span className="block text-[10px] text-amber-900 font-black mt-0.5">TXID / Reference: {tx.accountNumberOrRef}</span>
-                        <span className="block text-[9px] text-slate-400 font-bold">Created: {new Date(tx.createdAt).toLocaleString()}</span>
-                      </div>
-                      {tx.screenshot && (
-                        <div className="mt-2.5 p-2 bg-slate-50 rounded-xl border border-slate-200 inline-block">
-                          <span className="block text-[9px] text-slate-500 font-extrabold mb-1 uppercase tracking-wider">Uploaded Screenshot:</span>
-                          <button
-                            type="button"
-                            onClick={() => setActiveScreenshot(tx.screenshot)}
-                            className="block cursor-zoom-in text-left border border-slate-200 rounded-lg overflow-hidden relative group"
-                          >
-                            <img 
-                              src={tx.screenshot} 
-                              alt="Payment Receipt" 
-                              className="max-h-36 rounded-lg object-contain border border-slate-200 hover:opacity-90 transition-opacity" 
-                              referrerPolicy="no-referrer"
-                            />
-                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-[10px] text-white font-bold gap-1">
-                              🔎 Click to Zoom
-                            </div>
-                          </button>
+               rejectedRecharges).map(tx => {
+                const existingCodeRecord = adminGeneratedCodes.find(item => 
+                  item.phone === tx.userPhone && 
+                  item.amount === tx.amount && 
+                  (item.reference || '').trim().toUpperCase() === (tx.accountNumberOrRef || '').trim().toUpperCase()
+                );
+                return (
+                  <div key={tx.id} className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm space-y-3.5">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-black text-slate-800">{tx.bankName}</span>
+                          {tx.status === 'approved' && (
+                            <span className="text-[9px] font-black bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full uppercase">Approved</span>
+                          )}
+                          {tx.status === 'rejected' && (
+                            <span className="text-[9px] font-black bg-rose-100 text-rose-800 px-2 py-0.5 rounded-full uppercase">Rejected</span>
+                          )}
+                          {tx.status === 'pending' && (
+                            <span className="text-[9px] font-black bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full uppercase">Pending</span>
+                          )}
                         </div>
-                      )}
+                        <div className="mt-1 space-y-0.5">
+                          <span className="block text-[10px] text-slate-500">User ID: <span className="font-mono text-slate-700 font-bold">{tx.userId}</span></span>
+                          <span className="block text-[10px] text-slate-500">Phone (Raw): <span className="font-bold text-slate-700">{tx.userPhone}</span></span>
+                          <span className="block text-[10px] text-slate-500">Phone (Hidden): <span className="font-bold text-slate-700">{formatUserPhoneId(tx.userPhone)}</span></span>
+                          <span className="block text-[10px] text-amber-900 font-black mt-0.5">TXID / Reference: {tx.accountNumberOrRef}</span>
+                          <span className="block text-[9px] text-slate-400 font-bold">Created: {new Date(tx.createdAt).toLocaleString()}</span>
+                        </div>
+                        {tx.screenshot && (
+                          <div className="mt-2.5 p-2 bg-slate-50 rounded-xl border border-slate-200 inline-block">
+                            <span className="block text-[9px] text-slate-500 font-extrabold mb-1 uppercase tracking-wider">Uploaded Screenshot:</span>
+                            <button
+                              type="button"
+                              onClick={() => setActiveScreenshot(tx.screenshot)}
+                              className="block cursor-zoom-in text-left border border-slate-200 rounded-lg overflow-hidden relative group"
+                            >
+                              <img 
+                                src={tx.screenshot} 
+                                alt="Payment Receipt" 
+                                className="max-h-36 rounded-lg object-contain border border-slate-200 hover:opacity-90 transition-opacity" 
+                                referrerPolicy="no-referrer"
+                              />
+                              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-[10px] text-white font-bold gap-1">
+                                🔎 Click to Zoom
+                              </div>
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                      <span className="text-base font-black text-emerald-600">
+                        +{tx.amount.toLocaleString()} ETB
+                      </span>
                     </div>
-                    <span className="text-base font-black text-emerald-600">
-                      +{tx.amount.toLocaleString()} ETB
-                    </span>
+
+                    {tx.status === 'pending' && existingCodeRecord && (
+                      <div className="text-[10px] bg-amber-50/50 border border-amber-100 rounded-xl p-2.5 flex items-center justify-between">
+                        <div>
+                          <span className="block text-[9px] text-amber-800 font-bold uppercase tracking-wider">Active Signed Code:</span>
+                          <span className="font-mono font-black text-amber-600 text-sm select-all">{existingCodeRecord.code}</span>
+                          <span className="block text-[8px] text-slate-400 font-semibold mt-0.5">Expires: {new Date(existingCodeRecord.expiryTime).toLocaleString()}</span>
+                        </div>
+                        <span className="text-[9px] bg-amber-100 text-amber-800 font-black px-2 py-0.5 rounded-full uppercase">Pending Verification</span>
+                      </div>
+                    )}
+
+                    {tx.status === 'pending' && (
+                      <div className="flex flex-wrap gap-2 pt-2 border-t border-slate-100 justify-end">
+                        <button
+                          onClick={() => rejectTransaction(tx.id)}
+                          className="bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 font-bold text-[10px] uppercase tracking-wider px-3.5 py-2.5 rounded-xl flex items-center gap-1 cursor-pointer transition-all active:scale-[0.98]"
+                        >
+                          <X size={14} /> Reject Payment
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            setGenPhone(tx.userPhone);
+                            setGenAmount(tx.amount.toString());
+                            setGenRef(tx.accountNumberOrRef || '');
+                            
+                            // Auto generate code right away
+                            const res = generateOfflineRechargeCode(
+                              tx.userPhone,
+                              tx.amount,
+                              (tx.accountNumberOrRef || '').trim().toUpperCase(),
+                              1440 // default 1 day
+                            );
+                            if (res.success && res.code) {
+                              setGeneratedCodeResult(res.code);
+                              setGenSuccess(`${existingCodeRecord ? 'Regenerated' : 'Auto-generated'} code for ${tx.userPhone}!`);
+                            } else {
+                              setGenError(res.message || 'Auto-generation failed.');
+                            }
+                            // Smooth scroll back up to Code Generator card
+                            const mainScroll = document.querySelector('.flex-1.overflow-y-auto');
+                            if (mainScroll) {
+                              mainScroll.scrollTo({ top: 0, behavior: 'smooth' });
+                            }
+                          }}
+                          className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-black text-[10px] uppercase tracking-wider px-4 py-2.5 rounded-xl flex items-center gap-1.5 shadow-sm cursor-pointer transition-all active:scale-[0.98]"
+                        >
+                          {existingCodeRecord ? '🔄 Regenerate Sign Code' : '🔑 Auto-Sign Code'}
+                        </button>
+
+                        <button
+                          onClick={() => approveTransaction(tx.id)}
+                          className="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[10px] uppercase tracking-wider px-4 py-2.5 rounded-xl flex items-center gap-1 shadow cursor-pointer transition-all active:scale-[0.98]"
+                        >
+                          <Check size={14} /> Approve Directly
+                        </button>
+                      </div>
+                    )}
                   </div>
-
-                  {tx.status === 'pending' && (
-                    <div className="flex flex-wrap gap-2 pt-2 border-t border-slate-100 justify-end">
-                      <button
-                        onClick={() => rejectTransaction(tx.id)}
-                        className="bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 font-bold text-[10px] uppercase tracking-wider px-3.5 py-2.5 rounded-xl flex items-center gap-1 cursor-pointer transition-all active:scale-[0.98]"
-                      >
-                        <X size={14} /> Reject Payment
-                      </button>
-
-                      <button
-                        onClick={() => {
-                          setGenPhone(tx.userPhone);
-                          setGenAmount(tx.amount.toString());
-                          setGenRef(tx.accountNumberOrRef || '');
-                          
-                          // Auto generate code right away
-                          const res = generateOfflineRechargeCode(
-                            tx.userPhone,
-                            tx.amount,
-                            (tx.accountNumberOrRef || '').trim().toUpperCase(),
-                            1440 // default 1 day
-                          );
-                          if (res.success && res.code) {
-                            setGeneratedCodeResult(res.code);
-                            setGenSuccess(`Auto-generated code for ${tx.userPhone}!`);
-                          } else {
-                            setGenError(res.message || 'Auto-generation failed.');
-                          }
-                          // Smooth scroll back up to Code Generator card
-                          const mainScroll = document.querySelector('.flex-1.overflow-y-auto');
-                          if (mainScroll) {
-                            mainScroll.scrollTo({ top: 0, behavior: 'smooth' });
-                          }
-                        }}
-                        className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-black text-[10px] uppercase tracking-wider px-4 py-2.5 rounded-xl flex items-center gap-1.5 shadow-sm cursor-pointer transition-all active:scale-[0.98]"
-                      >
-                        🔑 Auto-Sign Code
-                      </button>
-
-                      <button
-                        onClick={() => approveTransaction(tx.id)}
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[10px] uppercase tracking-wider px-4 py-2.5 rounded-xl flex items-center gap-1 shadow cursor-pointer transition-all active:scale-[0.98]"
-                      >
-                        <Check size={14} /> Approve Directly
-                      </button>
-                    </div>
-                  )}
-                </div>
-              ))
+                );
+              })
             )}
 
             {/* RECHARGE ACCOUNTS CONFIGURATION */}

@@ -958,6 +958,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           setMarketplaceLogos(data.marketplaceLogos);
         }
       }
+      
+      const resCodes = await fetch('/api/recharge-codes');
+      if (resCodes.ok) {
+        const { usedCodes: uCodes, generatedCodes: gCodes } = await resCodes.json();
+        if (Array.isArray(uCodes)) {
+          setUsedCodes(uCodes);
+          localStorage.setItem('gom_used_verification_codes', JSON.stringify(uCodes));
+        }
+        if (Array.isArray(gCodes)) {
+          setAdminGeneratedCodes(gCodes);
+          localStorage.setItem('gom_generated_codes', JSON.stringify(gCodes));
+        }
+      }
     } catch (err) {
       console.error('[fetchAllData] Error polling PostgreSQL database:', err);
     }
@@ -3430,6 +3443,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setAdminGeneratedCodes(updatedCodes);
     localStorage.setItem('gom_generated_codes', JSON.stringify(updatedCodes));
 
+    // Sync with PostgreSQL backend
+    fetch('/api/recharge-codes/generated', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ generatedCodes: updatedCodes })
+    }).catch(err => console.error('Error syncing generated codes with server:', err));
+
     return { success: true, code, message: 'Recharge verification code generated successfully.' };
   };
 
@@ -3458,6 +3478,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const updatedUsed = [...usedCodes, normalizedCode];
       setUsedCodes(updatedUsed);
       localStorage.setItem('gom_used_verification_codes', JSON.stringify(updatedUsed));
+
+      // Sync with PostgreSQL backend
+      await fetch('/api/recharge-codes/used', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: normalizedCode })
+      }).catch(err => console.error('Error syncing used code with server:', err));
 
       // IMMEDIATE LOCAL STATE UPDATE (Instant feedback across all components)
       const updatedTxs = transactions.map(t => t.id === txId ? { ...t, status: 'approved' as const } : t);
@@ -3521,6 +3548,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const updatedUsed = [...usedCodes, normalizedCode];
       setUsedCodes(updatedUsed);
       localStorage.setItem('gom_used_verification_codes', JSON.stringify(updatedUsed));
+
+      // Try to sync with backend even in fallback
+      fetch('/api/recharge-codes/used', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: normalizedCode })
+      }).catch(() => {});
 
       // Update transaction status
       const updatedTxs = transactions.map(t => t.id === txId ? { ...t, status: 'approved' as const } : t);
