@@ -800,7 +800,57 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       });
       
       if (list.length > 0) {
-        const deduplicated = deduplicateUsers(list);
+        // Load recent local storage users to avoid overwriting pending local/offline progress
+        const savedLocal = localStorage.getItem('gom_users');
+        let localUsers: User[] = [];
+        if (savedLocal) {
+          try {
+            localUsers = JSON.parse(savedLocal);
+          } catch (e) {}
+        }
+
+        // Create initial copy of remote list
+        const mergedList = [...list];
+
+        // 1. Add any local users that don't exist in Firestore at all (e.g. registered offline)
+        localUsers.forEach(lu => {
+          const existsInFirestore = list.some(ru => ru.id === lu.id);
+          if (!existsInFirestore) {
+            console.log(`[Sync] Local user ${lu.phoneNumber} (ID: ${lu.id}) is missing in Firestore. Adding to merged list and background syncing to Firestore.`);
+            mergedList.push(lu);
+            setDoc(doc(db, 'users', lu.id), cleanFirestoreData(lu)).catch((err) => {
+              console.warn(`[Sync] Background Firestore registration sync failed for user ${lu.id}:`, err.message || err);
+            });
+          }
+        });
+
+        // 2. Map through list and resolve conflicts, choosing the one with higher balance or more completed orders
+        const finalMergedList = mergedList.map(remoteUser => {
+          const localUser = localUsers.find(lu => lu.id === remoteUser.id);
+          if (!localUser) return remoteUser;
+
+          const localBal = localUser.walletBalance || 0;
+          const remoteBal = remoteUser.walletBalance || 0;
+          const localOrders = localUser.completedOrderIds ? localUser.completedOrderIds.length : 0;
+          const remoteOrders = remoteUser.completedOrderIds ? remoteUser.completedOrderIds.length : 0;
+
+          // Prefer local if it has more wallet balance, more completed orders, or higher progress
+          const localIsNewerOrMoreProgress = 
+            (localBal > remoteBal) || 
+            (localOrders > remoteOrders) ||
+            (localBal === remoteBal && localOrders === remoteOrders && localUser.currentOrderIndex > remoteUser.currentOrderIndex);
+
+          if (localIsNewerOrMoreProgress) {
+            console.log(`[Sync] Local user ${remoteUser.phoneNumber} has higher progress (${localBal} ETB, ${localOrders} orders) than remote (${remoteBal} ETB, ${remoteOrders} orders). Syncing back to Firestore.`);
+            setDoc(doc(db, 'users', localUser.id), cleanFirestoreData(localUser)).catch((err) => {
+              console.warn(`[Sync] Background Firestore progress sync failed for user ${localUser.id}:`, err.message || err);
+            });
+            return localUser;
+          }
+          return remoteUser;
+        });
+
+        const deduplicated = deduplicateUsers(finalMergedList);
         setUsers(deduplicated);
         localStorage.setItem('gom_users', JSON.stringify(deduplicated));
         
@@ -834,9 +884,31 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       snapshot.forEach((doc) => {
         list.push(doc.data() as Transaction);
       });
-      list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-      setTransactions(list);
-      localStorage.setItem('gom_transactions', JSON.stringify(list));
+
+      // Load local transactions to prevent overwriting local/offline transactions
+      const savedLocalTxs = localStorage.getItem('gom_transactions');
+      let localTxs: Transaction[] = [];
+      if (savedLocalTxs) {
+        try {
+          localTxs = JSON.parse(savedLocalTxs);
+        } catch (e) {}
+      }
+
+      const mergedTxs = [...list];
+      localTxs.forEach(lt => {
+        const existsInFirestore = list.some(rt => rt.id === lt.id);
+        if (!existsInFirestore) {
+          console.log(`[Sync] Local transaction ${lt.id} (${lt.type}) is missing in Firestore. Adding to list and background syncing.`);
+          mergedTxs.push(lt);
+          setDoc(doc(db, 'transactions', lt.id), cleanFirestoreData(lt)).catch((err) => {
+            console.warn(`[Sync] Background Firestore transaction sync failed for tx ${lt.id}:`, err.message || err);
+          });
+        }
+      });
+
+      mergedTxs.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      setTransactions(mergedTxs);
+      localStorage.setItem('gom_transactions', JSON.stringify(mergedTxs));
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'transactions');
     });
@@ -860,9 +932,31 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       snapshot.forEach((doc) => {
         list.push(doc.data() as SupportMessage);
       });
-      list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-      setSupportMessages(list);
-      localStorage.setItem('gom_support', JSON.stringify(list));
+
+      // Load local support messages to prevent overwriting local/offline support tickets
+      const savedLocalSup = localStorage.getItem('gom_support');
+      let localSup: SupportMessage[] = [];
+      if (savedLocalSup) {
+        try {
+          localSup = JSON.parse(savedLocalSup);
+        } catch (e) {}
+      }
+
+      const mergedSup = [...list];
+      localSup.forEach(ls => {
+        const existsInFirestore = list.some(rs => rs.id === ls.id);
+        if (!existsInFirestore) {
+          console.log(`[Sync] Local support ticket ${ls.id} is missing in Firestore. Adding to list and background syncing.`);
+          mergedSup.push(ls);
+          setDoc(doc(db, 'support', ls.id), cleanFirestoreData(ls)).catch((err) => {
+            console.warn(`[Sync] Background Firestore support sync failed for ticket ${ls.id}:`, err.message || err);
+          });
+        }
+      });
+
+      mergedSup.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      setSupportMessages(mergedSup);
+      localStorage.setItem('gom_support', JSON.stringify(mergedSup));
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'support');
     });
