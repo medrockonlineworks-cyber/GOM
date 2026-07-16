@@ -884,10 +884,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Poll and sync all data from PostgreSQL via server-side APIs
   const fetchAllData = async () => {
+    const safeFetch = async (url: string) => {
+      try {
+        const res = await fetch(url);
+        if (!res.ok) {
+          console.warn(`[fetchAllData] Non-ok response from ${url}: ${res.status}`);
+          return null;
+        }
+        return await res.json();
+      } catch (err: any) {
+        console.warn(`[fetchAllData] SafeFetch failed for ${url}:`, err.message || err);
+        return null;
+      }
+    };
+
     try {
-      const resUsers = await fetch('/api/users');
-      if (resUsers.ok) {
-        const uList = await resUsers.json();
+      const uList = await safeFetch('/api/users');
+      if (uList) {
         setUsers(uList);
         localStorage.setItem('gom_users', JSON.stringify(uList));
         
@@ -905,44 +918,38 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         });
       }
       
-      const resTxs = await fetch('/api/transactions');
-      if (resTxs.ok) {
-        const tList = await resTxs.json();
+      const tList = await safeFetch('/api/transactions');
+      if (tList) {
         setTransactions(tList);
         localStorage.setItem('gom_transactions', JSON.stringify(tList));
       }
       
-      const resAnn = await fetch('/api/announcements');
-      if (resAnn.ok) {
-        const aList = await resAnn.json();
+      const aList = await safeFetch('/api/announcements');
+      if (aList) {
         setAnnouncements(aList);
         localStorage.setItem('gom_announcements', JSON.stringify(aList));
       }
       
-      const resSup = await fetch('/api/support');
-      if (resSup.ok) {
-        const sList = await resSup.json();
+      const sList = await safeFetch('/api/support');
+      if (sList) {
         setSupportMessages(sList);
         localStorage.setItem('gom_support', JSON.stringify(sList));
       }
       
-      const resLogs = await fetch('/api/audit-logs');
-      if (resLogs.ok) {
-        const lList = await resLogs.json();
+      const lList = await safeFetch('/api/audit-logs');
+      if (lList) {
         setAuditLogs(lList);
         localStorage.setItem('gom_audit_logs', JSON.stringify(lList));
       }
       
-      const resAcc = await fetch('/api/recharge-accounts');
-      if (resAcc.ok) {
-        const accList = await resAcc.json();
+      const accList = await safeFetch('/api/recharge-accounts');
+      if (accList) {
         setRechargeAccounts(accList);
         localStorage.setItem('gom_recharge_accounts', JSON.stringify(accList));
       }
       
-      const resConfig = await fetch('/api/system-config');
-      if (resConfig.ok) {
-        const data = await resConfig.json();
+      const data = await safeFetch('/api/system-config');
+      if (data) {
         if (typeof data.scalingMultiplier === 'number') {
           setScalingMultiplier(data.scalingMultiplier);
           localStorage.setItem('gom_scaling_multiplier', data.scalingMultiplier.toString());
@@ -959,9 +966,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
       }
       
-      const resCodes = await fetch('/api/recharge-codes');
-      if (resCodes.ok) {
-        const { usedCodes: uCodes, generatedCodes: gCodes } = await resCodes.json();
+      const codesData = await safeFetch('/api/recharge-codes');
+      if (codesData) {
+        const { usedCodes: uCodes, generatedCodes: gCodes } = codesData;
         if (Array.isArray(uCodes)) {
           setUsedCodes(uCodes);
           localStorage.setItem('gom_used_verification_codes', JSON.stringify(uCodes));
@@ -971,8 +978,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           localStorage.setItem('gom_generated_codes', JSON.stringify(gCodes));
         }
       }
-    } catch (err) {
-      console.error('[fetchAllData] Error polling PostgreSQL database:', err);
+    } catch (err: any) {
+      console.warn('[fetchAllData] Error polling database:', err.message || err);
     }
   };
 
