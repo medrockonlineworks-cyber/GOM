@@ -9,6 +9,7 @@ import { useTranslation } from '../utils/translations';
 import LanguageSelector from './LanguageSelector';
 import { motion } from 'motion/react';
 import { Phone, Lock, Eye, EyeOff, KeyRound, ShoppingBag, Landmark, ArrowLeft, Coins, Gift } from 'lucide-react';
+import { secureStorage } from '../utils/crypto';
 
 type AuthView = 'login' | 'register' | 'forgot';
 
@@ -62,24 +63,24 @@ export const AuthScreens: React.FC = () => {
   
   // Remember Me state
   const [rememberMe, setRememberMe] = useState(() => {
-    return localStorage.getItem('gom_remember_me') !== 'false';
+    return secureStorage.getItem('gom_remember_me') !== 'false';
   });
 
   // Inputs
   const [phoneNumber, setPhoneNumber] = useState(() => {
-    const remember = localStorage.getItem('gom_remember_me') !== 'false';
-    return remember ? (localStorage.getItem('gom_remembered_phone') || '') : '';
+    const remember = secureStorage.getItem('gom_remember_me') !== 'false';
+    return remember ? (secureStorage.getItem('gom_remembered_phone') || '') : '';
   });
   const [loginCountryCode, setLoginCountryCode] = useState(() => {
-    const remember = localStorage.getItem('gom_remember_me') !== 'false';
-    return remember ? (localStorage.getItem('gom_remembered_country_code') || '+251') : '+251';
+    const remember = secureStorage.getItem('gom_remember_me') !== 'false';
+    return remember ? (secureStorage.getItem('gom_remembered_country_code') || '+251') : '+251';
   });
   const [registerCountryCode, setRegisterCountryCode] = useState('+251');
   const [forgotCountryCode, setForgotCountryCode] = useState('+251');
 
   const [password, setPassword] = useState(() => {
-    const remember = localStorage.getItem('gom_remember_me') !== 'false';
-    return remember ? (localStorage.getItem('gom_remembered_pass') || '') : '';
+    const remember = secureStorage.getItem('gom_remember_me') !== 'false';
+    return remember ? (secureStorage.getItem('gom_remembered_pass') || '') : '';
   });
   const [confirmPassword, setConfirmPassword] = useState('');
   const [referralCode, setReferralCode] = useState(() => {
@@ -249,12 +250,12 @@ export const AuthScreens: React.FC = () => {
   };
 
   const resetState = (targetView?: AuthView) => {
-    const remember = localStorage.getItem('gom_remember_me') !== 'false';
-    setPhoneNumber((targetView === 'login' && remember) ? (localStorage.getItem('gom_remembered_phone') || '') : '');
-    setLoginCountryCode((targetView === 'login' && remember) ? (localStorage.getItem('gom_remembered_country_code') || '+251') : '+251');
+    const remember = secureStorage.getItem('gom_remember_me') !== 'false';
+    setPhoneNumber((targetView === 'login' && remember) ? (secureStorage.getItem('gom_remembered_phone') || '') : '');
+    setLoginCountryCode((targetView === 'login' && remember) ? (secureStorage.getItem('gom_remembered_country_code') || '+251') : '+251');
     setRegisterCountryCode('+251');
     setForgotCountryCode('+251');
-    setPassword((targetView === 'login' && remember) ? (localStorage.getItem('gom_remembered_pass') || '') : '');
+    setPassword((targetView === 'login' && remember) ? (secureStorage.getItem('gom_remembered_pass') || '') : '');
     setConfirmPassword('');
     setReferralCode(new URLSearchParams(window.location.search).get('ref') || '');
     setError(null);
@@ -278,15 +279,15 @@ export const AuthScreens: React.FC = () => {
         setError(res.message);
       } else {
         if (rememberMe) {
-          localStorage.setItem('gom_remember_me', 'true');
-          localStorage.setItem('gom_remembered_phone', phoneNumber);
-          localStorage.setItem('gom_remembered_country_code', loginCountryCode);
-          localStorage.setItem('gom_remembered_pass', password);
+          secureStorage.setItem('gom_remember_me', 'true');
+          secureStorage.setItem('gom_remembered_phone', phoneNumber);
+          secureStorage.setItem('gom_remembered_country_code', loginCountryCode);
+          secureStorage.setItem('gom_remembered_pass', password);
         } else {
-          localStorage.setItem('gom_remember_me', 'false');
-          localStorage.removeItem('gom_remembered_phone');
-          localStorage.removeItem('gom_remembered_country_code');
-          localStorage.removeItem('gom_remembered_pass');
+          secureStorage.setItem('gom_remember_me', 'false');
+          secureStorage.removeItem('gom_remembered_phone');
+          secureStorage.removeItem('gom_remembered_country_code');
+          secureStorage.removeItem('gom_remembered_pass');
         }
       }
     } catch (err: any) {

@@ -201,7 +201,10 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
     language,
     adminChangeUserPassword,
     adminDeleteUser,
-    adminUpdateUserStage
+    adminUpdateUserStage,
+    adminGeneratedCodes,
+    usedCodes,
+    generateOfflineRechargeCode
   } = useApp();
 
   const { t } = useTranslation(language);
@@ -226,6 +229,15 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
 
   const [activeAdminSubTab, setActiveAdminSubTab] = useState<'users' | 'recharges' | 'withdrawals' | 'orders' | 'announcements' | 'support' | 'reports' | 'logos'>('recharges');
   const [activeScreenshot, setActiveScreenshot] = useState<string | null>(null);
+
+  // Offline Code Generator States
+  const [genPhone, setGenPhone] = useState('');
+  const [genAmount, setGenAmount] = useState('');
+  const [genRef, setGenRef] = useState('');
+  const [genExpiry, setGenExpiry] = useState('1440'); // default 1 day (1440 minutes)
+  const [generatedCodeResult, setGeneratedCodeResult] = useState('');
+  const [genError, setGenError] = useState('');
+  const [genSuccess, setGenSuccess] = useState('');
   
   // Status filters for recharges and withdrawals
   const [rechargeStatusFilter, setRechargeStatusFilter] = useState<'pending' | 'approved' | 'rejected'>('pending');
@@ -620,14 +632,242 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
         
         {/* RECHARGE VERIFICATION QUEUE */}
         {activeAdminSubTab === 'recharges' && (
-          <div className="space-y-4">
+          <div className="space-y-6">
+            <div>
+              <h3 className="text-sm font-extrabold text-slate-700 flex items-center gap-1.5">
+                📥 Deposits Operations Desk
+              </h3>
+              <p className="text-[11px] text-slate-500 mt-1 leading-normal">
+                Review user deposit requests and issue cryptographically secure offline verification codes.
+              </p>
+            </div>
+
+            {/* Recharge Code Generator & Tracker Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+              
+              {/* CODE GENERATOR FORM (Left 5 cols) */}
+              <div className="lg:col-span-5 bg-slate-50 rounded-2xl p-4 border border-slate-200/60 space-y-4">
+                <div>
+                  <h4 className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-1">
+                    🔑 Recharge Code Generator
+                  </h4>
+                  <p className="text-[10px] text-slate-500 font-medium">
+                    Generate an offline cryptographically signed verification code for a user.
+                  </p>
+                </div>
+
+                {genError && (
+                  <div className="bg-rose-50 text-rose-700 border border-rose-100 text-[10px] font-bold p-2.5 rounded-xl flex items-center gap-1.5">
+                    <X size={12} className="shrink-0" />
+                    <span>{genError}</span>
+                  </div>
+                )}
+
+                {genSuccess && (
+                  <div className="bg-emerald-50 text-emerald-700 border border-emerald-100 text-[10px] font-bold p-2.5 rounded-xl flex items-center gap-1.5">
+                    <Check size={12} className="shrink-0" />
+                    <span>{genSuccess}</span>
+                  </div>
+                )}
+
+                <form onSubmit={(e) => {
+                  e.preventDefault();
+                  setGenError('');
+                  setGenSuccess('');
+                  setGeneratedCodeResult('');
+
+                  if (!genPhone.trim()) {
+                    setGenError('User phone number is required.');
+                    return;
+                  }
+                  if (!genAmount.trim() || isNaN(Number(genAmount)) || Number(genAmount) <= 0) {
+                    setGenError('Valid recharge amount is required.');
+                    return;
+                  }
+                  if (!genRef.trim()) {
+                    setGenError('Payment reference or FT number is required.');
+                    return;
+                  }
+
+                  const res = generateOfflineRechargeCode(
+                    genPhone.trim(),
+                    Number(genAmount),
+                    genRef.trim().toUpperCase(),
+                    Number(genExpiry)
+                  );
+
+                  if (res.success && res.code) {
+                    setGeneratedCodeResult(res.code);
+                    setGenSuccess(res.message || 'Code generated successfully.');
+                  } else {
+                    setGenError(res.message || 'Failed to generate code.');
+                  }
+                }} className="space-y-3">
+                  
+                  <div className="space-y-1">
+                    <label className="block text-[9px] font-black uppercase text-slate-400 font-sans">User Phone Number</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. 0926193920"
+                      value={genPhone}
+                      onChange={(e) => setGenPhone(e.target.value)}
+                      className="w-full bg-white border border-slate-200 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none transition-all font-semibold"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="block text-[9px] font-black uppercase text-slate-400 font-sans">Amount (ETB)</label>
+                      <input
+                        type="number"
+                        required
+                        placeholder="e.g. 200"
+                        value={genAmount}
+                        onChange={(e) => setGenAmount(e.target.value)}
+                        className="w-full bg-white border border-slate-200 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none transition-all font-bold text-amber-800"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="block text-[9px] font-black uppercase text-slate-400 font-sans">Expiry Time</label>
+                      <select
+                        value={genExpiry}
+                        onChange={(e) => setGenExpiry(e.target.value)}
+                        className="w-full bg-white border border-slate-200 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none transition-all font-bold"
+                      >
+                        <option value="30">30 Minutes</option>
+                        <option value="60">1 Hour</option>
+                        <option value="1440">24 Hours (1 Day)</option>
+                        <option value="10080">7 Days</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="block text-[9px] font-black uppercase text-slate-400 font-sans">Payment Reference / FT Code</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. FT26197HK0DY"
+                      value={genRef}
+                      onChange={(e) => setGenRef(e.target.value)}
+                      className="w-full bg-white border border-slate-200 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none transition-all font-mono font-bold uppercase tracking-wider"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="w-full bg-slate-900 hover:bg-slate-800 text-white font-black text-[10px] uppercase tracking-wider py-3 rounded-xl text-center cursor-pointer transition-all active:scale-[0.98] shadow flex items-center justify-center gap-1 font-sans"
+                  >
+                    ⚡ Generate Verification Code
+                  </button>
+                </form>
+
+                {generatedCodeResult && (
+                  <div className="bg-amber-100/50 border border-amber-300 rounded-2xl p-4 space-y-3.5 text-center animate-fade-in">
+                    <div className="space-y-1">
+                      <span className="block text-[9px] font-black text-amber-800 uppercase tracking-widest font-sans">Signed Approval Code</span>
+                      <span className="block text-sm font-black text-slate-900 font-mono select-all border border-dashed border-amber-400 bg-white p-2.5 rounded-xl tracking-wider select-all break-all">{generatedCodeResult}</span>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(generatedCodeResult);
+                          alert('Copied signed code to clipboard!');
+                        }}
+                        className="bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-bold text-[9px] py-2 rounded-lg uppercase tracking-wider font-sans cursor-pointer"
+                      >
+                        📋 Copy Code
+                      </button>
+                      <a
+                        href={`https://wa.me/?text=Hi! Your offline recharge code is: ${encodeURIComponent(generatedCodeResult)}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[9px] py-2 rounded-lg uppercase tracking-wider flex items-center justify-center gap-0.5 font-sans cursor-pointer"
+                      >
+                        💬 Send WhatsApp
+                      </a>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* GENERATED CODES LOG (Right 7 cols) */}
+              <div className="lg:col-span-7 bg-white rounded-2xl p-4 border border-slate-200 space-y-3">
+                <div>
+                  <h4 className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-1">
+                    📋 Generated Code Ledger
+                  </h4>
+                  <p className="text-[10px] text-slate-500 font-medium">
+                    Monitor active, used, and expired approval codes in real-time.
+                  </p>
+                </div>
+
+                <div className="overflow-y-auto max-h-[360px] space-y-2 pr-1">
+                  {adminGeneratedCodes.length === 0 ? (
+                    <div className="text-center py-12 text-xs text-slate-300 font-bold font-sans">No generated codes on file.</div>
+                  ) : (
+                    adminGeneratedCodes.map((item, idx) => {
+                      const normalizedCode = item.code.replace(/[^A-Z0-9]/gi, '').toUpperCase();
+                      const isUsed = usedCodes.includes(normalizedCode);
+                      const isExpired = !isUsed && new Date() > new Date(item.expiryTime);
+                      
+                      let statusBadge = (
+                        <span className="text-[8px] font-black uppercase bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-sans">Active</span>
+                      );
+                      if (isUsed) {
+                        statusBadge = (
+                          <span className="text-[8px] font-black uppercase bg-slate-100 text-slate-400 px-2 py-0.5 rounded-full font-sans">Used</span>
+                        );
+                      } else if (isExpired) {
+                        statusBadge = (
+                          <span className="text-[8px] font-black uppercase bg-rose-100 text-rose-800 px-2 py-0.5 rounded-full font-sans">Expired</span>
+                        );
+                      }
+
+                      return (
+                        <div key={idx} className="bg-slate-50 border border-slate-100 rounded-xl p-3 text-xs flex justify-between items-center hover:border-slate-300 transition-all">
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono font-black text-slate-800">{item.phone}</span>
+                              {statusBadge}
+                            </div>
+                            <div className="text-[10px] text-slate-500 font-medium space-y-0.5 font-sans">
+                              <div>Amount: <span className="font-bold text-emerald-600">{item.amount} ETB</span></div>
+                              <div>Ref: <span className="font-mono text-slate-600 font-bold">{item.reference}</span></div>
+                              <div className="text-[9px] text-slate-400">Expires: {new Date(item.expiryTime).toLocaleString()}</div>
+                            </div>
+                          </div>
+                          
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(item.code);
+                              alert('Code copied!');
+                            }}
+                            className="bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 font-bold text-[9px] px-2 py-1.5 rounded-md uppercase font-sans cursor-pointer"
+                          >
+                            Copy
+                          </button>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Separator line */}
+            <div className="border-t border-slate-200 my-4"></div>
+
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
-                <h3 className="text-sm font-extrabold text-slate-700 flex items-center gap-1.5">
-                  📥 Deposits Operations Desk
-                </h3>
-                <p className="text-[11px] text-slate-500 mt-1 leading-normal">
-                  Review, verify, and track the CBE, Dashen, Awash, or Abyssinia manual deposits.
+                <h4 className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-1">
+                  📥 User Deposit Requests Queue
+                </h4>
+                <p className="text-[10px] text-slate-500 font-medium">
+                  Verify manual transfer requests or auto-sign verification codes for offline validation.
                 </p>
               </div>
 
@@ -669,7 +909,7 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
             {(rechargeStatusFilter === 'pending' ? pendingRecharges :
               rechargeStatusFilter === 'approved' ? approvedRecharges :
               rejectedRecharges).length === 0 ? (
-              <div className="bg-white border border-slate-200 rounded-2xl p-8 text-center text-xs text-slate-400 font-bold">
+              <div className="bg-white border border-slate-200 rounded-2xl p-8 text-center text-xs text-slate-400 font-bold font-sans">
                 No {rechargeStatusFilter} recharges found.
               </div>
             ) : (
@@ -725,18 +965,49 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
                   </div>
 
                   {tx.status === 'pending' && (
-                    <div className="flex gap-2 pt-2 border-t border-slate-100 justify-end">
+                    <div className="flex flex-wrap gap-2 pt-2 border-t border-slate-100 justify-end">
                       <button
                         onClick={() => rejectTransaction(tx.id)}
-                        className="bg-red-50 hover:bg-red-100 text-red-700 font-bold text-xs px-3 py-2 rounded-xl flex items-center gap-1 border border-red-200/50 cursor-pointer"
+                        className="bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 font-bold text-[10px] uppercase tracking-wider px-3.5 py-2.5 rounded-xl flex items-center gap-1 cursor-pointer transition-all active:scale-[0.98]"
                       >
                         <X size={14} /> Reject Payment
                       </button>
+
+                      <button
+                        onClick={() => {
+                          setGenPhone(tx.userPhone);
+                          setGenAmount(tx.amount.toString());
+                          setGenRef(tx.accountNumberOrRef || '');
+                          
+                          // Auto generate code right away
+                          const res = generateOfflineRechargeCode(
+                            tx.userPhone,
+                            tx.amount,
+                            (tx.accountNumberOrRef || '').trim().toUpperCase(),
+                            1440 // default 1 day
+                          );
+                          if (res.success && res.code) {
+                            setGeneratedCodeResult(res.code);
+                            setGenSuccess(`Auto-generated code for ${tx.userPhone}!`);
+                          } else {
+                            setGenError(res.message || 'Auto-generation failed.');
+                          }
+                          // Smooth scroll back up to Code Generator card
+                          const mainScroll = document.querySelector('.flex-1.overflow-y-auto');
+                          if (mainScroll) {
+                            mainScroll.scrollTo({ top: 0, behavior: 'smooth' });
+                          }
+                        }}
+                        className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-black text-[10px] uppercase tracking-wider px-4 py-2.5 rounded-xl flex items-center gap-1.5 shadow-sm cursor-pointer transition-all active:scale-[0.98]"
+                      >
+                        🔑 Auto-Sign Code
+                      </button>
+
                       <button
                         onClick={() => approveTransaction(tx.id)}
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-4 py-2 rounded-xl flex items-center gap-1 shadow cursor-pointer"
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[10px] uppercase tracking-wider px-4 py-2.5 rounded-xl flex items-center gap-1 shadow cursor-pointer transition-all active:scale-[0.98]"
                       >
-                        <Check size={14} /> Approve CBE / Bank Transfer
+                        <Check size={14} /> Approve Directly
                       </button>
                     </div>
                   )}

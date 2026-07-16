@@ -620,14 +620,103 @@ app.post('/api/users/update-stage', async (req, res) => {
       completedOrderIds.push(i);
     }
 
+    const configRow = await db.select().from(systemConfig).where(eq(systemConfig.key, 'global'));
+    const productCosts = (configRow[0]?.productCosts as any[]) || [];
+
+    // Calculate simulated cost and balance for the user
+    let userSeed = 0;
+    const userIdStr = userId || '';
+    for (let i = 0; i < userIdStr.length; i++) {
+      userSeed = (userSeed << 5) - userSeed + userIdStr.charCodeAt(i);
+      userSeed |= 0;
+    }
+    userSeed = Math.abs(userSeed);
+
+    const simulatedCosts: { [key: number]: number } = {};
+    const simulatedBalances: { [key: number]: number } = {};
+    const calculatedPcts: { [key: number]: number } = {};
+
+    for (let i = 1; i <= 15; i++) {
+      const prodConf = productCosts.find((p: any) => p.id === i);
+      const defaultPct = i === 1 ? 0.25 : 
+                         i === 2 ? 0.27 : 
+                         i === 3 ? 0.30 : 
+                         i === 4 ? 0.32 : 
+                         i === 5 ? 0.35 : 
+                         i === 6 ? 0.38 : 
+                         i === 7 ? 0.40 : 0.40;
+      calculatedPcts[i] = i > 7 ? 0.40 : (
+        (typeof prodConf?.rewardMultiplier === 'number' && prodConf.rewardMultiplier > 0)
+          ? prodConf.rewardMultiplier
+          : defaultPct
+      );
+    }
+
+    const r2 = (n: number) => Math.round(n * 100) / 100;
+
+    const configuredLvl1Cost = productCosts.find((p: any) => p.id === 1)?.baseCost || 699;
+    let userLevel1Base = 699;
+    if (configuredLvl1Cost === 699) {
+      userLevel1Base = 699 + (userSeed % 301); // 699 to 999
+    } else {
+      const offset = (userSeed % 41) - 20; // stable -20 to +20 offset around configured
+      userLevel1Base = Math.max(699, Math.min(999, configuredLvl1Cost + offset));
+    }
+    const decimalsPool = [0.78, 0.45, 0.12, 0.89, 0.56, 0.23, 0.67, 0.34];
+    const decimal1 = decimalsPool[userSeed % decimalsPool.length];
+    simulatedCosts[1] = r2(userLevel1Base + decimal1);
+    simulatedBalances[1] = r2(simulatedCosts[1] + (simulatedCosts[1] * calculatedPcts[1]));
+
+    for (let k = 2; k <= 15; k++) {
+      const decimalK = decimalsPool[(userSeed + k) % decimalsPool.length];
+      if (k === 4) {
+        simulatedCosts[k] = r2(simulatedBalances[3] + (simulatedBalances[3] * 0.30) + decimalK);
+      } else if (k === 8) {
+        simulatedCosts[k] = r2(simulatedBalances[7] + (simulatedBalances[7] * 0.38) + decimalK);
+      } else if (k === 11) {
+        simulatedCosts[k] = r2(simulatedBalances[10] + (simulatedBalances[10] * 0.30) + decimalK);
+      } else if (k === 15) {
+        simulatedCosts[k] = r2(simulatedBalances[14] + (simulatedBalances[14] * 0.13) + decimalK);
+      } else {
+        simulatedCosts[k] = r2(simulatedBalances[k - 1] - 5 + (decimalK - 0.5));
+      }
+      simulatedBalances[k] = r2(simulatedBalances[k - 1] + (simulatedCosts[k] * calculatedPcts[k]));
+    }
+
+    const orderCost = simulatedCosts[newStage] || 0;
+    const newBalance = orderCost;
+
+    // Sum of rewards for completed orders (1 to newStage - 1)
+    let totalEarnings = 0;
+    for (let i = 1; i <= newIndex; i++) {
+      const prodConf = productCosts.find((p: any) => p.id === i);
+      const defaultPct = i === 1 ? 0.25 : 
+                         i === 2 ? 0.27 : 
+                         i === 3 ? 0.30 : 
+                         i === 4 ? 0.32 : 
+                         i === 5 ? 0.35 : 
+                         i === 6 ? 0.38 : 
+                         i === 7 ? 0.40 : 0.40;
+      const pct = i > 7 ? 0.40 : (
+        (typeof prodConf?.rewardMultiplier === 'number' && prodConf.rewardMultiplier > 0)
+          ? prodConf.rewardMultiplier
+          : defaultPct
+      );
+      const cost = simulatedCosts[i] || 0;
+      const reward = r2(cost * pct);
+      totalEarnings = r2(totalEarnings + reward);
+    }
+
     await db.update(users)
       .set({
         currentOrderIndex: newIndex,
-        completedOrderIds
+        completedOrderIds,
+        walletBalance: newBalance,
+        totalEarnings
       })
       .where(eq(users.id, userId));
 
-    await dbLogAudit('ADMIN', 'ADMIN', 'ADMIN_UPDATE_STAGE', `Admin updated task stage for User ID ${userId} to Level ${newStage}`);
+    await dbLogAudit('ADMIN', 'ADMIN', 'ADMIN_UPDATE_STAGE', `Admin updated task stage for User ID ${userId} to Level ${newStage}. Balance updated to ${newBalance} ETB and total earnings to ${totalEarnings} ETB.`);
     
     const finalUsers = await db.select().from(users);
     res.json({ success: true, users: finalUsers });

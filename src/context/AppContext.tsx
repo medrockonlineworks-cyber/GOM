@@ -24,6 +24,10 @@ import {
   ALTERNATIVE_PRODUCTS_POOLS
 } from '../utils/mockData';
 import { Language } from '../utils/translations';
+import { secureStorage, generateVerificationCode, verifyVerificationCode } from '../utils/crypto';
+
+// Override global localStorage inside this file scope to use secureStorage transparently
+const localStorage = secureStorage;
 
 const DEFAULT_BANK_LOGOS: { [key: string]: string } = {
   cbe: 'https://upload.wikimedia.org/wikipedia/commons/2/23/Commercial_Bank_of_Ethiopia_Logo.svg',
@@ -250,6 +254,126 @@ const getOrCreateDeviceId = (): string => {
   return deviceId;
 };
 
+export const getSimulatedCostAndBalanceForUser = (
+  userId: string,
+  productCosts: { id: number; baseCost: number; rewardMultiplier: number }[]
+) => {
+  let userSeed = 0;
+  const userIdStr = userId || '';
+  for (let i = 0; i < userIdStr.length; i++) {
+    userSeed = (userSeed << 5) - userSeed + userIdStr.charCodeAt(i);
+    userSeed |= 0;
+  }
+  userSeed = Math.abs(userSeed);
+
+  const simulatedCosts: { [key: number]: number } = {};
+  const simulatedBalances: { [key: number]: number } = {};
+  const calculatedPcts: { [key: number]: number } = {};
+
+  for (let i = 1; i <= 15; i++) {
+    const prodConf = productCosts.find(p => p.id === i);
+    const defaultPct = i === 1 ? 0.25 : 
+                       i === 2 ? 0.27 : 
+                       i === 3 ? 0.30 : 
+                       i === 4 ? 0.32 : 
+                       i === 5 ? 0.35 : 
+                       i === 6 ? 0.38 : 
+                       i === 7 ? 0.40 : 0.40;
+    calculatedPcts[i] = i > 7 ? 0.40 : (
+      (typeof prodConf?.rewardMultiplier === 'number' && prodConf.rewardMultiplier > 0)
+        ? prodConf.rewardMultiplier
+        : defaultPct
+    );
+  }
+
+  const r2 = (n: number) => Math.round(n * 100) / 100;
+
+  const configuredLvl1Cost = productCosts.find(p => p.id === 1)?.baseCost || 699;
+  let userLevel1Base = 699;
+  if (configuredLvl1Cost === 699) {
+    userLevel1Base = 699 + (userSeed % 301); // 699 to 999
+  } else {
+    const offset = (userSeed % 41) - 20; // stable -20 to +20 offset around configured
+    userLevel1Base = Math.max(699, Math.min(999, configuredLvl1Cost + offset));
+  }
+  const decimalsPool = [0.78, 0.45, 0.12, 0.89, 0.56, 0.23, 0.67, 0.34];
+  const decimal1 = decimalsPool[userSeed % decimalsPool.length];
+  simulatedCosts[1] = r2(userLevel1Base + decimal1);
+  simulatedBalances[1] = r2(simulatedCosts[1] + (simulatedCosts[1] * calculatedPcts[1]));
+
+  // Order 2: less than balance by 5 ETB
+  const decimal2 = decimalsPool[(userSeed + 2) % decimalsPool.length];
+  simulatedCosts[2] = r2(simulatedBalances[1] - 5 + (decimal2 - 0.5));
+  simulatedBalances[2] = r2(simulatedBalances[1] + (simulatedCosts[2] * calculatedPcts[2]));
+
+  // Order 3: less than balance by 5 ETB
+  const decimal3 = decimalsPool[(userSeed + 3) % decimalsPool.length];
+  simulatedCosts[3] = r2(simulatedBalances[2] - 5 + (decimal3 - 0.5));
+  simulatedBalances[3] = r2(simulatedBalances[2] + (simulatedCosts[3] * calculatedPcts[3]));
+
+  // Order 4: greater than balance (requires recharge), recharge required is exactly 30% of previous balance
+  const decimal4 = decimalsPool[(userSeed + 4) % decimalsPool.length];
+  simulatedCosts[4] = r2(simulatedBalances[3] + (simulatedBalances[3] * 0.30) + decimal4);
+  simulatedBalances[4] = r2(simulatedCosts[4] + (simulatedCosts[4] * calculatedPcts[4]));
+
+  // Order 5: less than balance by 5 ETB
+  const decimal5 = decimalsPool[(userSeed + 5) % decimalsPool.length];
+  simulatedCosts[5] = r2(simulatedBalances[4] - 5 + (decimal5 - 0.5));
+  simulatedBalances[5] = r2(simulatedBalances[4] + (simulatedCosts[5] * calculatedPcts[5]));
+
+  // Order 6: less than balance by 5 ETB
+  const decimal6 = decimalsPool[(userSeed + 6) % decimalsPool.length];
+  simulatedCosts[6] = r2(simulatedBalances[5] - 5 + (decimal6 - 0.5));
+  simulatedBalances[6] = r2(simulatedBalances[5] + (simulatedCosts[6] * calculatedPcts[6]));
+
+  // Order 7: less than balance by 5 ETB
+  const decimal7 = decimalsPool[(userSeed + 7) % decimalsPool.length];
+  simulatedCosts[7] = r2(simulatedBalances[6] - 5 + (decimal7 - 0.5));
+  simulatedBalances[7] = r2(simulatedBalances[6] + (simulatedCosts[7] * calculatedPcts[7]));
+
+  // Order 8: greater than balance (requires recharge), recharge required is exactly 38% of previous balance
+  const decimal8 = decimalsPool[(userSeed + 8) % decimalsPool.length];
+  simulatedCosts[8] = r2(simulatedBalances[7] + (simulatedBalances[7] * 0.38) + decimal8);
+  simulatedBalances[8] = r2(simulatedCosts[8] + (simulatedCosts[8] * calculatedPcts[8]));
+
+  // Order 9: less than balance by 5 ETB
+  const decimal9 = decimalsPool[(userSeed + 9) % decimalsPool.length];
+  simulatedCosts[9] = r2(simulatedBalances[8] - 5 + (decimal9 - 0.5));
+  simulatedBalances[9] = r2(simulatedBalances[8] + (simulatedCosts[9] * calculatedPcts[9]));
+
+  // Order 10: less than balance by 5 ETB
+  const decimal10 = decimalsPool[(userSeed + 10) % decimalsPool.length];
+  simulatedCosts[10] = r2(simulatedBalances[9] - 5 + (decimal10 - 0.5));
+  simulatedBalances[10] = r2(simulatedBalances[9] + (simulatedCosts[10] * calculatedPcts[10]));
+
+  // Order 11: greater than balance (requires recharge), recharge required is exactly 30% of previous balance
+  const decimal11 = decimalsPool[(userSeed + 11) % decimalsPool.length];
+  simulatedCosts[11] = r2(simulatedBalances[10] + (simulatedBalances[10] * 0.30) + decimal11);
+  simulatedBalances[11] = r2(simulatedCosts[11] + (simulatedCosts[11] * calculatedPcts[11]));
+
+  // Order 12: less than balance by 5 ETB
+  const decimal12 = decimalsPool[(userSeed + 12) % decimalsPool.length];
+  simulatedCosts[12] = r2(simulatedBalances[11] - 5 + (decimal12 - 0.5));
+  simulatedBalances[12] = r2(simulatedBalances[11] + (simulatedCosts[12] * calculatedPcts[12]));
+
+  // Order 13: less than balance by 5 ETB
+  const decimal13 = decimalsPool[(userSeed + 13) % decimalsPool.length];
+  simulatedCosts[13] = r2(simulatedBalances[12] - 5 + (decimal13 - 0.5));
+  simulatedBalances[13] = r2(simulatedBalances[12] + (simulatedCosts[13] * calculatedPcts[13]));
+
+  // Order 14: less than balance by 5 ETB
+  const decimal14 = decimalsPool[(userSeed + 14) % decimalsPool.length];
+  simulatedCosts[14] = r2(simulatedBalances[13] - 5 + (decimal14 - 0.5));
+  simulatedBalances[14] = r2(simulatedBalances[13] + (simulatedCosts[14] * calculatedPcts[14]));
+
+  // Order 15: greater than balance (requires recharge), recharge required is exactly 13% of previous balance
+  const decimal15 = decimalsPool[(userSeed + 15) % decimalsPool.length];
+  simulatedCosts[15] = r2(simulatedBalances[14] + (simulatedBalances[14] * 0.13) + decimal15);
+  simulatedBalances[15] = r2(simulatedCosts[15] + (simulatedCosts[15] * calculatedPcts[15]));
+
+  return { simulatedCosts, simulatedBalances };
+};
+
 enum OperationType {
   CREATE = 'create',
   UPDATE = 'update',
@@ -391,6 +515,12 @@ interface AppContextProps {
   adminChangeUserPassword: (userId: string, newPasswordPlain: string) => Promise<{ success: boolean; message: string }>;
   adminDeleteUser: (userId: string) => Promise<{ success: boolean; message: string }>;
   adminUpdateUserStage: (userId: string, newStage: number) => Promise<{ success: boolean; message: string }>;
+
+  // Offline Verification System
+  usedCodes: string[];
+  adminGeneratedCodes: any[];
+  generateOfflineRechargeCode: (phone: string, amount: number, reference: string, expiryMinutes: number) => { success: boolean; code?: string; message?: string };
+  verifyRechargeOffline: (txId: string, code: string) => Promise<{ success: boolean; message: string }>;
 
   // System reset
   factoryReset: () => void;
@@ -3192,10 +3322,41 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       completedOrderIds.push(i);
     }
 
+    // Calculate simulated costs and balances for the user
+    const { simulatedCosts } = getSimulatedCostAndBalanceForUser(userId, productCosts);
+    const orderCost = simulatedCosts[newStage] || 0;
+
+    // Use orderCost as the new wallet balance: "the amount of that order should show in balance"
+    const newBalance = orderCost;
+
+    // Sum of rewards for completed orders (1 to newStage - 1)
+    let totalEarnings = 0;
+    const r2 = (n: number) => Math.round(n * 100) / 100;
+    for (let i = 1; i <= newIndex; i++) {
+      const prodConf = productCosts.find(p => p.id === i);
+      const defaultPct = i === 1 ? 0.25 : 
+                         i === 2 ? 0.27 : 
+                         i === 3 ? 0.30 : 
+                         i === 4 ? 0.32 : 
+                         i === 5 ? 0.35 : 
+                         i === 6 ? 0.38 : 
+                         i === 7 ? 0.40 : 0.40;
+      const pct = i > 7 ? 0.40 : (
+        (typeof prodConf?.rewardMultiplier === 'number' && prodConf.rewardMultiplier > 0)
+          ? prodConf.rewardMultiplier
+          : defaultPct
+      );
+      const cost = simulatedCosts[i] || 0;
+      const reward = r2(cost * pct);
+      totalEarnings = r2(totalEarnings + reward);
+    }
+
     const updatedUser = {
       ...userToUpdate,
       currentOrderIndex: newIndex,
-      completedOrderIds
+      completedOrderIds,
+      walletBalance: newBalance,
+      totalEarnings: totalEarnings
     };
 
     // Update local state first
@@ -3214,13 +3375,114 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updatedUser)
       });
-      await logAudit('ADMIN', 'ADMIN', 'ADMIN_UPDATE_STAGE', `Admin updated task stage for User ID ${userId} to Level ${newStage}`);
+      await logAudit('ADMIN', 'ADMIN', 'ADMIN_UPDATE_STAGE', `Admin updated task stage for User ID ${userId} to Level ${newStage}. Balance updated to ${newBalance} ETB and total earnings to ${totalEarnings} ETB.`);
     } catch (e: any) {
       console.warn("[Admin Stage Update] Database write failed, saved locally:", e);
-      return { success: true, message: `Successfully updated user stage to Level ${newStage} (Offline Fallback).` };
+      return { success: true, message: `Successfully updated user stage to Level ${newStage} and balance to ${newBalance} ETB (Offline Fallback).` };
     }
 
-    return { success: true, message: `Successfully updated user stage to Level ${newStage}.` };
+    return { success: true, message: `Successfully updated user stage to Level ${newStage} and balance to ${newBalance} ETB.` };
+  };
+
+  // ==========================================
+  // OFFLINE RECHARGE CODE VERIFICATION SYSTEM
+  // ==========================================
+  const [usedCodes, setUsedCodes] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('gom_used_verification_codes');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
+
+  const [adminGeneratedCodes, setAdminGeneratedCodes] = useState<any[]>(() => {
+    try {
+      const saved = localStorage.getItem('gom_generated_codes');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
+
+  const generateOfflineRechargeCode = (
+    phone: string,
+    amount: number,
+    reference: string,
+    expiryMinutes: number
+  ) => {
+    const adminPasswordHash = "2b03c89806148889482ecec643b5d0e5fcf3b7b7c87ae5d8b6bfa34e84e1768a";
+    const code = generateVerificationCode(phone, amount, reference, expiryMinutes, adminPasswordHash);
+    if (!code) {
+      return { success: false, message: 'Failed to generate cryptographically signed code.' };
+    }
+
+    const newCodeRecord = {
+      code,
+      phone,
+      amount,
+      reference,
+      expiryTime: new Date(Date.now() + expiryMinutes * 60 * 1000).toISOString(),
+      createdAt: new Date().toISOString()
+    };
+
+    const updatedCodes = [newCodeRecord, ...adminGeneratedCodes];
+    setAdminGeneratedCodes(updatedCodes);
+    localStorage.setItem('gom_generated_codes', JSON.stringify(updatedCodes));
+
+    return { success: true, code, message: 'Recharge verification code generated successfully.' };
+  };
+
+  const verifyRechargeOffline = async (txId: string, code: string) => {
+    const tx = transactions.find(t => t.id === txId);
+    if (!tx || tx.status !== 'pending') {
+      return { success: false, message: 'Recharge record not found or already processed.' };
+    }
+
+    const normalizedCode = code.replace(/[^A-Z0-9]/gi, '').toUpperCase();
+    if (usedCodes.includes(normalizedCode)) {
+      return { success: false, message: 'This verification code has already been used.' };
+    }
+
+    const check = verifyVerificationCode(code, tx.userPhone, tx.amount, tx.accountNumberOrRef || '');
+    if (!check.valid) {
+      return { success: false, message: check.error || 'Invalid or tampered verification code.' };
+    }
+
+    if (check.expired) {
+      return { success: false, message: 'This verification code has expired.' };
+    }
+
+    // Mark code as used globally
+    const updatedUsed = [...usedCodes, normalizedCode];
+    setUsedCodes(updatedUsed);
+    localStorage.setItem('gom_used_verification_codes', JSON.stringify(updatedUsed));
+
+    // Update transaction status
+    const updatedTxs = transactions.map(t => t.id === txId ? { ...t, status: 'approved' as const } : t);
+    setTransactions(updatedTxs);
+    localStorage.setItem('gom_transactions', JSON.stringify(updatedTxs));
+
+    // Update user wallet balance
+    const userToUpdate = users.find(u => u.id === tx.userId);
+    if (userToUpdate) {
+      const updatedUser = {
+        ...userToUpdate,
+        walletBalance: userToUpdate.walletBalance + tx.amount
+      };
+      const updatedUsers = users.map(u => u.id === tx.userId ? updatedUser : u);
+      setUsers(updatedUsers);
+      localStorage.setItem('gom_users', JSON.stringify(updatedUsers));
+
+      if (currentUser && currentUser.id === tx.userId) {
+        setRawCurrentUser(updatedUser);
+        localStorage.setItem('gom_current_user', JSON.stringify(updatedUser));
+      }
+    }
+
+    await logAudit(tx.userId, tx.userPhone, 'OFFLINE_RECHARGE_VERIFY', `Successfully verified offline code ${code} for deposit of ${tx.amount} ETB. Ref: ${tx.accountNumberOrRef}`);
+
+    return { success: true, message: 'Recharge Approved Successfully' };
   };
 
   return (
@@ -3262,6 +3524,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       adminChangeUserPassword,
       adminDeleteUser,
       adminUpdateUserStage,
+      usedCodes,
+      adminGeneratedCodes,
+      generateOfflineRechargeCode,
+      verifyRechargeOffline,
       factoryReset,
       rechargeAccounts,
       language,
