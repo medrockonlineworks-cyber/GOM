@@ -815,7 +815,7 @@ const getRefValidationResult = (bank: string, ref: string, lang: string) => {
 type UserTab = 'home' | 'orders' | 'my';
 
 function AppContent() {
-  const { currentUser, deposit, withdraw, transactions, addSupportTicket, rechargeAccounts, language, setLanguage, currency, setCurrency, formatPrice } = useApp();
+  const { currentUser, deposit, withdraw, transactions, addSupportTicket, rechargeAccounts, language, setLanguage, currency, setCurrency, formatPrice, verifyRechargeOffline } = useApp();
   const { t } = useTranslation(language);
 
   const isEthiopianUser = currentUser && (
@@ -925,6 +925,11 @@ function AppContent() {
   const [showChannelDropdown, setShowChannelDropdown] = useState(false);
   const [lastSubmittedRecharge, setLastSubmittedRecharge] = useState<{ amount: number; bank: string; ref: string } | null>(null);
 
+  const [inlineVerifyCode, setInlineVerifyCode] = useState('');
+  const [inlineVerifyError, setInlineVerifyError] = useState('');
+  const [inlineVerifySuccess, setInlineVerifySuccess] = useState('');
+  const [inlineVerifyLoading, setInlineVerifyLoading] = useState(false);
+
   // Reset success state and details on modal open
   React.useEffect(() => {
     if (rechargeModalOpen) {
@@ -934,6 +939,10 @@ function AppContent() {
       setRechargeScreenshot(null);
       setDragActive(false);
       setShowChannelDropdown(false);
+      setInlineVerifyCode('');
+      setInlineVerifyError('');
+      setInlineVerifySuccess('');
+      setInlineVerifyLoading(false);
       if (isEth) {
         if (rechargeAccounts && rechargeAccounts.length > 0) {
           setRechargeBank(rechargeAccounts[0].bank);
@@ -1359,7 +1368,7 @@ function AppContent() {
                 <motion.div 
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
-                  className="text-center py-12 flex flex-col items-center justify-center space-y-4"
+                  className="text-center py-6 flex flex-col items-center justify-center space-y-4"
                 >
                   <div className="w-16 h-16 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center shadow-inner">
                     <CheckCircle2 size={36} className="animate-[pulse_1s_infinite]" />
@@ -1372,6 +1381,96 @@ function AppContent() {
                   </div>
                   <div className="text-[10px] bg-slate-50 text-slate-400 py-1.5 px-3 rounded-full font-mono font-medium">
                     {t('payoutStatus')} {t('pendingVerification')}
+                  </div>
+
+                  {/* Inline Code Verification Form */}
+                  {(() => {
+                    const pendingTx = lastSubmittedRecharge ? transactions.find(
+                      t => t.type === 'recharge' &&
+                           t.status === 'pending' &&
+                           t.accountNumberOrRef === lastSubmittedRecharge.ref
+                    ) : null;
+
+                    if (!pendingTx) return null;
+
+                    return (
+                      <div className="w-full pt-4 mt-2 border-t border-slate-100 space-y-3.5 text-left">
+                        <div className="space-y-1.5">
+                          <label className="block text-[9px] font-black uppercase tracking-wider text-slate-400 text-center">
+                            {language === 'pt' ? 'Código de Verificação do Admin' : 'Admin Verification Code'}
+                          </label>
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              value={inlineVerifyCode}
+                              onChange={(e) => setInlineVerifyCode(e.target.value)}
+                              placeholder="e.g. EXP36-SIG36"
+                              className="flex-1 bg-slate-50 border border-slate-200 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none transition-all font-mono font-bold tracking-widest text-center"
+                            />
+                            <button
+                              type="button"
+                              disabled={inlineVerifyLoading || !inlineVerifyCode.trim() || !!inlineVerifySuccess}
+                              onClick={async () => {
+                                setInlineVerifyError('');
+                                setInlineVerifySuccess('');
+                                setInlineVerifyLoading(true);
+                                try {
+                                  const res = await verifyRechargeOffline(pendingTx.id, inlineVerifyCode);
+                                  if (res.success) {
+                                    setInlineVerifySuccess(res.message);
+                                    setInlineVerifyCode('');
+                                    setTimeout(() => {
+                                      setRechargeSuccess(false);
+                                      setRechargeModalOpen(false);
+                                    }, 2000);
+                                  } else {
+                                    setInlineVerifyError(res.message);
+                                  }
+                                } catch (err: any) {
+                                  setInlineVerifyError(err.message || 'Verification failed.');
+                                } finally {
+                                  setInlineVerifyLoading(false);
+                                }
+                              }}
+                              className="bg-amber-500 hover:bg-amber-600 disabled:bg-slate-200 disabled:text-slate-400 text-white font-black text-[10px] uppercase tracking-wider px-4 rounded-xl transition-all active:scale-[0.98] shrink-0"
+                            >
+                              {inlineVerifyLoading ? '...' : (language === 'pt' ? 'Verificar' : 'Verify')}
+                            </button>
+                          </div>
+                        </div>
+
+                        {inlineVerifyError && (
+                          <div className="bg-red-50 text-red-600 border border-red-100 text-[10px] font-bold p-2.5 rounded-xl text-center">
+                            {inlineVerifyError}
+                          </div>
+                        )}
+
+                        {inlineVerifySuccess && (
+                          <div className="bg-emerald-50 text-emerald-600 border border-emerald-100 text-[10px] font-bold p-2.5 rounded-xl text-center">
+                            {inlineVerifySuccess}
+                          </div>
+                        )}
+
+                        <p className="text-[10px] text-slate-400 leading-normal text-center font-medium">
+                          {language === 'pt' 
+                            ? 'Insira o código obtido com o administrador para aprovar o pagamento e creditar sua carteira instantaneamente.'
+                            : 'Enter the code obtained from the administrator to approve your payment and credit your wallet instantly.'}
+                        </p>
+                      </div>
+                    );
+                  })()}
+
+                  <div className="w-full pt-2 flex justify-center">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setRechargeSuccess(false);
+                        setRechargeModalOpen(false);
+                      }}
+                      className="bg-slate-100 hover:bg-slate-200 text-slate-600 font-extrabold text-[10px] uppercase tracking-wider px-6 py-2.5 rounded-xl transition-all"
+                    >
+                      {language === 'pt' ? 'Fechar e Verificar Depois' : 'Close & Verify Later'}
+                    </button>
                   </div>
                 </motion.div>
               ) : (
