@@ -704,6 +704,50 @@ export const MyTab: React.FC<MyTabProps> = ({
         )}
       </div>
 
+      {/* 6. PROFESSIONAL SYSTEM AND CORE SETTINGS PANEL - ADMIN ONLY */}
+      {currentUser.role === 'admin' && (
+        <div className="space-y-3">
+          <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">{t('systemSecurity')}</h3>
+          
+          <div className="space-y-2">
+            {/* Developer Factory reset */}
+            <button
+              onClick={() => {
+                setResetConfirmationInput('');
+                setShowResetConfirm(true);
+              }}
+              className="w-full bg-white hover:bg-slate-50 text-slate-700 border border-slate-200/60 transition-all p-3.5 rounded-2xl flex items-center justify-between text-left shadow-2xs cursor-pointer group"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-xl bg-slate-100 text-slate-500 flex items-center justify-center shrink-0 border border-slate-200/30 group-hover:bg-red-50 group-hover:text-red-600 transition-colors">
+                  <RefreshCw size={14} className="group-hover:rotate-180 transition-transform duration-500" />
+                </div>
+                <div>
+                  <span className="text-xs font-black block text-slate-700 group-hover:text-red-700 transition-colors">{t('resetDatabaseEnv')}</span>
+                </div>
+              </div>
+              <ChevronRight size={14} className="text-slate-300 group-hover:text-slate-500 transition-colors" />
+            </button>
+
+            {/* Secure Sign Out */}
+            <button
+              onClick={logout}
+              className="w-full bg-white hover:bg-red-50 text-slate-700 border border-slate-200/60 transition-all p-3.5 rounded-2xl flex items-center justify-between text-left shadow-2xs cursor-pointer group"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-xl bg-slate-100 text-slate-500 flex items-center justify-center shrink-0 border border-slate-200/30 group-hover:bg-red-500 group-hover:text-white transition-colors">
+                  <LogOut size={14} />
+                </div>
+                <div>
+                  <span className="text-xs font-black block text-slate-700 group-hover:text-red-700 transition-colors">{t('logout')}</span>
+                </div>
+              </div>
+              <ChevronRight size={14} className="text-slate-300 group-hover:text-slate-500 transition-colors" />
+            </button>
+          </div>
+        </div>
+      )}
+
 
 
 
