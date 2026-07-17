@@ -444,13 +444,13 @@ app.put('/api/transactions/:id/status', async (req, res) => {
     const userToUpdateList = await db.select().from(users).where(eq(users.id, tx.userId));
     if (userToUpdateList.length > 0) {
       const userToUpdate = userToUpdateList[0];
-      let newBalance = userToUpdate.walletBalance;
+      let newBalance = Number(userToUpdate.walletBalance);
 
       if (status === 'approved' && tx.type === 'recharge') {
-        newBalance = userToUpdate.walletBalance + tx.amount;
+        newBalance = Number(userToUpdate.walletBalance) + Number(tx.amount);
       } else if (status === 'rejected' && tx.type === 'withdraw') {
         // Refund if withdrawal rejected
-        newBalance = userToUpdate.walletBalance + tx.amount;
+        newBalance = Number(userToUpdate.walletBalance) + Number(tx.amount);
       }
 
       // Update user wallet balance
@@ -502,16 +502,16 @@ app.post('/api/users', async (req, res) => {
       id: userToSave.id,
       phoneNumber: userToSave.phoneNumber,
       passwordHash: userToSave.passwordHash,
-      walletBalance: userToSave.walletBalance ?? 0,
-      welcomeBonus: userToSave.welcomeBonus ?? 0,
-      totalEarnings: userToSave.totalEarnings ?? 0,
+      walletBalance: Number(userToSave.walletBalance ?? 0),
+      welcomeBonus: Number(userToSave.welcomeBonus ?? 0),
+      totalEarnings: Number(userToSave.totalEarnings ?? 0),
       role: userToSave.role ?? 'user',
-      currentOrderIndex: userToSave.currentOrderIndex ?? 0,
+      currentOrderIndex: Number(userToSave.currentOrderIndex ?? 0),
       completedOrderIds: userToSave.completedOrderIds ?? [],
       inviteCode: userToSave.inviteCode ?? null,
       referredBy: userToSave.referredBy ?? null,
-      referralCount: userToSave.referralCount ?? 0,
-      referralEarnings: userToSave.referralEarnings ?? 0,
+      referralCount: Number(userToSave.referralCount ?? 0),
+      referralEarnings: Number(userToSave.referralEarnings ?? 0),
       cycleProductOverrides: userToSave.cycleProductOverrides ?? [],
       lastOrderCompletedAt: userToSave.lastOrderCompletedAt ?? null,
       deviceId: userToSave.deviceId ?? null,
@@ -553,16 +553,16 @@ app.post('/api/users/sync-bulk', async (req, res) => {
         id: lu.id,
         phoneNumber: lu.phoneNumber,
         passwordHash: lu.passwordHash,
-        walletBalance: lu.walletBalance ?? 0,
-        welcomeBonus: lu.welcomeBonus ?? 0,
-        totalEarnings: lu.totalEarnings ?? 0,
+        walletBalance: Number(lu.walletBalance ?? 0),
+        welcomeBonus: Number(lu.welcomeBonus ?? 0),
+        totalEarnings: Number(lu.totalEarnings ?? 0),
         role: lu.role ?? 'user',
-        currentOrderIndex: lu.currentOrderIndex ?? 0,
+        currentOrderIndex: Number(lu.currentOrderIndex ?? 0),
         completedOrderIds: lu.completedOrderIds ?? [],
         inviteCode: lu.inviteCode ?? null,
         referredBy: lu.referredBy ?? null,
-        referralCount: lu.referralCount ?? 0,
-        referralEarnings: lu.referralEarnings ?? 0,
+        referralCount: Number(lu.referralCount ?? 0),
+        referralEarnings: Number(lu.referralEarnings ?? 0),
         cycleProductOverrides: lu.cycleProductOverrides ?? [],
         lastOrderCompletedAt: lu.lastOrderCompletedAt ?? null,
         deviceId: lu.deviceId ?? null,
@@ -735,7 +735,7 @@ app.post('/api/users/adjust-balance', async (req, res) => {
     }
 
     const userToUpdate = matchedUsers[0];
-    const newBalance = userToUpdate.walletBalance + amount;
+    const newBalance = Number(userToUpdate.walletBalance) + Number(amount);
     
     // Update user balance
     await db.update(users)

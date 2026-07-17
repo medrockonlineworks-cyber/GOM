@@ -1162,30 +1162,89 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           }
         });
 
-        // 2. Map through list and resolve conflicts, choosing the one with higher balance or more completed orders
+        // 2. Map through list and resolve conflicts with a clean, field-by-field merge strategy
         const finalMergedList = mergedList.map(remoteUser => {
           const localUser = localUsers.find(lu => lu.id === remoteUser.id);
           if (!localUser) return remoteUser;
 
-          const localBal = localUser.walletBalance || 0;
-          const remoteBal = remoteUser.walletBalance || 0;
-          const localOrders = localUser.completedOrderIds ? localUser.completedOrderIds.length : 0;
-          const remoteOrders = remoteUser.completedOrderIds ? remoteUser.completedOrderIds.length : 0;
+          // Merge completedOrderIds to include any completed in either local or remote
+          const remoteOrders = remoteUser.completedOrderIds || [];
+          const localOrders = localUser.completedOrderIds || [];
+          const completedOrderIds = Array.from(new Set([...remoteOrders, ...localOrders]));
 
-          // Prefer local if it has more wallet balance, more completed orders, or higher progress
-          const localIsNewerOrMoreProgress = 
-            (localBal > remoteBal) || 
-            (localOrders > remoteOrders) ||
-            (localBal === remoteBal && localOrders === remoteOrders && localUser.currentOrderIndex > remoteUser.currentOrderIndex);
-
-          if (localIsNewerOrMoreProgress) {
-            console.log(`[Sync] Local user ${remoteUser.phoneNumber} has higher progress (${localBal} ETB, ${localOrders} orders) than remote (${remoteBal} ETB, ${remoteOrders} orders). Syncing back to Firestore.`);
-            setDoc(doc(db, 'users', localUser.id), cleanFirestoreData(localUser)).catch((err) => {
-              console.warn(`[Sync] Background Firestore progress sync failed for user ${localUser.id}:`, err.message || err);
+          // Find if there are any orders completed locally that aren't on the server/Firestore yet
+          const remoteOrdersSet = new Set(remoteOrders);
+          let extraLocalRewards = 0;
+          if (localUser.completedOrderIds && orders && orders.length > 0) {
+            localUser.completedOrderIds.forEach((id: number) => {
+              if (!remoteOrdersSet.has(id)) {
+                const orderObj = orders.find(o => o.id === id);
+                if (orderObj) {
+                  extraLocalRewards += Number(orderObj.reward || 0);
+                }
+              }
             });
-            return localUser;
           }
-          return remoteUser;
+
+          // Calculate merged balance starting from remote (server-authoritative) balance
+          const remoteBal = Number(remoteUser.walletBalance || 0);
+          const localBal = Number(localUser.walletBalance || 0);
+          let walletBalance = remoteBal + extraLocalRewards;
+
+          // If local balance is lower because of a withdrawal that is pending, we respect that local balance reduction
+          if (localBal < remoteBal) {
+            const savedTxs = localStorage.getItem('gom_transactions');
+            let tempLocalTxs: Transaction[] = [];
+            if (savedTxs) {
+              try {
+                tempLocalTxs = JSON.parse(savedTxs);
+              } catch (e) {}
+            }
+            const hasLocalPendingWithdrawal = tempLocalTxs.some(
+              lt => lt.userId === remoteUser.id && lt.type === 'withdraw' && lt.status === 'pending'
+            );
+            if (hasLocalPendingWithdrawal) {
+              walletBalance = Math.min(walletBalance, localBal);
+            }
+          }
+
+          const totalEarnings = Number(remoteUser.totalEarnings || 0) + extraLocalRewards;
+          const currentOrderIndex = Math.max(remoteUser.currentOrderIndex || 0, localUser.currentOrderIndex || 0);
+          const referralCount = Math.max(remoteUser.referralCount || 0, localUser.referralCount || 0);
+          const referralEarnings = Math.max(Number(remoteUser.referralEarnings || 0), Number(localUser.referralEarnings || 0));
+
+          let lastOrderCompletedAt = remoteUser.lastOrderCompletedAt;
+          if (localUser.lastOrderCompletedAt) {
+            if (!lastOrderCompletedAt || new Date(localUser.lastOrderCompletedAt) > new Date(lastOrderCompletedAt)) {
+              lastOrderCompletedAt = localUser.lastOrderCompletedAt;
+            }
+          }
+
+          const merged: User = {
+            ...remoteUser,
+            ...localUser,
+            walletBalance,
+            totalEarnings,
+            completedOrderIds,
+            currentOrderIndex,
+            referralCount,
+            referralEarnings,
+            lastOrderCompletedAt,
+          };
+
+          // Background sync back to Firestore if the merged state differs from remote state to keep Firestore up to date
+          if (
+            remoteBal !== walletBalance ||
+            remoteOrders.length !== completedOrderIds.length ||
+            remoteUser.currentOrderIndex !== currentOrderIndex
+          ) {
+            console.log(`[Sync] Merged state for ${merged.phoneNumber} differs from Firestore. Background syncing merged state.`);
+            setDoc(doc(db, 'users', merged.id), cleanFirestoreData(merged)).catch((err) => {
+              console.warn(`[Sync] Background Firestore sync failed for merged user ${merged.id}:`, err.message || err);
+            });
+          }
+
+          return merged;
         });
 
         const deduplicated = deduplicateUsers(finalMergedList);
@@ -2650,7 +2709,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (userToUpdate) {
           const updatedUser = {
             ...userToUpdate,
-            walletBalance: userToUpdate.walletBalance + tx.amount
+            walletBalance: Number(userToUpdate.walletBalance) + Number(tx.amount)
           };
           const updatedUsers = users.map(u => u.id === tx.userId ? updatedUser : u);
           setUsers(updatedUsers);
@@ -2728,7 +2787,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (userToUpdate) {
           const updatedUser = {
             ...userToUpdate,
-            walletBalance: userToUpdate.walletBalance + tx.amount
+            walletBalance: Number(userToUpdate.walletBalance) + Number(tx.amount)
           };
           const updatedUsers = users.map(u => u.id === tx.userId ? updatedUser : u);
           setUsers(updatedUsers);
@@ -3643,7 +3702,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (userToUpdate) {
         const updatedUser = {
           ...userToUpdate,
-          walletBalance: userToUpdate.walletBalance + tx.amount
+          walletBalance: Number(userToUpdate.walletBalance) + Number(tx.amount)
         };
         const updatedUsers = users.map(u => u.id === tx.userId ? updatedUser : u);
         setUsers(updatedUsers);
@@ -3730,7 +3789,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (userToUpdate) {
         const updatedUser = {
           ...userToUpdate,
-          walletBalance: userToUpdate.walletBalance + tx.amount
+          walletBalance: Number(userToUpdate.walletBalance) + Number(tx.amount)
         };
         const updatedUsers = users.map(u => u.id === tx.userId ? updatedUser : u);
         setUsers(updatedUsers);
