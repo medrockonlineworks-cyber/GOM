@@ -867,14 +867,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Dynamic calculated orders for the active user
   const [orders, setOrders] = useState<Order[]>([]);
 
-  // Poll and sync all data from localStorage to ensure state is kept perfectly in sync
+  // Poll and sync all data from server with local storage fallback to ensure multi-device state is kept perfectly in sync
   const fetchAllData = async () => {
+    // 1. Fetch Users
+    let uList: User[] = [];
     try {
-      const savedUsers = localStorage.getItem('gom_users');
-      if (savedUsers) {
-        const uList = JSON.parse(savedUsers);
+      const res = await fetch('/api/users');
+      if (res.ok) {
+        uList = await res.json();
         if (Array.isArray(uList)) {
           setUsers(uList);
+          localStorage.setItem('gom_users', JSON.stringify(uList));
+          
           setRawCurrentUser(prev => {
             if (!prev) return null;
             const match = uList.find((u: any) => u.id === prev.id);
@@ -887,78 +891,239 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             return prev;
           });
         }
+      } else {
+        throw new Error('Response not ok');
       }
-      
-      const savedTxs = localStorage.getItem('gom_transactions');
-      if (savedTxs) {
-        const tList = JSON.parse(savedTxs);
+    } catch (err: any) {
+      console.warn('[fetchAllData] Error fetching users from server, falling back to local storage:', err.message || err);
+      const savedUsers = localStorage.getItem('gom_users');
+      if (savedUsers) {
+        try {
+          uList = JSON.parse(savedUsers);
+          if (Array.isArray(uList)) {
+            setUsers(uList);
+            setRawCurrentUser(prev => {
+              if (!prev) return null;
+              const match = uList.find((u: any) => u.id === prev.id);
+              if (!match) return prev;
+              if (JSON.stringify(match) !== JSON.stringify(prev)) {
+                const updated = { ...prev, ...match };
+                localStorage.setItem('gom_current_user', JSON.stringify(updated));
+                return updated;
+              }
+              return prev;
+            });
+          }
+        } catch (e) {}
+      }
+    }
+
+    // 2. Fetch Transactions
+    try {
+      const res = await fetch('/api/transactions');
+      if (res.ok) {
+        const tList = await res.json();
         if (Array.isArray(tList)) {
           setTransactions(tList);
+          localStorage.setItem('gom_transactions', JSON.stringify(tList));
         }
+      } else {
+        throw new Error('Response not ok');
       }
-      
-      const savedAnns = localStorage.getItem('gom_announcements');
-      if (savedAnns) {
-        const aList = JSON.parse(savedAnns);
+    } catch (err: any) {
+      console.warn('[fetchAllData] Error fetching transactions from server, falling back to local storage:', err.message || err);
+      const savedTxs = localStorage.getItem('gom_transactions');
+      if (savedTxs) {
+        try {
+          const tList = JSON.parse(savedTxs);
+          if (Array.isArray(tList)) {
+            setTransactions(tList);
+          }
+        } catch (e) {}
+      }
+    }
+
+    // 3. Fetch Announcements
+    try {
+      const res = await fetch('/api/announcements');
+      if (res.ok) {
+        const aList = await res.json();
         if (Array.isArray(aList)) {
           setAnnouncements(aList);
+          localStorage.setItem('gom_announcements', JSON.stringify(aList));
         }
+      } else {
+        throw new Error('Response not ok');
       }
-      
-      const savedSupport = localStorage.getItem('gom_support');
-      if (savedSupport) {
-        const sList = JSON.parse(savedSupport);
+    } catch (err: any) {
+      console.warn('[fetchAllData] Error fetching announcements from server, falling back to local storage:', err.message || err);
+      const savedAnns = localStorage.getItem('gom_announcements');
+      if (savedAnns) {
+        try {
+          const aList = JSON.parse(savedAnns);
+          if (Array.isArray(aList)) {
+            setAnnouncements(aList);
+          }
+        } catch (e) {}
+      }
+    }
+
+    // 4. Fetch Support Messages
+    try {
+      const res = await fetch('/api/support');
+      if (res.ok) {
+        const sList = await res.json();
         if (Array.isArray(sList)) {
           setSupportMessages(sList);
+          localStorage.setItem('gom_support', JSON.stringify(sList));
         }
+      } else {
+        throw new Error('Response not ok');
       }
-      
-      const savedLogs = localStorage.getItem('gom_audit_logs');
-      if (savedLogs) {
-        const lList = JSON.parse(savedLogs);
+    } catch (err: any) {
+      console.warn('[fetchAllData] Error fetching support from server, falling back to local storage:', err.message || err);
+      const savedSupport = localStorage.getItem('gom_support');
+      if (savedSupport) {
+        try {
+          const sList = JSON.parse(savedSupport);
+          if (Array.isArray(sList)) {
+            setSupportMessages(sList);
+          }
+        } catch (e) {}
+      }
+    }
+
+    // 5. Fetch Audit Logs
+    try {
+      const res = await fetch('/api/audit-logs');
+      if (res.ok) {
+        const lList = await res.json();
         if (Array.isArray(lList)) {
           setAuditLogs(lList);
+          localStorage.setItem('gom_audit_logs', JSON.stringify(lList));
         }
+      } else {
+        throw new Error('Response not ok');
       }
-      
-      const savedAccs = localStorage.getItem('gom_recharge_accounts');
-      if (savedAccs) {
-        const accList = JSON.parse(savedAccs);
+    } catch (err: any) {
+      console.warn('[fetchAllData] Error fetching audit logs from server, falling back to local storage:', err.message || err);
+      const savedLogs = localStorage.getItem('gom_audit_logs');
+      if (savedLogs) {
+        try {
+          const lList = JSON.parse(savedLogs);
+          if (Array.isArray(lList)) {
+            setAuditLogs(lList);
+          }
+        } catch (e) {}
+      }
+    }
+
+    // 6. Fetch Recharge Accounts
+    try {
+      const res = await fetch('/api/recharge-accounts');
+      if (res.ok) {
+        const accList = await res.json();
         if (Array.isArray(accList)) {
           setRechargeAccounts(accList);
+          localStorage.setItem('gom_recharge_accounts', JSON.stringify(accList));
         }
+      } else {
+        throw new Error('Response not ok');
       }
+    } catch (err: any) {
+      console.warn('[fetchAllData] Error fetching recharge accounts, falling back to local storage:', err.message || err);
+      const savedAccs = localStorage.getItem('gom_recharge_accounts');
+      if (savedAccs) {
+        try {
+          const accList = JSON.parse(savedAccs);
+          if (Array.isArray(accList)) {
+            setRechargeAccounts(accList);
+          }
+        } catch (e) {}
+      }
+    }
 
+    // 7. Fetch System Config
+    try {
+      const res = await fetch('/api/system-config');
+      if (res.ok) {
+        const dbConfig = await res.json();
+        if (dbConfig) {
+          if (dbConfig.scalingMultiplier !== undefined) {
+            setScalingMultiplier(Number(dbConfig.scalingMultiplier));
+            localStorage.setItem('gom_scaling_multiplier', String(dbConfig.scalingMultiplier));
+          }
+          if (dbConfig.productCosts) {
+            setProductCosts(dbConfig.productCosts);
+            localStorage.setItem('gom_product_costs', JSON.stringify(dbConfig.productCosts));
+          }
+          if (dbConfig.bankLogos) {
+            setBankLogos(dbConfig.bankLogos);
+            localStorage.setItem('gom_bank_logos', JSON.stringify(dbConfig.bankLogos));
+          }
+          if (dbConfig.marketplaceLogos) {
+            setMarketplaceLogos(dbConfig.marketplaceLogos);
+            localStorage.setItem('gom_marketplace_logos', JSON.stringify(dbConfig.marketplaceLogos));
+          }
+        }
+      } else {
+        throw new Error('Response not ok');
+      }
+    } catch (err: any) {
+      console.warn('[fetchAllData] Error fetching system-config, falling back to local storage:', err.message || err);
       const savedScalingMultiplier = localStorage.getItem('gom_scaling_multiplier');
       if (savedScalingMultiplier) {
         setScalingMultiplier(Number(savedScalingMultiplier));
       }
-
       const savedProductCosts = localStorage.getItem('gom_product_costs');
       if (savedProductCosts) {
-        const parsed = JSON.parse(savedProductCosts);
-        if (Array.isArray(parsed)) {
-          setProductCosts(parsed);
-        }
+        try {
+          const parsed = JSON.parse(savedProductCosts);
+          if (Array.isArray(parsed)) {
+            setProductCosts(parsed);
+          }
+        } catch (e) {}
       }
+    }
 
-      const savedUsedCodes = localStorage.getItem('gom_used_verification_codes');
-      if (savedUsedCodes) {
-        const parsed = JSON.parse(savedUsedCodes);
-        if (Array.isArray(parsed)) {
-          setUsedCodes(parsed);
+    // 8. Fetch Recharge Codes
+    try {
+      const res = await fetch('/api/recharge-codes');
+      if (res.ok) {
+        const dbRechargeCodes = await res.json();
+        if (dbRechargeCodes) {
+          if (dbRechargeCodes.usedCodes) {
+            setUsedCodes(dbRechargeCodes.usedCodes);
+            localStorage.setItem('gom_used_verification_codes', JSON.stringify(dbRechargeCodes.usedCodes));
+          }
+          if (dbRechargeCodes.generatedCodes) {
+            setAdminGeneratedCodes(dbRechargeCodes.generatedCodes);
+            localStorage.setItem('gom_generated_codes', JSON.stringify(dbRechargeCodes.generatedCodes));
+          }
         }
-      }
-
-      const savedGeneratedCodes = localStorage.getItem('gom_generated_codes');
-      if (savedGeneratedCodes) {
-        const parsed = JSON.parse(savedGeneratedCodes);
-        if (Array.isArray(parsed)) {
-          setAdminGeneratedCodes(parsed);
-        }
+      } else {
+        throw new Error('Response not ok');
       }
     } catch (err: any) {
-      console.warn('[fetchAllData] Error synchronizing local state:', err.message || err);
+      console.warn('[fetchAllData] Error fetching recharge-codes, falling back to local storage:', err.message || err);
+      const savedUsedCodes = localStorage.getItem('gom_used_verification_codes');
+      if (savedUsedCodes) {
+        try {
+          const parsed = JSON.parse(savedUsedCodes);
+          if (Array.isArray(parsed)) {
+            setUsedCodes(parsed);
+          }
+        } catch (e) {}
+      }
+      const savedGeneratedCodes = localStorage.getItem('gom_generated_codes');
+      if (savedGeneratedCodes) {
+        try {
+          const parsed = JSON.parse(savedGeneratedCodes);
+          if (Array.isArray(parsed)) {
+            setAdminGeneratedCodes(parsed);
+          }
+        } catch (e) {}
+      }
     }
   };
 
