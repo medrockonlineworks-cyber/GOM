@@ -1191,6 +1191,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           const localBal = Number(localUser.walletBalance || 0);
           let walletBalance = remoteBal + extraLocalRewards;
 
+          // If local balance is higher because of a local/offline recharge approval, we also preserve it
+          if (localBal > remoteBal + extraLocalRewards) {
+            walletBalance = localBal;
+          }
+
           // If local balance is lower because of a withdrawal that is pending, we respect that local balance reduction
           if (localBal < remoteBal) {
             const savedTxs = localStorage.getItem('gom_transactions');
@@ -3698,6 +3703,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setTransactions(updatedTxs);
       localStorage.setItem('gom_transactions', JSON.stringify(updatedTxs));
 
+      // Sync transaction to Firestore immediately
+      const currentTxObj = updatedTxs.find(t => t.id === txId);
+      if (currentTxObj) {
+        setDoc(doc(db, 'transactions', txId), cleanFirestoreData(currentTxObj)).catch((err) => {
+          console.error("[Firestore Sync] Failed to sync transaction to Firestore:", err);
+        });
+      }
+
       const userToUpdate = users.find(u => u.id === tx.userId);
       if (userToUpdate) {
         const updatedUser = {
@@ -3712,6 +3725,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           setRawCurrentUser(updatedUser);
           localStorage.setItem('gom_current_user', JSON.stringify(updatedUser));
         }
+
+        // Sync user to Firestore immediately
+        setDoc(doc(db, 'users', userToUpdate.id), cleanFirestoreData(updatedUser)).catch((err) => {
+          console.error("[Firestore Sync] Failed to sync user to Firestore:", err);
+        });
       }
 
       // Update in PostgreSQL database synchronously by hitting the status update endpoint
@@ -3784,6 +3802,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setTransactions(updatedTxs);
       localStorage.setItem('gom_transactions', JSON.stringify(updatedTxs));
 
+      // Sync transaction to Firestore in fallback
+      const currentTxObj = updatedTxs.find(t => t.id === txId);
+      if (currentTxObj) {
+        setDoc(doc(db, 'transactions', txId), cleanFirestoreData(currentTxObj)).catch((err) => {
+          console.error("[Firestore Sync Fallback] Failed to sync transaction to Firestore:", err);
+        });
+      }
+
       // Update user wallet balance
       const userToUpdate = users.find(u => u.id === tx.userId);
       if (userToUpdate) {
@@ -3799,6 +3825,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           setRawCurrentUser(updatedUser);
           localStorage.setItem('gom_current_user', JSON.stringify(updatedUser));
         }
+
+        // Sync user to Firestore in fallback
+        setDoc(doc(db, 'users', userToUpdate.id), cleanFirestoreData(updatedUser)).catch((err) => {
+          console.error("[Firestore Sync Fallback] Failed to sync user to Firestore:", err);
+        });
       }
 
       await logAudit(tx.userId, tx.userPhone, 'OFFLINE_RECHARGE_VERIFY', `Successfully verified offline code ${code} for deposit of ${tx.amount} ETB. Ref: ${tx.accountNumberOrRef} (Offline Fallback)`);
