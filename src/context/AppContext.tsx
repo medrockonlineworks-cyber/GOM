@@ -48,21 +48,6 @@ const DEFAULT_MARKETPLACE_LOGOS: { [key: string]: string } = {
   airbnb: 'https://www.vectorlogo.zone/logos/airbnb/airbnb-ar21.svg'
 };
 
-import { db } from '../lib/firebase';
-import { 
-  doc, 
-  collection, 
-  query, 
-  where, 
-  getDocs, 
-  getDoc,
-  setDoc, 
-  deleteDoc, 
-  updateDoc, 
-  writeBatch, 
-  onSnapshot 
-} from 'firebase/firestore';
-
 export const isSamePhone = (phoneA: string, phoneB: string): boolean => {
   const cleanA = (phoneA || '').replace(/\D/g, '');
   const cleanB = (phoneB || '').replace(/\D/g, '');
@@ -217,15 +202,7 @@ export const deduplicateUsers = (list: User[]): User[] => {
 
       console.log(`[Sync-Deduplicate] Merged duplicate user accounts for ${mergedUser.phoneNumber}. Primary ID: ${mergedUser.id}, Secondary ID: ${secondaryUser.id}`);
 
-      // Sync merged user back to Firestore
-      setDoc(doc(db, 'users', mergedUser.id), cleanFirestoreData(mergedUser)).catch(e => {
-        console.warn(`[Sync-Deduplicate] Could not write merged user ${mergedUser.id}:`, e.message || e);
-      });
-
-      // Remove the duplicate obsolete document from Firestore
-      deleteDoc(doc(db, 'users', secondaryUser.id)).catch(e => {
-        console.warn(`[Sync-Deduplicate] Could not delete secondary user ${secondaryUser.id}:`, e.message || e);
-      });
+      // Local-only sync. Backend API will handle deduplication on user fetch or sync.
     }
   }
   
@@ -890,208 +867,103 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Dynamic calculated orders for the active user
   const [orders, setOrders] = useState<Order[]>([]);
 
-  // Poll and sync all data from PostgreSQL via server-side APIs
+  // Poll and sync all data from localStorage to ensure state is kept perfectly in sync
   const fetchAllData = async () => {
-    const safeFetch = async (url: string) => {
-      try {
-        const res = await fetch(url);
-        if (!res.ok) {
-          console.warn(`[fetchAllData] Non-ok response from ${url}: ${res.status}`);
-          return null;
-        }
-        return await res.json();
-      } catch (err: any) {
-        console.warn(`[fetchAllData] SafeFetch failed for ${url}:`, err.message || err);
-        return null;
-      }
-    };
-
     try {
-      const uList = await safeFetch('/api/users');
-      if (uList) {
-        setUsers(uList);
-        localStorage.setItem('gom_users', JSON.stringify(uList));
-        
-        // Sync rawCurrentUser with the updated data from database
-        setRawCurrentUser(prev => {
-          if (!prev) return null;
-          const match = uList.find((u: any) => u.id === prev.id);
-          if (!match) return prev;
-          if (JSON.stringify(match) !== JSON.stringify(prev)) {
-            const updated = { ...prev, ...match };
-            localStorage.setItem('gom_current_user', JSON.stringify(updated));
-            return updated;
-          }
-          return prev;
-        });
-      }
-      
-      const tList = await safeFetch('/api/transactions');
-      if (tList) {
-        setTransactions(tList);
-        localStorage.setItem('gom_transactions', JSON.stringify(tList));
-      }
-      
-      const aList = await safeFetch('/api/announcements');
-      if (aList) {
-        setAnnouncements(aList);
-        localStorage.setItem('gom_announcements', JSON.stringify(aList));
-      }
-      
-      const sList = await safeFetch('/api/support');
-      if (sList) {
-        setSupportMessages(sList);
-        localStorage.setItem('gom_support', JSON.stringify(sList));
-      }
-      
-      const lList = await safeFetch('/api/audit-logs');
-      if (lList) {
-        setAuditLogs(lList);
-        localStorage.setItem('gom_audit_logs', JSON.stringify(lList));
-      }
-      
-      const accList = await safeFetch('/api/recharge-accounts');
-      if (accList) {
-        setRechargeAccounts(accList);
-        localStorage.setItem('gom_recharge_accounts', JSON.stringify(accList));
-      }
-      
-      const data = await safeFetch('/api/system-config');
-      if (data) {
-        if (typeof data.scalingMultiplier === 'number') {
-          setScalingMultiplier(data.scalingMultiplier);
-          localStorage.setItem('gom_scaling_multiplier', data.scalingMultiplier.toString());
-        }
-        if (Array.isArray(data.productCosts)) {
-          setProductCosts(data.productCosts);
-          localStorage.setItem('gom_product_costs', JSON.stringify(data.productCosts));
-        }
-        if (data.bankLogos) {
-          setBankLogos(data.bankLogos);
-        }
-        if (data.marketplaceLogos) {
-          setMarketplaceLogos(data.marketplaceLogos);
+      const savedUsers = localStorage.getItem('gom_users');
+      if (savedUsers) {
+        const uList = JSON.parse(savedUsers);
+        if (Array.isArray(uList)) {
+          setUsers(uList);
+          setRawCurrentUser(prev => {
+            if (!prev) return null;
+            const match = uList.find((u: any) => u.id === prev.id);
+            if (!match) return prev;
+            if (JSON.stringify(match) !== JSON.stringify(prev)) {
+              const updated = { ...prev, ...match };
+              localStorage.setItem('gom_current_user', JSON.stringify(updated));
+              return updated;
+            }
+            return prev;
+          });
         }
       }
       
-      const codesData = await safeFetch('/api/recharge-codes');
-      if (codesData) {
-        const { usedCodes: uCodes, generatedCodes: gCodes } = codesData;
-        if (Array.isArray(uCodes)) {
-          setUsedCodes(uCodes);
-          localStorage.setItem('gom_used_verification_codes', JSON.stringify(uCodes));
+      const savedTxs = localStorage.getItem('gom_transactions');
+      if (savedTxs) {
+        const tList = JSON.parse(savedTxs);
+        if (Array.isArray(tList)) {
+          setTransactions(tList);
         }
-        if (Array.isArray(gCodes)) {
-          setAdminGeneratedCodes(gCodes);
-          localStorage.setItem('gom_generated_codes', JSON.stringify(gCodes));
+      }
+      
+      const savedAnns = localStorage.getItem('gom_announcements');
+      if (savedAnns) {
+        const aList = JSON.parse(savedAnns);
+        if (Array.isArray(aList)) {
+          setAnnouncements(aList);
+        }
+      }
+      
+      const savedSupport = localStorage.getItem('gom_support');
+      if (savedSupport) {
+        const sList = JSON.parse(savedSupport);
+        if (Array.isArray(sList)) {
+          setSupportMessages(sList);
+        }
+      }
+      
+      const savedLogs = localStorage.getItem('gom_audit_logs');
+      if (savedLogs) {
+        const lList = JSON.parse(savedLogs);
+        if (Array.isArray(lList)) {
+          setAuditLogs(lList);
+        }
+      }
+      
+      const savedAccs = localStorage.getItem('gom_recharge_accounts');
+      if (savedAccs) {
+        const accList = JSON.parse(savedAccs);
+        if (Array.isArray(accList)) {
+          setRechargeAccounts(accList);
+        }
+      }
+
+      const savedScalingMultiplier = localStorage.getItem('gom_scaling_multiplier');
+      if (savedScalingMultiplier) {
+        setScalingMultiplier(Number(savedScalingMultiplier));
+      }
+
+      const savedProductCosts = localStorage.getItem('gom_product_costs');
+      if (savedProductCosts) {
+        const parsed = JSON.parse(savedProductCosts);
+        if (Array.isArray(parsed)) {
+          setProductCosts(parsed);
+        }
+      }
+
+      const savedUsedCodes = localStorage.getItem('gom_used_verification_codes');
+      if (savedUsedCodes) {
+        const parsed = JSON.parse(savedUsedCodes);
+        if (Array.isArray(parsed)) {
+          setUsedCodes(parsed);
+        }
+      }
+
+      const savedGeneratedCodes = localStorage.getItem('gom_generated_codes');
+      if (savedGeneratedCodes) {
+        const parsed = JSON.parse(savedGeneratedCodes);
+        if (Array.isArray(parsed)) {
+          setAdminGeneratedCodes(parsed);
         }
       }
     } catch (err: any) {
-      console.warn('[fetchAllData] Error polling database:', err.message || err);
+      console.warn('[fetchAllData] Error synchronizing local state:', err.message || err);
     }
   };
 
-  const seedInitialData = async () => {
-    return;
-  };
-
-  const unused_seedInitialData = async () => {
-    try {
-      const batch = { set: (...args: any[]) => {}, commit: () => {} };
-      
-      // 1. Seed users
-      INITIAL_USERS.forEach((u) => {
-        const updated = { ...u };
-        if (!updated.inviteCode) {
-          const phoneDigits = updated.phoneNumber.replace(/[^0-9]/g, '');
-          const suffix = phoneDigits.slice(-5) || updated.id.slice(-5);
-          updated.inviteCode = `GOM${suffix}`;
-        }
-        if (updated.referralCount === undefined) updated.referralCount = 0;
-        if (updated.referralEarnings === undefined) updated.referralEarnings = 0;
-        if (!updated.completedOrderIds) updated.completedOrderIds = [];
-        if (!updated.cycleProductOverrides || updated.cycleProductOverrides.length === 0) {
-          const overrides: { id: number; productName: string; productImage: string }[] = [];
-          for (let id = 1; id <= 15; id++) {
-            const pool = ALTERNATIVE_PRODUCTS_POOLS[id];
-            if (pool && pool.length > 0) {
-              const randomIndex = Math.floor(Math.random() * pool.length);
-              const selected = pool[randomIndex];
-              overrides.push({
-                id,
-                productName: selected.productName,
-                productImage: selected.productImage
-              });
-            }
-          }
-          updated.cycleProductOverrides = overrides;
-        }
-        const userRef = doc(db, 'users', updated.id);
-        batch.set(userRef, updated);
-      });
-      
-      // 2. Seed announcements
-      INITIAL_ANNOUNCEMENTS.forEach((a) => {
-        const ref = doc(db, 'announcements', a.id);
-        batch.set(ref, a);
-      });
-      
-      // 3. Seed bank accounts
-      const initialAccounts = [
-        { id: 'acc-1', bank: 'Commercial Bank of Ethiopia (CBE)', accName: 'Ethiopia agent-Leykun jemaneh', accNo: '1000419524747' },
-        { id: 'acc-2', bank: 'Telebirr', accName: 'Ethiopia agent-Leykun jemaneh', accNo: '0926193920' }
-      ];
-      initialAccounts.forEach((acc) => {
-        const ref = doc(db, 'rechargeAccounts', acc.id);
-        batch.set(ref, acc);
-      });
-      
-      // 4. Seed system config
-      const configRef = doc(db, 'systemConfig', 'global');
-      batch.set(configRef, {
-        scalingMultiplier: 1.5,
-        productCosts: productCosts,
-        bankLogos: {
-          cbe: 'https://upload.wikimedia.org/wikipedia/commons/2/23/Commercial_Bank_of_Ethiopia_Logo.svg',
-          dashen: 'https://upload.wikimedia.org/wikipedia/commons/2/22/Dashen_Bank_logo.png',
-          abyssinia: 'https://upload.wikimedia.org/wikipedia/commons/e/ea/Bank_of_Abyssinia_logo.png',
-          awash: 'https://upload.wikimedia.org/wikipedia/commons/2/2a/Awash_Bank_Logo.png',
-          telebirr: 'https://upload.wikimedia.org/wikipedia/commons/e/ea/Telebirr_logo.png',
-          hibret: 'https://www.hibretbank.com.et/wp-content/uploads/2020/09/cropped-H-32x32.png',
-          wegagen: 'https://upload.wikimedia.org/wikipedia/commons/3/30/Wegagen_Bank_logo.png',
-          oromia: 'https://upload.wikimedia.org/wikipedia/commons/2/20/Cooperative_Bank_of_Oromia_logo.png'
-        },
-        marketplaceLogos: {
-          amazon: 'https://www.vectorlogo.zone/logos/amazon/amazon-ar21.svg',
-          walmart: 'https://www.vectorlogo.zone/logos/walmart/walmart-ar21.svg',
-          alibaba: 'https://www.vectorlogo.zone/logos/alibaba/alibaba-ar21.svg',
-          shopify: 'https://www.vectorlogo.zone/logos/shopify/shopify-ar21.svg',
-          airbnb: 'https://www.vectorlogo.zone/logos/airbnb/airbnb-ar21.svg'
-        }
-      });
-      
-      // 5. Seed audit logs
-      const initLog = {
-        id: 'log-init',
-        userId: 'SYSTEM',
-        userPhone: 'SYSTEM',
-        action: 'INITIALIZE',
-        details: 'GOM system initialized successfully on cloud database.',
-        createdAt: new Date().toISOString()
-      };
-      const logRef = doc(db, 'auditLogs', initLog.id);
-      batch.set(logRef, initLog);
-      
-      await batch.commit();
-      console.log("Firebase database seeded successfully!");
-    } catch (e) {
-      console.error("Error seeding Firebase:", e);
-    }
-  };
-
-  // Real-time synchronization listeners
+  // Real-time synchronization listeners using standard local polling
   useEffect(() => {
-    // Short-circuit Firestore entirely and poll our new Cloud SQL backend
     fetchAllData();
     // Bulk sync offline-created users on boot
     const syncOfflineUsers = async () => {
@@ -1114,363 +986,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const interval = setInterval(fetchAllData, 8000);
 
-    // Active Firestore onSnapshot real-time listeners
-    const unsubUsers = onSnapshot(collection(db, 'users'), (snapshot: any) => {
-      const list: User[] = [];
-      snapshot.forEach((docSnap) => {
-        const u = docSnap.data() as User;
-        
-        // Auto-correct any persisted admin fields to strictly align with 0951560276 as the only admin
-        if (u.id === 'GOM-ADMIN' && isSamePhone(u.phoneNumber, '0926193920')) {
-          u.phoneNumber = '0951560276';
-          u.role = 'admin';
-          updateDoc(doc(db, 'users', u.id), { phoneNumber: '0951560276', role: 'admin' }).catch(() => {});
-        } else if (isSamePhone(u.phoneNumber, '0926193920') && u.role === 'admin') {
-          u.role = 'user';
-          updateDoc(doc(db, 'users', u.id), { role: 'user' }).catch(() => {});
-        } else if (isSamePhone(u.phoneNumber, '0951560276') && u.role !== 'admin') {
-          u.role = 'admin';
-          updateDoc(doc(db, 'users', u.id), { role: 'admin' }).catch(() => {});
-        }
-
-        // Auto-heal missing inviteCode for existing / direct database users
-        if (!u.inviteCode) {
-          const phoneDigits = (u.phoneNumber || '').replace(/[^0-9]/g, '');
-          const suffix = phoneDigits.slice(-5) || u.id.slice(-5);
-          u.inviteCode = `GOM${suffix}`;
-          updateDoc(doc(db, 'users', u.id), { inviteCode: u.inviteCode }).catch(() => {});
-        }
-
-        list.push(u);
-      });
-      
-      if (list.length > 0) {
-        // Load recent local storage users to avoid overwriting pending local/offline progress
-        const savedLocal = localStorage.getItem('gom_users');
-        let localUsers: User[] = [];
-        if (savedLocal) {
-          try {
-            localUsers = JSON.parse(savedLocal);
-          } catch (e) {}
-        }
-
-        // Create initial copy of remote list
-        const mergedList = [...list];
-
-        // 1. Add any local users that don't exist in Firestore at all (e.g. registered offline)
-        localUsers.forEach(lu => {
-          const existsInFirestore = list.some(ru => ru.id === lu.id);
-          if (!existsInFirestore) {
-            console.log(`[Sync] Local user ${lu.phoneNumber} (ID: ${lu.id}) is missing in Firestore. Adding to merged list and background syncing to Firestore.`);
-            mergedList.push(lu);
-            setDoc(doc(db, 'users', lu.id), cleanFirestoreData(lu)).catch((err) => {
-              console.warn(`[Sync] Background Firestore registration sync failed for user ${lu.id}:`, err.message || err);
-            });
-          }
-        });
-
-        // 2. Map through list and resolve conflicts with a clean, field-by-field merge strategy
-        const finalMergedList = mergedList.map(remoteUser => {
-          const localUser = localUsers.find(lu => lu.id === remoteUser.id);
-          if (!localUser) return remoteUser;
-
-          // Merge completedOrderIds to include any completed in either local or remote
-          const remoteOrders = remoteUser.completedOrderIds || [];
-          const localOrders = localUser.completedOrderIds || [];
-          const completedOrderIds = Array.from(new Set([...remoteOrders, ...localOrders]));
-
-          // Find if there are any orders completed locally that aren't on the server/Firestore yet
-          const remoteOrdersSet = new Set(remoteOrders);
-          let extraLocalRewards = 0;
-          if (localUser.completedOrderIds && orders && orders.length > 0) {
-            localUser.completedOrderIds.forEach((id: number) => {
-              if (!remoteOrdersSet.has(id)) {
-                const orderObj = orders.find(o => o.id === id);
-                if (orderObj) {
-                  extraLocalRewards += Number(orderObj.reward || 0);
-                }
-              }
-            });
-          }
-
-          // Calculate merged balance starting from remote (server-authoritative) balance
-          const remoteBal = Number(remoteUser.walletBalance || 0);
-          const localBal = Number(localUser.walletBalance || 0);
-          let walletBalance = remoteBal + extraLocalRewards;
-
-          // If local balance is higher because of a local/offline recharge approval, we also preserve it
-          if (localBal > remoteBal + extraLocalRewards) {
-            walletBalance = localBal;
-          }
-
-          // If local balance is lower because of a withdrawal that is pending, we respect that local balance reduction
-          if (localBal < remoteBal) {
-            const savedTxs = localStorage.getItem('gom_transactions');
-            let tempLocalTxs: Transaction[] = [];
-            if (savedTxs) {
-              try {
-                tempLocalTxs = JSON.parse(savedTxs);
-              } catch (e) {}
-            }
-            const hasLocalPendingWithdrawal = tempLocalTxs.some(
-              lt => lt.userId === remoteUser.id && lt.type === 'withdraw' && lt.status === 'pending'
-            );
-            if (hasLocalPendingWithdrawal) {
-              walletBalance = Math.min(walletBalance, localBal);
-            }
-          }
-
-          const totalEarnings = Number(remoteUser.totalEarnings || 0) + extraLocalRewards;
-          const currentOrderIndex = Math.max(remoteUser.currentOrderIndex || 0, localUser.currentOrderIndex || 0);
-          const referralCount = Math.max(remoteUser.referralCount || 0, localUser.referralCount || 0);
-          const referralEarnings = Math.max(Number(remoteUser.referralEarnings || 0), Number(localUser.referralEarnings || 0));
-
-          let lastOrderCompletedAt = remoteUser.lastOrderCompletedAt;
-          if (localUser.lastOrderCompletedAt) {
-            if (!lastOrderCompletedAt || new Date(localUser.lastOrderCompletedAt) > new Date(lastOrderCompletedAt)) {
-              lastOrderCompletedAt = localUser.lastOrderCompletedAt;
-            }
-          }
-
-          const merged: User = {
-            ...remoteUser,
-            ...localUser,
-            walletBalance,
-            totalEarnings,
-            completedOrderIds,
-            currentOrderIndex,
-            referralCount,
-            referralEarnings,
-            lastOrderCompletedAt,
-          };
-
-          // Background sync back to Firestore if the merged state differs from remote state to keep Firestore up to date
-          if (
-            remoteBal !== walletBalance ||
-            remoteOrders.length !== completedOrderIds.length ||
-            remoteUser.currentOrderIndex !== currentOrderIndex
-          ) {
-            console.log(`[Sync] Merged state for ${merged.phoneNumber} differs from Firestore. Background syncing merged state.`);
-            setDoc(doc(db, 'users', merged.id), cleanFirestoreData(merged)).catch((err) => {
-              console.warn(`[Sync] Background Firestore sync failed for merged user ${merged.id}:`, err.message || err);
-            });
-          }
-
-          return merged;
-        });
-
-        const deduplicated = deduplicateUsers(finalMergedList);
-        setUsers(deduplicated);
-        localStorage.setItem('gom_users', JSON.stringify(deduplicated));
-        
-        // Sync rawCurrentUser with the updated data from database
-        setRawCurrentUser(prev => {
-          if (!prev) return null;
-          const match = deduplicated.find(u => u.id === prev.id);
-          if (!match) return prev;
-          if (
-            match.walletBalance !== prev.walletBalance ||
-            match.role !== prev.role ||
-            JSON.stringify(match.completedOrderIds) !== JSON.stringify(prev.completedOrderIds)
-          ) {
-            const updated = { ...prev, ...match };
-            localStorage.setItem('gom_current_user', JSON.stringify(updated));
-            return updated;
-          }
-          return prev;
-        });
-      } else {
-        // If Firestore is empty, seed it
-        seedInitialData();
-      }
-    }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, 'users');
-    });
-
-    // 2. Transactions sync
-    const unsubTx = onSnapshot(collection(db, 'transactions'), (snapshot) => {
-      const list: Transaction[] = [];
-      snapshot.forEach((doc) => {
-        list.push(doc.data() as Transaction);
-      });
-
-      // Check if any of the active user's transactions just became approved in the incoming snapshot
-      const activeUser = currentUserRef.current;
-      const prevTxs = transactionsRef.current;
-      if (activeUser) {
-        list.forEach(rt => {
-          if (rt.userId === activeUser.id && rt.type === 'recharge' && rt.status === 'approved') {
-            const wasPending = prevTxs.some(t => t.id === rt.id && t.status === 'pending');
-            if (wasPending) {
-              console.log(`[Realtime Sync] Recharge transaction ${rt.id} has been approved! Force refreshing user balance.`);
-              fetchAllData();
-              getDoc(doc(db, 'users', activeUser.id)).then((uSnap) => {
-                if (uSnap.exists()) {
-                  const updatedUser = uSnap.data() as User;
-                  setRawCurrentUser(updatedUser);
-                  localStorage.setItem('gom_current_user', JSON.stringify(updatedUser));
-                  setUsers(prev => prev.map(u => u.id === updatedUser.id ? { ...u, walletBalance: updatedUser.walletBalance } : u));
-                }
-              }).catch(e => console.error("Error direct-fetching user in unsubTx:", e));
-            }
-          }
-        });
-      }
-
-      // Load local transactions to prevent overwriting local/offline transactions
-      const savedLocalTxs = localStorage.getItem('gom_transactions');
-      let localTxs: Transaction[] = [];
-      if (savedLocalTxs) {
-        try {
-          localTxs = JSON.parse(savedLocalTxs);
-        } catch (e) {}
-      }
-
-      const mergedTxs = [...list];
-      localTxs.forEach(lt => {
-        const existsInFirestore = list.some(rt => rt.id === lt.id);
-        if (!existsInFirestore) {
-          console.log(`[Sync] Local transaction ${lt.id} (${lt.type}) is missing in Firestore. Adding to list and background syncing.`);
-          mergedTxs.push(lt);
-          setDoc(doc(db, 'transactions', lt.id), cleanFirestoreData(lt)).catch((err) => {
-            console.warn(`[Sync] Background Firestore transaction sync failed for tx ${lt.id}:`, err.message || err);
-          });
-        }
-      });
-
-      mergedTxs.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-      setTransactions(mergedTxs);
-      localStorage.setItem('gom_transactions', JSON.stringify(mergedTxs));
-    }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, 'transactions');
-    });
-
-    // 3. Announcements sync
-    const unsubAnn = onSnapshot(collection(db, 'announcements'), (snapshot) => {
-      const list: Announcement[] = [];
-      snapshot.forEach((doc) => {
-        list.push(doc.data() as Announcement);
-      });
-      list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-      setAnnouncements(list);
-      localStorage.setItem('gom_announcements', JSON.stringify(list));
-    }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, 'announcements');
-    });
-
-    // 4. Support sync
-    const unsubSup = onSnapshot(collection(db, 'support'), (snapshot) => {
-      const list: SupportMessage[] = [];
-      snapshot.forEach((doc) => {
-        list.push(doc.data() as SupportMessage);
-      });
-
-      // Load local support messages to prevent overwriting local/offline support tickets
-      const savedLocalSup = localStorage.getItem('gom_support');
-      let localSup: SupportMessage[] = [];
-      if (savedLocalSup) {
-        try {
-          localSup = JSON.parse(savedLocalSup);
-        } catch (e) {}
-      }
-
-      const mergedSup = [...list];
-      localSup.forEach(ls => {
-        const existsInFirestore = list.some(rs => rs.id === ls.id);
-        if (!existsInFirestore) {
-          console.log(`[Sync] Local support ticket ${ls.id} is missing in Firestore. Adding to list and background syncing.`);
-          mergedSup.push(ls);
-          setDoc(doc(db, 'support', ls.id), cleanFirestoreData(ls)).catch((err) => {
-            console.warn(`[Sync] Background Firestore support sync failed for ticket ${ls.id}:`, err.message || err);
-          });
-        }
-      });
-
-      mergedSup.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-      setSupportMessages(mergedSup);
-      localStorage.setItem('gom_support', JSON.stringify(mergedSup));
-    }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, 'support');
-    });
-
-    // 5. AuditLogs sync
-    const unsubLogs = onSnapshot(collection(db, 'auditLogs'), (snapshot) => {
-      const list: AuditLog[] = [];
-      snapshot.forEach((doc) => {
-        list.push(doc.data() as AuditLog);
-      });
-      list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-      setAuditLogs(list);
-      localStorage.setItem('gom_audit_logs', JSON.stringify(list));
-    }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, 'auditLogs');
-    });
-
-    // 6. RechargeAccounts sync
-    const unsubAcc = onSnapshot(collection(db, 'rechargeAccounts'), (snapshot) => {
-      const list: RechargeAccount[] = [];
-      snapshot.forEach((doc) => {
-        list.push(doc.data() as RechargeAccount);
-      });
-      setRechargeAccounts(list);
-      localStorage.setItem('gom_recharge_accounts', JSON.stringify(list));
-    }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, 'rechargeAccounts');
-    });
-
-    // 7. Config sync
-    const unsubConfig = onSnapshot(doc(db, 'systemConfig', 'global'), (docSnap) => {
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        if (typeof data.scalingMultiplier === 'number') {
-          setScalingMultiplier(data.scalingMultiplier);
-          localStorage.setItem('gom_scaling_multiplier', data.scalingMultiplier.toString());
-        }
-        if (Array.isArray(data.productCosts)) {
-          let costs = [...data.productCosts];
-          if (costs.length < 15) {
-            const scaling = typeof data.scalingMultiplier === 'number' ? data.scalingMultiplier : 1.5;
-            for (let i = costs.length; i < 15; i++) {
-              const p = INITIAL_PRODUCTS_RAW[i];
-              const lastCost = costs.length > 0 ? costs[costs.length - 1].baseCost : 750;
-              const calculatedCost = Math.round(lastCost * scaling);
-              costs.push({
-                id: p.id,
-                baseCost: calculatedCost,
-                rewardMultiplier: p.rewardMultiplier
-              });
-            }
-            costs = sanitizeProductCosts(costs);
-            setDoc(doc(db, 'systemConfig', 'global'), {
-              scalingMultiplier: typeof data.scalingMultiplier === 'number' ? data.scalingMultiplier : 1.5,
-              productCosts: costs
-            }).catch(e => console.error("Error writing expanded systemConfig back:", e));
-          }
-          setProductCosts(costs);
-          localStorage.setItem('gom_product_costs', JSON.stringify(costs));
-        }
-        if (data.bankLogos) {
-          setBankLogos(data.bankLogos);
-          localStorage.setItem('gom_bank_logos', JSON.stringify(data.bankLogos));
-        }
-        if (data.marketplaceLogos) {
-          setMarketplaceLogos(data.marketplaceLogos);
-          localStorage.setItem('gom_marketplace_logos', JSON.stringify(data.marketplaceLogos));
-        }
-      }
-    }, (error) => {
-      handleFirestoreError(error, OperationType.GET, 'systemConfig/global');
-    });
-
     return () => {
       clearInterval(interval);
-      if (typeof unsubUsers === 'function') unsubUsers();
-      if (typeof unsubTx === 'function') unsubTx();
-      if (typeof unsubAnn === 'function') unsubAnn();
-      if (typeof unsubSup === 'function') unsubSup();
-      if (typeof unsubLogs === 'function') unsubLogs();
-      if (typeof unsubAcc === 'function') unsubAcc();
-      if (typeof unsubConfig === 'function') unsubConfig();
     };
   }, []);
 
@@ -1491,46 +1008,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => {
     localStorage.setItem('gom_current_user', JSON.stringify(rawCurrentUser));
   }, [rawCurrentUser]);
-
-  // Auto-migrate bank accounts to CBE and Telebirr if old accounts are present
-  useEffect(() => {
-    const migrateBankAccounts = async () => {
-      if (rechargeAccounts.length === 0) return;
-
-      const needsMigration = rechargeAccounts.length !== 2 || 
-        !rechargeAccounts.some(a => a.bank === 'Commercial Bank of Ethiopia (CBE)' && a.accNo === '1000419524747' && a.accName === 'Ethiopia agent-Leykun jemaneh') ||
-        !rechargeAccounts.some(a => a.bank === 'Telebirr' && a.accNo === '0926193920' && a.accName === 'Ethiopia agent-Leykun jemaneh');
-
-      if (needsMigration) {
-        console.log("Migrating database recharge accounts to CBE (1000419524747) and Telebirr (0926193920) with agent name...");
-        try {
-          const targetAccounts = [
-            { id: 'acc-1', bank: 'Commercial Bank of Ethiopia (CBE)', accName: 'Ethiopia agent-Leykun jemaneh', accNo: '1000419524747' },
-            { id: 'acc-2', bank: 'Telebirr', accName: 'Ethiopia agent-Leykun jemaneh', accNo: '0926193920' }
-          ];
-
-          for (const acc of targetAccounts) {
-            await setDoc(doc(db, 'rechargeAccounts', acc.id), acc);
-          }
-
-          const oldIdsToDelete = rechargeAccounts
-            .map(a => a.id)
-            .filter(id => id !== 'acc-1' && id !== 'acc-2');
-
-          for (const oldId of oldIdsToDelete) {
-            if (oldId) {
-              await deleteDoc(doc(db, 'rechargeAccounts', oldId));
-            }
-          }
-          console.log("Database recharge accounts migrated successfully!");
-        } catch (error) {
-          console.error("Failed to migrate recharge accounts in Firestore:", error);
-        }
-      }
-    };
-
-    migrateBankAccounts();
-  }, [rechargeAccounts]);
 
   // Recalculate dynamic orders list whenever user changes, productCosts scale, or balance shifts
   useEffect(() => {
@@ -1815,56 +1292,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     let exists = allUsersToCheck.some(u => isSamePhone(u.phoneNumber, trimmedPhone));
     
-    // Direct database query fallback to prevent duplicate registrations even when onSnapshot is stale or blocked
+    // Direct database query fallback to prevent duplicate registrations
     if (!exists) {
-      let directMatches: User[] = [];
       try {
-        const q = query(collection(db, 'users'), where('phoneNumber', '==', trimmedPhone));
-        const querySnapshot = await getDocs(q);
-        querySnapshot.forEach((doc) => {
-          directMatches.push(doc.data() as User);
-        });
-
-        if (directMatches.length === 0) {
-          const cleanDigits = trimmedPhone.replace(/\D/g, '');
-          const variations = [
-            trimmedPhone,
-            cleanDigits,
-            cleanDigits.startsWith('251') ? '0' + cleanDigits.substring(3) : '',
-            cleanDigits.startsWith('251') ? cleanDigits.substring(3) : '',
-            !cleanDigits.startsWith('251') && cleanDigits.startsWith('0') ? '251' + cleanDigits.substring(1) : '',
-            !cleanDigits.startsWith('251') && cleanDigits.startsWith('0') ? '+' + '251' + cleanDigits.substring(1) : '',
-          ].filter(Boolean);
-
-          for (const variant of variations) {
-            if (variant !== trimmedPhone) {
-              const qVar = query(collection(db, 'users'), where('phoneNumber', '==', variant));
-              const snapVar = await getDocs(qVar);
-              snapVar.forEach((doc) => {
-                if (!directMatches.some(u => u.id === doc.id)) {
-                  directMatches.push(doc.data() as User);
-                }
-              });
-            }
+        const res = await fetch('/api/users');
+        if (res.ok) {
+          const dbUsers = await res.json();
+          if (Array.isArray(dbUsers)) {
+            exists = dbUsers.some((u: any) => isSamePhone(u.phoneNumber, trimmedPhone));
           }
         }
-      } catch (e) {
-        console.warn("[Register] Direct Firestore check failed:", e);
-      }
-
-      if (directMatches.length > 0) {
-        exists = true;
-        // Update local state so it's aware of the existing user
-        setUsers(prev => {
-          let updated = [...prev];
-          directMatches.forEach(dm => {
-            if (!updated.some(u => u.id === dm.id)) {
-              updated.push(dm);
-            }
-          });
-          localStorage.setItem('gom_users', JSON.stringify(updated));
-          return updated;
-        });
+      } catch (err) {
+        console.warn('[Register] Failed to fetch latest users from server for register check:', err);
       }
     }
 
@@ -2555,30 +1994,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       screenshot: screenshot || undefined
     };
 
-    const setupDepositApprovalListener = () => {
-      const txRef = doc(db, 'transactions', depositTx.id);
-      const unsub = onSnapshot(txRef, (docSnap) => {
-        if (docSnap.exists()) {
-          const updatedTx = docSnap.data() as Transaction;
-          if (updatedTx.status === 'approved') {
-            console.log(`[Realtime Approval Listener] Transaction ${depositTx.id} approved! Instantly updating wallet balance.`);
-            fetchAllData();
-            getDoc(doc(db, 'users', currentUser.id)).then((uSnap) => {
-              if (uSnap.exists()) {
-                const updatedUser = uSnap.data() as User;
-                setRawCurrentUser(updatedUser);
-                localStorage.setItem('gom_current_user', JSON.stringify(updatedUser));
-                setUsers(prevUsers => prevUsers.map(u => u.id === updatedUser.id ? { ...u, walletBalance: updatedUser.walletBalance } : u));
-              }
-            }).catch(err => console.error("Error direct-fetching user in deposit listener:", err));
-            unsub();
-          }
-        }
-      }, (err) => {
-        console.error("Error in deposit real-time approval listener:", err);
-      });
-    };
-
     try {
       await fetch('/api/transactions', {
         method: 'POST',
@@ -2591,12 +2006,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setTransactions(updatedTxs);
       localStorage.setItem('gom_transactions', JSON.stringify(updatedTxs));
 
-      // Sync to Firestore
-      setDoc(doc(db, 'transactions', depositTx.id), cleanFirestoreData(depositTx)).catch((err) => {
-        console.error("[Firestore Sync] Failed to sync deposit request transaction to Firestore:", err);
-      });
-
-      setupDepositApprovalListener();
+      // Force instant local polling refresh to capture the transaction
+      fetchAllData();
 
       return { success: true, message: 'Recharge request submitted successfully!' };
     } catch (e) {
@@ -2604,13 +2015,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const updatedTxs = [depositTx, ...transactions];
       setTransactions(updatedTxs);
       localStorage.setItem('gom_transactions', JSON.stringify(updatedTxs));
-
-      // Sync to Firestore (offline fallback)
-      setDoc(doc(db, 'transactions', depositTx.id), cleanFirestoreData(depositTx)).catch((err) => {
-        console.error("[Firestore Sync] Failed to sync deposit request transaction to Firestore (offline fallback):", err);
-      });
-
-      setupDepositApprovalListener();
 
       return { success: true, message: 'Recharge request submitted successfully (Offline mode)!' };
     }
@@ -2675,13 +2079,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setTransactions(updatedTxs);
       localStorage.setItem('gom_transactions', JSON.stringify(updatedTxs));
 
-      // Sync to Firestore
-      setDoc(doc(db, 'users', currentUser.id), cleanFirestoreData(updatedUser)).catch((err) => {
-        console.error("[Firestore Sync] Failed to sync withdrawal user to Firestore:", err);
-      });
-      setDoc(doc(db, 'transactions', withdrawTx.id), cleanFirestoreData(withdrawTx)).catch((err) => {
-        console.error("[Firestore Sync] Failed to sync withdrawal transaction to Firestore:", err);
-      });
+      // Force instant local polling refresh to capture the withdrawal
+      fetchAllData();
 
       return { success: true, message: 'Withdrawal request submitted! Pending admin approval.' };
     } catch (e) {
@@ -2696,14 +2095,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setTransactions(updatedTxs);
       localStorage.setItem('gom_transactions', JSON.stringify(updatedTxs));
 
-      // Sync to Firestore (offline fallback)
-      setDoc(doc(db, 'users', currentUser.id), cleanFirestoreData(updatedUser)).catch((err) => {
-        console.error("[Firestore Sync] Failed to sync withdrawal user to Firestore:", err);
-      });
-      setDoc(doc(db, 'transactions', withdrawTx.id), cleanFirestoreData(withdrawTx)).catch((err) => {
-        console.error("[Firestore Sync] Failed to sync withdrawal transaction to Firestore:", err);
-      });
-
       return { success: true, message: 'Withdrawal request submitted (Offline Fallback)! Pending admin approval.' };
     }
   };
@@ -2713,156 +2104,72 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const tx = transactions.find(t => t.id === txId);
     if (!tx || tx.status !== 'pending') return;
 
-    try {
-      const res = await fetch(`/api/transactions/${txId}/status`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'approved' })
-      });
+    const updatedTxs = transactions.map(t => t.id === txId ? { ...t, status: 'approved' as const } : t);
+    setTransactions(updatedTxs);
+    localStorage.setItem('gom_transactions', JSON.stringify(updatedTxs));
 
-      if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.error || 'Failed to update transaction status on backend.');
-      }
-
-      const data = await res.json();
-      if (data.success) {
-        if (data.users) {
-          setUsers(data.users);
-          localStorage.setItem('gom_users', JSON.stringify(data.users));
-          if (currentUser) {
-            const updatedMe = data.users.find((u: any) => u.id === currentUser.id);
-            if (updatedMe) {
-              setRawCurrentUser(updatedMe);
-              localStorage.setItem('gom_current_user', JSON.stringify(updatedMe));
-            }
-          }
-
-          // Also explicitly update the target user in Firestore!
-          const targetUser = data.users.find((u: any) => u.id === tx.userId);
-          if (targetUser) {
-            setDoc(doc(db, 'users', targetUser.id), cleanFirestoreData(targetUser)).catch((err) => {
-              console.error("[Firestore Sync] Failed to sync updated user balance to Firestore:", err);
-            });
-          }
-        }
-        if (data.transactions) {
-          setTransactions(data.transactions);
-          localStorage.setItem('gom_transactions', JSON.stringify(data.transactions));
-
-          // Also explicitly update the approved transaction in Firestore!
-          const targetTx = data.transactions.find((t: any) => t.id === txId);
-          if (targetTx) {
-            setDoc(doc(db, 'transactions', txId), cleanFirestoreData(targetTx)).catch((err) => {
-              console.error("[Firestore Sync] Failed to sync approved transaction status to Firestore:", err);
-            });
-          }
-        }
-      }
-      await logAudit('ADMIN', 'ADMIN', 'APPROVE_RECHARGE', `Approved recharge of ${tx.amount} ETB for User ${tx.userId}`);
-    } catch (e) {
-      console.error("Error approving transaction, falling back to local storage:", e);
-      
-      const updatedTxs = transactions.map(t => t.id === txId ? { ...t, status: 'approved' as const } : t);
-      setTransactions(updatedTxs);
-      localStorage.setItem('gom_transactions', JSON.stringify(updatedTxs));
-
-      if (tx.type === 'recharge') {
-        const userToUpdate = users.find(u => u.id === tx.userId);
-        if (userToUpdate) {
-          const updatedUser = {
-            ...userToUpdate,
-            walletBalance: Number(userToUpdate.walletBalance) + Number(tx.amount)
-          };
-          const updatedUsers = users.map(u => u.id === tx.userId ? updatedUser : u);
-          setUsers(updatedUsers);
-          localStorage.setItem('gom_users', JSON.stringify(updatedUsers));
-          
-          if (currentUser && currentUser.id === tx.userId) {
-            setRawCurrentUser(updatedUser);
-            localStorage.setItem('gom_current_user', JSON.stringify(updatedUser));
-          }
+    if (tx.type === 'recharge') {
+      const userToUpdate = users.find(u => u.id === tx.userId);
+      if (userToUpdate) {
+        const updatedUser = {
+          ...userToUpdate,
+          walletBalance: Number(userToUpdate.walletBalance) + Number(tx.amount)
+        };
+        const updatedUsers = users.map(u => u.id === tx.userId ? updatedUser : u);
+        setUsers(updatedUsers);
+        localStorage.setItem('gom_users', JSON.stringify(updatedUsers));
+        
+        if (currentUser && currentUser.id === tx.userId) {
+          setRawCurrentUser(updatedUser);
+          localStorage.setItem('gom_current_user', JSON.stringify(updatedUser));
         }
       }
     }
+
+    await logAudit('ADMIN', 'ADMIN', 'APPROVE_RECHARGE', `Approved recharge of ${tx.amount} ETB for User ${tx.userId}`);
+
+    // Fire-and-forget background sync
+    fetch(`/api/transactions/${txId}/status`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'approved' })
+    }).catch(() => {});
   };
 
   const rejectTransaction = async (txId: string) => {
     const tx = transactions.find(t => t.id === txId);
     if (!tx || tx.status !== 'pending') return;
 
-    try {
-      const res = await fetch(`/api/transactions/${txId}/status`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'rejected' })
-      });
+    const updatedTxs = transactions.map(t => t.id === txId ? { ...t, status: 'rejected' as const } : t);
+    setTransactions(updatedTxs);
+    localStorage.setItem('gom_transactions', JSON.stringify(updatedTxs));
 
-      if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.error || 'Failed to reject transaction status on backend.');
-      }
-
-      const data = await res.json();
-      if (data.success) {
-        if (data.users) {
-          setUsers(data.users);
-          localStorage.setItem('gom_users', JSON.stringify(data.users));
-          if (currentUser) {
-            const updatedMe = data.users.find((u: any) => u.id === currentUser.id);
-            if (updatedMe) {
-              setRawCurrentUser(updatedMe);
-              localStorage.setItem('gom_current_user', JSON.stringify(updatedMe));
-            }
-          }
-
-          // Also explicitly update the target user in Firestore (for refund if withdrawal was rejected)!
-          const targetUser = data.users.find((u: any) => u.id === tx.userId);
-          if (targetUser) {
-            setDoc(doc(db, 'users', targetUser.id), cleanFirestoreData(targetUser)).catch((err) => {
-              console.error("[Firestore Sync] Failed to sync updated user balance to Firestore:", err);
-            });
-          }
-        }
-        if (data.transactions) {
-          setTransactions(data.transactions);
-          localStorage.setItem('gom_transactions', JSON.stringify(data.transactions));
-
-          // Also explicitly update the rejected transaction in Firestore!
-          const targetTx = data.transactions.find((t: any) => t.id === txId);
-          if (targetTx) {
-            setDoc(doc(db, 'transactions', txId), cleanFirestoreData(targetTx)).catch((err) => {
-              console.error("[Firestore Sync] Failed to sync rejected transaction status to Firestore:", err);
-            });
-          }
-        }
-      }
-      await logAudit('ADMIN', 'ADMIN', 'REJECT_WITHDRAWAL', `Rejected withdrawal of ${tx.amount} ETB for User ${tx.userId}. Funds refunded.`);
-    } catch (e) {
-      console.error("Error rejecting transaction, falling back to local storage:", e);
-      
-      const updatedTxs = transactions.map(t => t.id === txId ? { ...t, status: 'rejected' as const } : t);
-      setTransactions(updatedTxs);
-      localStorage.setItem('gom_transactions', JSON.stringify(updatedTxs));
-
-      if (tx.type === 'withdraw') {
-        const userToUpdate = users.find(u => u.id === tx.userId);
-        if (userToUpdate) {
-          const updatedUser = {
-            ...userToUpdate,
-            walletBalance: Number(userToUpdate.walletBalance) + Number(tx.amount)
-          };
-          const updatedUsers = users.map(u => u.id === tx.userId ? updatedUser : u);
-          setUsers(updatedUsers);
-          localStorage.setItem('gom_users', JSON.stringify(updatedUsers));
-          
-          if (currentUser && currentUser.id === tx.userId) {
-            setRawCurrentUser(updatedUser);
-            localStorage.setItem('gom_current_user', JSON.stringify(updatedUser));
-          }
+    if (tx.type === 'withdraw') {
+      const userToUpdate = users.find(u => u.id === tx.userId);
+      if (userToUpdate) {
+        const updatedUser = {
+          ...userToUpdate,
+          walletBalance: Number(userToUpdate.walletBalance) + Number(tx.amount)
+        };
+        const updatedUsers = users.map(u => u.id === tx.userId ? updatedUser : u);
+        setUsers(updatedUsers);
+        localStorage.setItem('gom_users', JSON.stringify(updatedUsers));
+        
+        if (currentUser && currentUser.id === tx.userId) {
+          setRawCurrentUser(updatedUser);
+          localStorage.setItem('gom_current_user', JSON.stringify(updatedUser));
         }
       }
     }
+
+    await logAudit('ADMIN', 'ADMIN', 'REJECT_WITHDRAWAL', `Rejected withdrawal of ${tx.amount} ETB for User ${tx.userId}. Funds refunded.`);
+
+    // Fire-and-forget background sync
+    fetch(`/api/transactions/${txId}/status`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'rejected' })
+    }).catch(() => {});
   };
 
   // USER MARKETPLACE & ORDER CYCLE
@@ -2951,14 +2258,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setTransactions(updatedTxs);
       localStorage.setItem('gom_transactions', JSON.stringify(updatedTxs));
 
-      // Sync updated user and orderTx to Firestore!
-      setDoc(doc(db, 'users', currentUser.id), cleanFirestoreData(updatedUser)).catch((err) => {
-        console.error("[Firestore Sync] Failed to sync completed order user to Firestore:", err);
-      });
-      setDoc(doc(db, 'transactions', orderTx.id), cleanFirestoreData(orderTx)).catch((err) => {
-        console.error("[Firestore Sync] Failed to sync order transaction to Firestore:", err);
-      });
-
       return { success: true, message: `Order ${orderId} successfully completed! ${reward} ETB commission added to your wallet.` };
     } catch (e) {
       console.error("Error submitting order, falling back to local storage:", e);
@@ -2971,14 +2270,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const updatedTxs = [orderTx, ...transactions];
       setTransactions(updatedTxs);
       localStorage.setItem('gom_transactions', JSON.stringify(updatedTxs));
-
-      // Sync updated user and orderTx to Firestore (offline fallback)!
-      setDoc(doc(db, 'users', currentUser.id), cleanFirestoreData(updatedUser)).catch((err) => {
-        console.error("[Firestore Sync] Failed to sync completed order user to Firestore (offline fallback):", err);
-      });
-      setDoc(doc(db, 'transactions', orderTx.id), cleanFirestoreData(orderTx)).catch((err) => {
-        console.error("[Firestore Sync] Failed to sync order transaction to Firestore (offline fallback):", err);
-      });
 
       return { success: true, message: `Order ${orderId} successfully completed (Offline Fallback)! ${reward} ETB commission added to your wallet.` };
     }
@@ -3761,14 +3052,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setTransactions(updatedTxs);
       localStorage.setItem('gom_transactions', JSON.stringify(updatedTxs));
 
-      // Sync transaction to Firestore immediately
-      const currentTxObj = updatedTxs.find(t => t.id === txId);
-      if (currentTxObj) {
-        setDoc(doc(db, 'transactions', txId), cleanFirestoreData(currentTxObj)).catch((err) => {
-          console.error("[Firestore Sync] Failed to sync transaction to Firestore:", err);
-        });
-      }
-
       const userToUpdate = users.find(u => u.id === tx.userId);
       if (userToUpdate) {
         const updatedUser = {
@@ -3783,11 +3066,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           setRawCurrentUser(updatedUser);
           localStorage.setItem('gom_current_user', JSON.stringify(updatedUser));
         }
-
-        // Sync user to Firestore immediately
-        setDoc(doc(db, 'users', userToUpdate.id), cleanFirestoreData(updatedUser)).catch((err) => {
-          console.error("[Firestore Sync] Failed to sync user to Firestore:", err);
-        });
       }
 
       // Update in PostgreSQL database synchronously by hitting the status update endpoint
@@ -3814,26 +3092,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               localStorage.setItem('gom_current_user', JSON.stringify(updatedMe));
             }
           }
-
-          // Write updated user to Firestore!
-          const targetUser = data.users.find((u: any) => u.id === tx.userId);
-          if (targetUser) {
-            setDoc(doc(db, 'users', targetUser.id), cleanFirestoreData(targetUser)).catch((err) => {
-              console.error("[Firestore Sync] Failed to sync user balance to Firestore:", err);
-            });
-          }
         }
         if (data.transactions) {
           setTransactions(data.transactions);
           localStorage.setItem('gom_transactions', JSON.stringify(data.transactions));
-
-          // Write updated transaction to Firestore!
-          const targetTx = data.transactions.find((t: any) => t.id === txId);
-          if (targetTx) {
-            setDoc(doc(db, 'transactions', txId), cleanFirestoreData(targetTx)).catch((err) => {
-              console.error("[Firestore Sync] Failed to sync transaction to Firestore:", err);
-            });
-          }
         }
       }
 
@@ -3860,14 +3122,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setTransactions(updatedTxs);
       localStorage.setItem('gom_transactions', JSON.stringify(updatedTxs));
 
-      // Sync transaction to Firestore in fallback
-      const currentTxObj = updatedTxs.find(t => t.id === txId);
-      if (currentTxObj) {
-        setDoc(doc(db, 'transactions', txId), cleanFirestoreData(currentTxObj)).catch((err) => {
-          console.error("[Firestore Sync Fallback] Failed to sync transaction to Firestore:", err);
-        });
-      }
-
       // Update user wallet balance
       const userToUpdate = users.find(u => u.id === tx.userId);
       if (userToUpdate) {
@@ -3883,11 +3137,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           setRawCurrentUser(updatedUser);
           localStorage.setItem('gom_current_user', JSON.stringify(updatedUser));
         }
-
-        // Sync user to Firestore in fallback
-        setDoc(doc(db, 'users', userToUpdate.id), cleanFirestoreData(updatedUser)).catch((err) => {
-          console.error("[Firestore Sync Fallback] Failed to sync user to Firestore:", err);
-        });
       }
 
       await logAudit(tx.userId, tx.userPhone, 'OFFLINE_RECHARGE_VERIFY', `Successfully verified offline code ${code} for deposit of ${tx.amount} ETB. Ref: ${tx.accountNumberOrRef} (Offline Fallback)`);
