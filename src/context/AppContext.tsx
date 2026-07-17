@@ -3052,19 +3052,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setTransactions(updatedTxs);
       localStorage.setItem('gom_transactions', JSON.stringify(updatedTxs));
 
+      let updatedUserObj: User | null = null;
       const userToUpdate = users.find(u => u.id === tx.userId);
       if (userToUpdate) {
-        const updatedUser = {
+        updatedUserObj = {
           ...userToUpdate,
           walletBalance: Number(userToUpdate.walletBalance) + Number(tx.amount)
         };
-        const updatedUsers = users.map(u => u.id === tx.userId ? updatedUser : u);
+        const updatedUsers = users.map(u => u.id === tx.userId ? updatedUserObj! : u);
         setUsers(updatedUsers);
         localStorage.setItem('gom_users', JSON.stringify(updatedUsers));
 
         if (currentUser && currentUser.id === tx.userId) {
-          setRawCurrentUser(updatedUser);
-          localStorage.setItem('gom_current_user', JSON.stringify(updatedUser));
+          setRawCurrentUser(updatedUserObj);
+          localStorage.setItem('gom_current_user', JSON.stringify(updatedUserObj));
         }
       }
 
@@ -3083,15 +3084,45 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const data = await res.json();
       if (data.success) {
         if (data.users) {
-          setUsers(data.users);
-          localStorage.setItem('gom_users', JSON.stringify(data.users));
-          if (currentUser) {
-            const updatedMe = data.users.find((u: any) => u.id === currentUser.id);
-            if (updatedMe) {
-              setRawCurrentUser(updatedMe);
-              localStorage.setItem('gom_current_user', JSON.stringify(updatedMe));
+          // Robust merging to prevent any state reversion or loss of local updates
+          setUsers(prevUsers => {
+            const merged = prevUsers.map(lu => {
+              const su = data.users.find((u: any) => u.id === lu.id);
+              if (su) {
+                const finalBal = Math.max(Number(lu.walletBalance || 0), Number(su.walletBalance || 0));
+                const finalOrders = Array.from(new Set([
+                  ...(lu.completedOrderIds || []),
+                  ...(su.completedOrderIds || [])
+                ])).sort((a, b) => a - b);
+                return {
+                  ...lu,
+                  ...su,
+                  walletBalance: finalBal,
+                  completedOrderIds: finalOrders
+                };
+              }
+              return lu;
+            });
+            
+            // Append missing remote users
+            data.users.forEach((su: any) => {
+              if (!merged.some(lu => lu.id === su.id)) {
+                merged.push(su);
+              }
+            });
+
+            localStorage.setItem('gom_users', JSON.stringify(merged));
+            
+            // Also update current user if found in merged list
+            if (currentUser) {
+              const updatedMe = merged.find(u => u.id === currentUser.id);
+              if (updatedMe) {
+                setRawCurrentUser(updatedMe);
+                localStorage.setItem('gom_current_user', JSON.stringify(updatedMe));
+              }
             }
-          }
+            return merged;
+          });
         }
         if (data.transactions) {
           setTransactions(data.transactions);

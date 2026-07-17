@@ -457,6 +457,22 @@ app.put('/api/transactions/:id/status', async (req, res) => {
       await db.update(users)
         .set({ walletBalance: newBalance })
         .where(eq(users.id, tx.userId));
+    } else {
+      // If the user record was missing remotely (e.g. registered offline), create them on the fly
+      if (status === 'approved' && tx.type === 'recharge') {
+        await db.insert(users).values({
+          id: tx.userId,
+          phoneNumber: tx.userPhone,
+          passwordHash: '5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8', // default fallback hash for 'Password123'
+          walletBalance: Number(tx.amount),
+          welcomeBonus: 588, // default fallback
+          totalEarnings: 0,
+          role: 'user',
+          createdAt: new Date(),
+          currentOrderIndex: 0,
+          completedOrderIds: []
+        });
+      }
     }
 
     // Update transaction status
