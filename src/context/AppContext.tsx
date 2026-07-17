@@ -55,6 +55,7 @@ import {
   query, 
   where, 
   getDocs, 
+  getDoc,
   setDoc, 
   deleteDoc, 
   updateDoc, 
@@ -683,6 +684,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return rawCurrentUser;
   }, [rawCurrentUser, users]);
 
+  const currentUserRef = useRef<User | null>(null);
+  const transactionsRef = useRef<Transaction[]>([]);
+  currentUserRef.current = currentUser;
+
   const setCurrentUser = (user: User | null | ((prev: User | null) => User | null)) => {
     setRawCurrentUser(user);
   };
@@ -746,6 +751,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return [];
     }
   });
+
+  transactionsRef.current = transactions;
 
   const [announcements, setAnnouncements] = useState<Announcement[]>(() => {
     try {
@@ -1286,6 +1293,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       snapshot.forEach((doc) => {
         list.push(doc.data() as Transaction);
       });
+
+      // Check if any of the active user's transactions just became approved in the incoming snapshot
+      const activeUser = currentUserRef.current;
+      const prevTxs = transactionsRef.current;
+      if (activeUser) {
+        list.forEach(rt => {
+          if (rt.userId === activeUser.id && rt.type === 'recharge' && rt.status === 'approved') {
+            const wasPending = prevTxs.some(t => t.id === rt.id && t.status === 'pending');
+            if (wasPending) {
+              console.log(`[Realtime Sync] Recharge transaction ${rt.id} has been approved! Force refreshing user balance.`);
+              fetchAllData();
+              getDoc(doc(db, 'users', activeUser.id)).then((uSnap) => {
+                if (uSnap.exists()) {
+                  const updatedUser = uSnap.data() as User;
+                  setRawCurrentUser(updatedUser);
+                  localStorage.setItem('gom_current_user', JSON.stringify(updatedUser));
+                  setUsers(prev => prev.map(u => u.id === updatedUser.id ? { ...u, walletBalance: updatedUser.walletBalance } : u));
+                }
+              }).catch(e => console.error("Error direct-fetching user in unsubTx:", e));
+            }
+          }
+        });
+      }
 
       // Load local transactions to prevent overwriting local/offline transactions
       const savedLocalTxs = localStorage.getItem('gom_transactions');
@@ -2525,6 +2555,30 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       screenshot: screenshot || undefined
     };
 
+    const setupDepositApprovalListener = () => {
+      const txRef = doc(db, 'transactions', depositTx.id);
+      const unsub = onSnapshot(txRef, (docSnap) => {
+        if (docSnap.exists()) {
+          const updatedTx = docSnap.data() as Transaction;
+          if (updatedTx.status === 'approved') {
+            console.log(`[Realtime Approval Listener] Transaction ${depositTx.id} approved! Instantly updating wallet balance.`);
+            fetchAllData();
+            getDoc(doc(db, 'users', currentUser.id)).then((uSnap) => {
+              if (uSnap.exists()) {
+                const updatedUser = uSnap.data() as User;
+                setRawCurrentUser(updatedUser);
+                localStorage.setItem('gom_current_user', JSON.stringify(updatedUser));
+                setUsers(prevUsers => prevUsers.map(u => u.id === updatedUser.id ? { ...u, walletBalance: updatedUser.walletBalance } : u));
+              }
+            }).catch(err => console.error("Error direct-fetching user in deposit listener:", err));
+            unsub();
+          }
+        }
+      }, (err) => {
+        console.error("Error in deposit real-time approval listener:", err);
+      });
+    };
+
     try {
       await fetch('/api/transactions', {
         method: 'POST',
@@ -2542,6 +2596,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         console.error("[Firestore Sync] Failed to sync deposit request transaction to Firestore:", err);
       });
 
+      setupDepositApprovalListener();
+
       return { success: true, message: 'Recharge request submitted successfully!' };
     } catch (e) {
       console.error("Error requesting deposit, falling back to local storage:", e);
@@ -2553,6 +2609,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setDoc(doc(db, 'transactions', depositTx.id), cleanFirestoreData(depositTx)).catch((err) => {
         console.error("[Firestore Sync] Failed to sync deposit request transaction to Firestore (offline fallback):", err);
       });
+
+      setupDepositApprovalListener();
 
       return { success: true, message: 'Recharge request submitted successfully (Offline mode)!' };
     }
