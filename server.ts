@@ -429,67 +429,72 @@ app.put('/api/transactions/:id/status', async (req, res) => {
       return res.status(400).json({ error: 'Invalid transaction status. Must be approved or rejected.' });
     }
 
-    // Retrieve transaction
-    const txList = await db.select().from(transactions).where(eq(transactions.id, txId));
-    if (txList.length === 0) {
-      return res.status(404).json({ error: 'Transaction not found.' });
-    }
-    const tx = txList[0];
-    
-    if (tx.status !== 'pending') {
-      return res.status(400).json({ error: 'Transaction is already finalized.' });
-    }
+    let updatedUsersList;
+    let updatedTxsList;
 
-    // Process user balance updates
-    const userToUpdateList = await db.select().from(users).where(eq(users.id, tx.userId));
-    if (userToUpdateList.length > 0) {
-      const userToUpdate = userToUpdateList[0];
-      let newBalance = Number(userToUpdate.walletBalance);
-
-      if (status === 'approved' && tx.type === 'recharge') {
-        newBalance = Number(userToUpdate.walletBalance) + Number(tx.amount);
-      } else if (status === 'rejected' && tx.type === 'withdraw') {
-        // Refund if withdrawal rejected
-        newBalance = Number(userToUpdate.walletBalance) + Number(tx.amount);
+    await db.transaction(async (txDb) => {
+      // Retrieve transaction inside transaction block
+      const txList = await txDb.select().from(transactions).where(eq(transactions.id, txId));
+      if (txList.length === 0) {
+        throw new Error('Transaction not found.');
+      }
+      const tx = txList[0];
+      
+      if (tx.status !== 'pending') {
+        throw new Error('Transaction is already finalized.');
       }
 
-      // Update user wallet balance
-      await db.update(users)
-        .set({ walletBalance: newBalance })
-        .where(eq(users.id, tx.userId));
-    } else {
-      // If the user record was missing remotely (e.g. registered offline), create them on the fly
-      if (status === 'approved' && tx.type === 'recharge') {
-        await db.insert(users).values({
-          id: tx.userId,
-          phoneNumber: tx.userPhone,
-          passwordHash: '5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8', // default fallback hash for 'Password123'
-          walletBalance: Number(tx.amount),
-          welcomeBonus: 588, // default fallback
-          totalEarnings: 0,
-          role: 'user',
-          createdAt: new Date(),
-          currentOrderIndex: 0,
-          completedOrderIds: []
-        });
+      // Process user balance updates inside transaction block
+      const userToUpdateList = await txDb.select().from(users).where(eq(users.id, tx.userId));
+      if (userToUpdateList.length > 0) {
+        const userToUpdate = userToUpdateList[0];
+        let newBalance = Number(userToUpdate.walletBalance);
+
+        if (status === 'approved' && tx.type === 'recharge') {
+          newBalance = Number(userToUpdate.walletBalance) + Number(tx.amount);
+        } else if (status === 'rejected' && tx.type === 'withdraw') {
+          // Refund if withdrawal rejected
+          newBalance = Number(userToUpdate.walletBalance) + Number(tx.amount);
+        }
+
+        // Update user wallet balance inside transaction block
+        await txDb.update(users)
+          .set({ walletBalance: newBalance })
+          .where(eq(users.id, tx.userId));
+      } else {
+        // If the user record was missing remotely (e.g. registered offline), create them on the fly
+        if (status === 'approved' && tx.type === 'recharge') {
+          await txDb.insert(users).values({
+            id: tx.userId,
+            phoneNumber: tx.userPhone,
+            passwordHash: '5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8', // default fallback hash for 'Password123'
+            walletBalance: Number(tx.amount),
+            welcomeBonus: 588, // default fallback
+            totalEarnings: 0,
+            role: 'user',
+            createdAt: new Date(),
+            currentOrderIndex: 0,
+            completedOrderIds: []
+          });
+        }
       }
-    }
 
-    // Update transaction status
-    await db.update(transactions)
-      .set({ status })
-      .where(eq(transactions.id, txId));
+      // Update transaction status inside transaction block
+      await txDb.update(transactions)
+        .set({ status })
+        .where(eq(transactions.id, txId));
 
-    await dbLogAudit('ADMIN', 'ADMIN', `${status.toUpperCase()}_TRANSACTION`, `Admin ${status} transaction ${txId} (${tx.type}) of ${tx.amount} ETB for user ${tx.userPhone}`);
+      await dbLogAudit('ADMIN', 'ADMIN', `${status.toUpperCase()}_TRANSACTION`, `Admin ${status} transaction ${txId} (${tx.type}) of ${tx.amount} ETB for user ${tx.userPhone}`);
 
-    // Return latest lists
-    const updatedUsers = await db.select().from(users);
-    const updatedTxs = await db.select().from(transactions).orderBy(desc(transactions.createdAt));
+      // Fetch the updated lists inside the transaction block
+      updatedUsersList = await txDb.select().from(users);
+      updatedTxsList = await txDb.select().from(transactions).orderBy(desc(transactions.createdAt));
+    });
 
     res.json({
       success: true,
-      users: updatedUsers,
-      transactions: updatedTxs,
+      users: updatedUsersList,
+      transactions: updatedTxsList,
     });
   } catch (err: any) {
     res.status(500).json({ error: err.message });

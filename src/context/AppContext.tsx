@@ -3047,27 +3047,102 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         body: JSON.stringify({ code: normalizedCode })
       }).catch(err => console.error('Error syncing used code with server:', err));
 
-      // IMMEDIATE LOCAL STATE UPDATE (Instant feedback across all components)
-      const updatedTxs = transactions.map(t => t.id === txId ? { ...t, status: 'approved' as const } : t);
-      setTransactions(updatedTxs);
-      localStorage.setItem('gom_transactions', JSON.stringify(updatedTxs));
+      // Helper for atomic local storage and UI state updates
+      const applyAtomicLocalRechargeApproval = () => {
+        // 1. Read the approved recharge amount.
+        const approvedAmount = Number(tx.amount);
 
-      let updatedUserObj: User | null = null;
-      const userToUpdate = users.find(u => u.id === tx.userId);
-      if (userToUpdate) {
-        updatedUserObj = {
-          ...userToUpdate,
-          walletBalance: Number(userToUpdate.walletBalance) + Number(tx.amount)
-        };
-        const updatedUsers = users.map(u => u.id === tx.userId ? updatedUserObj! : u);
-        setUsers(updatedUsers);
-        localStorage.setItem('gom_users', JSON.stringify(updatedUsers));
-
-        if (currentUser && currentUser.id === tx.userId) {
-          setRawCurrentUser(updatedUserObj);
-          localStorage.setItem('gom_current_user', JSON.stringify(updatedUserObj));
+        // 2. Read the current wallet balance from local encrypted storage.
+        let currentBalance = 0;
+        let currentUserObj: User | null = null;
+        const storedCurrentUser = localStorage.getItem('gom_current_user');
+        if (storedCurrentUser) {
+          try {
+            currentUserObj = JSON.parse(storedCurrentUser);
+            if (currentUserObj) {
+              currentBalance = Number(currentUserObj.walletBalance) || 0;
+            }
+          } catch (e) {
+            console.error("Error parsing current user from encrypted storage:", e);
+          }
         }
-      }
+
+        if (!currentUserObj && currentUser) {
+          currentUserObj = { ...currentUser };
+          currentBalance = Number(currentUserObj.walletBalance) || 0;
+        }
+
+        // 3. Add the approved recharge amount to the current balance.
+        const updatedBalance = currentBalance + approvedAmount;
+
+        // 4. Save the updated balance back to local storage.
+        if (currentUserObj) {
+          currentUserObj.walletBalance = updatedBalance;
+          localStorage.setItem('gom_current_user', JSON.stringify(currentUserObj));
+        }
+
+        // Sync gom_users list in local storage
+        let updatedUsersList: User[] = users;
+        const storedUsers = localStorage.getItem('gom_users');
+        if (storedUsers) {
+          try {
+            const parsedUsers = JSON.parse(storedUsers);
+            if (Array.isArray(parsedUsers)) {
+              let found = false;
+              updatedUsersList = parsedUsers.map(u => {
+                if (u.id === tx.userId) {
+                  found = true;
+                  return { ...u, walletBalance: updatedBalance };
+                }
+                return u;
+              });
+              if (!found && currentUserObj) {
+                updatedUsersList.push(currentUserObj);
+              }
+              localStorage.setItem('gom_users', JSON.stringify(updatedUsersList));
+            }
+          } catch (e) {
+            console.error("Error parsing users list from local storage:", e);
+          }
+        } else {
+          const userToUpdate = users.find(u => u.id === tx.userId);
+          const updatedUserObj = userToUpdate ? { ...userToUpdate, walletBalance: updatedBalance } : currentUserObj;
+          if (updatedUserObj) {
+            updatedUsersList = users.map(u => u.id === tx.userId ? updatedUserObj! : u);
+            localStorage.setItem('gom_users', JSON.stringify(updatedUsersList));
+          }
+        }
+
+        // 5. Update the recharge status to Approved and 6. Record the transaction in the wallet history
+        let updatedTxsList: Transaction[] = transactions;
+        const storedTxs = localStorage.getItem('gom_transactions');
+        if (storedTxs) {
+          try {
+            const parsedTxs = JSON.parse(storedTxs);
+            if (Array.isArray(parsedTxs)) {
+              updatedTxsList = parsedTxs.map(t => t.id === txId ? { ...t, status: 'approved' as const } : t);
+              localStorage.setItem('gom_transactions', JSON.stringify(updatedTxsList));
+            }
+          } catch (e) {
+            console.error("Error parsing transactions list from local storage:", e);
+          }
+        } else {
+          updatedTxsList = transactions.map(t => t.id === txId ? { ...t, status: 'approved' as const } : t);
+          localStorage.setItem('gom_transactions', JSON.stringify(updatedTxsList));
+        }
+
+        // 7. Refresh the wallet UI immediately so the new balance is displayed
+        if (currentUserObj) {
+          setRawCurrentUser(currentUserObj);
+        }
+        setUsers(updatedUsersList);
+        setTransactions(updatedTxsList);
+
+        return { updatedUsersList, updatedTxsList };
+      };
+
+      // Perform atomic local state update immediately
+      applyAtomicLocalRechargeApproval();
 
       // Update in PostgreSQL database synchronously by hitting the status update endpoint
       const res = await fetch(`/api/transactions/${txId}/status`, {
@@ -3148,27 +3223,95 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         body: JSON.stringify({ code: normalizedCode })
       }).catch(() => {});
 
-      // Update transaction status
-      const updatedTxs = transactions.map(t => t.id === txId ? { ...t, status: 'approved' as const } : t);
-      setTransactions(updatedTxs);
-      localStorage.setItem('gom_transactions', JSON.stringify(updatedTxs));
+      // Apply the precise atomic updates on local storage in fallback
+      // 1. Read approved amount
+      const approvedAmount = Number(tx.amount);
 
-      // Update user wallet balance
-      const userToUpdate = users.find(u => u.id === tx.userId);
-      if (userToUpdate) {
-        const updatedUser = {
-          ...userToUpdate,
-          walletBalance: Number(userToUpdate.walletBalance) + Number(tx.amount)
-        };
-        const updatedUsers = users.map(u => u.id === tx.userId ? updatedUser : u);
-        setUsers(updatedUsers);
-        localStorage.setItem('gom_users', JSON.stringify(updatedUsers));
-
-        if (currentUser && currentUser.id === tx.userId) {
-          setRawCurrentUser(updatedUser);
-          localStorage.setItem('gom_current_user', JSON.stringify(updatedUser));
+      // 2. Read balance from encrypted storage
+      let currentBalance = 0;
+      let currentUserObj: User | null = null;
+      const storedCurrentUser = localStorage.getItem('gom_current_user');
+      if (storedCurrentUser) {
+        try {
+          currentUserObj = JSON.parse(storedCurrentUser);
+          if (currentUserObj) {
+            currentBalance = Number(currentUserObj.walletBalance) || 0;
+          }
+        } catch (err) {
+          console.error("Error parsing current user in fallback:", err);
         }
       }
+
+      if (!currentUserObj && currentUser) {
+        currentUserObj = { ...currentUser };
+        currentBalance = Number(currentUserObj.walletBalance) || 0;
+      }
+
+      // 3. Add approved recharge amount to current balance
+      const updatedBalance = currentBalance + approvedAmount;
+
+      // 4. Save updated balance to local storage
+      if (currentUserObj) {
+        currentUserObj.walletBalance = updatedBalance;
+        localStorage.setItem('gom_current_user', JSON.stringify(currentUserObj));
+      }
+
+      // Sync user inside gom_users array in local storage
+      let updatedUsersList: User[] = users;
+      const storedUsers = localStorage.getItem('gom_users');
+      if (storedUsers) {
+        try {
+          const parsedUsers = JSON.parse(storedUsers);
+          if (Array.isArray(parsedUsers)) {
+            let found = false;
+            updatedUsersList = parsedUsers.map(u => {
+              if (u.id === tx.userId) {
+                found = true;
+                return { ...u, walletBalance: updatedBalance };
+              }
+              return u;
+            });
+            if (!found && currentUserObj) {
+              updatedUsersList.push(currentUserObj);
+            }
+            localStorage.setItem('gom_users', JSON.stringify(updatedUsersList));
+          }
+        } catch (err) {
+          console.error("Error parsing users list in fallback:", err);
+        }
+      } else {
+        const userToUpdate = users.find(u => u.id === tx.userId);
+        const updatedUserObj = userToUpdate ? { ...userToUpdate, walletBalance: updatedBalance } : currentUserObj;
+        if (updatedUserObj) {
+          updatedUsersList = users.map(u => u.id === tx.userId ? updatedUserObj! : u);
+          localStorage.setItem('gom_users', JSON.stringify(updatedUsersList));
+        }
+      }
+
+      // 5. Update transaction status and 6. Record transaction in history
+      let updatedTxsList: Transaction[] = transactions;
+      const storedTxs = localStorage.getItem('gom_transactions');
+      if (storedTxs) {
+        try {
+          const parsedTxs = JSON.parse(storedTxs);
+          if (Array.isArray(parsedTxs)) {
+            updatedTxsList = parsedTxs.map(t => t.id === txId ? { ...t, status: 'approved' as const } : t);
+            localStorage.setItem('gom_transactions', JSON.stringify(updatedTxsList));
+          }
+        } catch (err) {
+          console.error("Error parsing transactions list in fallback:", err);
+        }
+      } else {
+        updatedTxsList = transactions.map(t => t.id === txId ? { ...t, status: 'approved' as const } : t);
+        localStorage.setItem('gom_transactions', JSON.stringify(updatedTxsList));
+      }
+
+      // 7. Refresh wallet UI immediately so the new balance is displayed
+      if (currentUserObj) {
+        setRawCurrentUser(currentUserObj);
+      }
+      setUsers(updatedUsersList);
+      setTransactions(updatedTxsList);
 
       await logAudit(tx.userId, tx.userPhone, 'OFFLINE_RECHARGE_VERIFY', `Successfully verified offline code ${code} for deposit of ${tx.amount} ETB. Ref: ${tx.accountNumberOrRef} (Offline Fallback)`);
 
