@@ -117,8 +117,8 @@ export const extractInviteCode = (input: string): string => {
     } catch (e) {}
   }
 
-  // 2. Remove common prefix/decorative characters like #, @, or trailing slashes/questions
-  cleaned = cleaned.replace(/^[@#?/]+/, '').replace(/[?/]+$/, '');
+  // 2. Remove common prefix/decorative characters like #, @, or trailing slashes/questions/dots/punctuation
+  cleaned = cleaned.replace(/^[@#?/.,;:\s]+/, '').replace(/[?/.,;:\s]+$/, '');
   
   return cleaned.trim();
 };
@@ -1800,15 +1800,37 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     let initialBalance = 588;
     let referredBy: string | undefined = undefined;
     const additionalTxs: Transaction[] = [];
+    let freshUsers = [...users];
 
     if (referralCode && referralCode.trim() !== '') {
       const extracted = extractInviteCode(referralCode);
       const cleanRef = extracted.toUpperCase();
-      const referrer = users.find(u => 
+      let referrer = freshUsers.find(u => 
         isSamePhone(u.phoneNumber, extracted) || 
         (u.inviteCode && u.inviteCode.toUpperCase() === cleanRef) || 
         u.id === extracted
       );
+
+      // Robust fallback: if referrer is not found in the currently loaded client-side users,
+      // fetch the freshest, complete user list from the PostgreSQL database directly
+      if (!referrer) {
+        try {
+          const res = await fetch('/api/users');
+          if (res.ok) {
+            const dbUsers = await res.json();
+            if (Array.isArray(dbUsers)) {
+              freshUsers = dbUsers;
+              referrer = freshUsers.find(u => 
+                isSamePhone(u.phoneNumber, extracted) || 
+                (u.inviteCode && u.inviteCode.toUpperCase() === cleanRef) || 
+                u.id === extracted
+              );
+            }
+          }
+        } catch (err) {
+          console.warn('[Register] Failed to fetch freshest users from server for referral check:', err);
+        }
+      }
 
       if (!referrer) {
         return { success: false, message: 'Invalid invite/referral code. Please check or leave empty.' };
@@ -1910,7 +1932,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       // Update referrer user in PostgreSQL
       if (referredBy) {
-        const referrerToUpdate = users.find(u => u.id === referredBy);
+        const referrerToUpdate = freshUsers.find(u => u.id === referredBy);
         if (referrerToUpdate) {
           const updatedReferrer = {
             ...referrerToUpdate,
@@ -1931,7 +1953,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       await logAudit(userId, trimmedPhone, 'REGISTER', `Successfully registered. Automatically credited 588 Welcome Bonus.${referredBy ? ' Plus 196 referral bonus.' : ''}`);
       if (referredBy) {
-        const referrerToUpdate = users.find(u => u.id === referredBy);
+        const referrerToUpdate = freshUsers.find(u => u.id === referredBy);
         if (referrerToUpdate) {
           await logAudit(referrerToUpdate.id, referrerToUpdate.phoneNumber, 'REFERRAL_BONUS', `Referred ${trimmedPhone}. Credited +196 ETB.`);
         }
@@ -1942,7 +1964,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       console.error("Error committing registration batch to Firestore, falling back to local storage:", e);
       
       // Update local users
-      let updatedUsers = [...users, newUser];
+      let updatedUsers = [...freshUsers, newUser];
       if (referredBy) {
         updatedUsers = updatedUsers.map(u => {
           if (u.id === referredBy) {
