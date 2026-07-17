@@ -2450,12 +2450,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const updatedTxs = [depositTx, ...transactions];
       setTransactions(updatedTxs);
       localStorage.setItem('gom_transactions', JSON.stringify(updatedTxs));
+
+      // Sync to Firestore
+      setDoc(doc(db, 'transactions', depositTx.id), cleanFirestoreData(depositTx)).catch((err) => {
+        console.error("[Firestore Sync] Failed to sync deposit request transaction to Firestore:", err);
+      });
+
       return { success: true, message: 'Recharge request submitted successfully!' };
     } catch (e) {
       console.error("Error requesting deposit, falling back to local storage:", e);
       const updatedTxs = [depositTx, ...transactions];
       setTransactions(updatedTxs);
       localStorage.setItem('gom_transactions', JSON.stringify(updatedTxs));
+
+      // Sync to Firestore (offline fallback)
+      setDoc(doc(db, 'transactions', depositTx.id), cleanFirestoreData(depositTx)).catch((err) => {
+        console.error("[Firestore Sync] Failed to sync deposit request transaction to Firestore (offline fallback):", err);
+      });
+
       return { success: true, message: 'Recharge request submitted successfully (Offline mode)!' };
     }
   };
@@ -2519,6 +2531,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setTransactions(updatedTxs);
       localStorage.setItem('gom_transactions', JSON.stringify(updatedTxs));
 
+      // Sync to Firestore
+      setDoc(doc(db, 'users', currentUser.id), cleanFirestoreData(updatedUser)).catch((err) => {
+        console.error("[Firestore Sync] Failed to sync withdrawal user to Firestore:", err);
+      });
+      setDoc(doc(db, 'transactions', withdrawTx.id), cleanFirestoreData(withdrawTx)).catch((err) => {
+        console.error("[Firestore Sync] Failed to sync withdrawal transaction to Firestore:", err);
+      });
+
       return { success: true, message: 'Withdrawal request submitted! Pending admin approval.' };
     } catch (e) {
       console.error("Error requesting withdrawal, falling back to local storage:", e);
@@ -2531,6 +2551,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const updatedTxs = [withdrawTx, ...transactions];
       setTransactions(updatedTxs);
       localStorage.setItem('gom_transactions', JSON.stringify(updatedTxs));
+
+      // Sync to Firestore (offline fallback)
+      setDoc(doc(db, 'users', currentUser.id), cleanFirestoreData(updatedUser)).catch((err) => {
+        console.error("[Firestore Sync] Failed to sync withdrawal user to Firestore:", err);
+      });
+      setDoc(doc(db, 'transactions', withdrawTx.id), cleanFirestoreData(withdrawTx)).catch((err) => {
+        console.error("[Firestore Sync] Failed to sync withdrawal transaction to Firestore:", err);
+      });
 
       return { success: true, message: 'Withdrawal request submitted (Offline Fallback)! Pending admin approval.' };
     }
@@ -2565,10 +2593,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               localStorage.setItem('gom_current_user', JSON.stringify(updatedMe));
             }
           }
+
+          // Also explicitly update the target user in Firestore!
+          const targetUser = data.users.find((u: any) => u.id === tx.userId);
+          if (targetUser) {
+            setDoc(doc(db, 'users', targetUser.id), cleanFirestoreData(targetUser)).catch((err) => {
+              console.error("[Firestore Sync] Failed to sync updated user balance to Firestore:", err);
+            });
+          }
         }
         if (data.transactions) {
           setTransactions(data.transactions);
           localStorage.setItem('gom_transactions', JSON.stringify(data.transactions));
+
+          // Also explicitly update the approved transaction in Firestore!
+          const targetTx = data.transactions.find((t: any) => t.id === txId);
+          if (targetTx) {
+            setDoc(doc(db, 'transactions', txId), cleanFirestoreData(targetTx)).catch((err) => {
+              console.error("[Firestore Sync] Failed to sync approved transaction status to Firestore:", err);
+            });
+          }
         }
       }
       await logAudit('ADMIN', 'ADMIN', 'APPROVE_RECHARGE', `Approved recharge of ${tx.amount} ETB for User ${tx.userId}`);
@@ -2627,10 +2671,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               localStorage.setItem('gom_current_user', JSON.stringify(updatedMe));
             }
           }
+
+          // Also explicitly update the target user in Firestore (for refund if withdrawal was rejected)!
+          const targetUser = data.users.find((u: any) => u.id === tx.userId);
+          if (targetUser) {
+            setDoc(doc(db, 'users', targetUser.id), cleanFirestoreData(targetUser)).catch((err) => {
+              console.error("[Firestore Sync] Failed to sync updated user balance to Firestore:", err);
+            });
+          }
         }
         if (data.transactions) {
           setTransactions(data.transactions);
           localStorage.setItem('gom_transactions', JSON.stringify(data.transactions));
+
+          // Also explicitly update the rejected transaction in Firestore!
+          const targetTx = data.transactions.find((t: any) => t.id === txId);
+          if (targetTx) {
+            setDoc(doc(db, 'transactions', txId), cleanFirestoreData(targetTx)).catch((err) => {
+              console.error("[Firestore Sync] Failed to sync rejected transaction status to Firestore:", err);
+            });
+          }
         }
       }
       await logAudit('ADMIN', 'ADMIN', 'REJECT_WITHDRAWAL', `Rejected withdrawal of ${tx.amount} ETB for User ${tx.userId}. Funds refunded.`);
@@ -2747,6 +2807,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setTransactions(updatedTxs);
       localStorage.setItem('gom_transactions', JSON.stringify(updatedTxs));
 
+      // Sync updated user and orderTx to Firestore!
+      setDoc(doc(db, 'users', currentUser.id), cleanFirestoreData(updatedUser)).catch((err) => {
+        console.error("[Firestore Sync] Failed to sync completed order user to Firestore:", err);
+      });
+      setDoc(doc(db, 'transactions', orderTx.id), cleanFirestoreData(orderTx)).catch((err) => {
+        console.error("[Firestore Sync] Failed to sync order transaction to Firestore:", err);
+      });
+
       return { success: true, message: `Order ${orderId} successfully completed! ${reward} ETB commission added to your wallet.` };
     } catch (e) {
       console.error("Error submitting order, falling back to local storage:", e);
@@ -2759,6 +2827,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const updatedTxs = [orderTx, ...transactions];
       setTransactions(updatedTxs);
       localStorage.setItem('gom_transactions', JSON.stringify(updatedTxs));
+
+      // Sync updated user and orderTx to Firestore (offline fallback)!
+      setDoc(doc(db, 'users', currentUser.id), cleanFirestoreData(updatedUser)).catch((err) => {
+        console.error("[Firestore Sync] Failed to sync completed order user to Firestore (offline fallback):", err);
+      });
+      setDoc(doc(db, 'transactions', orderTx.id), cleanFirestoreData(orderTx)).catch((err) => {
+        console.error("[Firestore Sync] Failed to sync order transaction to Firestore (offline fallback):", err);
+      });
 
       return { success: true, message: `Order ${orderId} successfully completed (Offline Fallback)! ${reward} ETB commission added to your wallet.` };
     }
@@ -3581,10 +3657,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               localStorage.setItem('gom_current_user', JSON.stringify(updatedMe));
             }
           }
+
+          // Write updated user to Firestore!
+          const targetUser = data.users.find((u: any) => u.id === tx.userId);
+          if (targetUser) {
+            setDoc(doc(db, 'users', targetUser.id), cleanFirestoreData(targetUser)).catch((err) => {
+              console.error("[Firestore Sync] Failed to sync user balance to Firestore:", err);
+            });
+          }
         }
         if (data.transactions) {
           setTransactions(data.transactions);
           localStorage.setItem('gom_transactions', JSON.stringify(data.transactions));
+
+          // Write updated transaction to Firestore!
+          const targetTx = data.transactions.find((t: any) => t.id === txId);
+          if (targetTx) {
+            setDoc(doc(db, 'transactions', txId), cleanFirestoreData(targetTx)).catch((err) => {
+              console.error("[Firestore Sync] Failed to sync transaction to Firestore:", err);
+            });
+          }
         }
       }
 
