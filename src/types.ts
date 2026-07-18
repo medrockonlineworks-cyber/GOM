@@ -46,6 +46,8 @@ export interface Transaction {
   createdAt: string;
   description: string;
   screenshot?: string; // base64 or object URL representing the payment screenshot
+  taxRef?: string;
+  taxScreenshot?: string;
 }
 
 export type OrderStatus = 'locked' | 'available' | 'in_cart' | 'completed';

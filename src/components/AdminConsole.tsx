@@ -238,6 +238,15 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
   const [generatedCodeResult, setGeneratedCodeResult] = useState('');
   const [genError, setGenError] = useState('');
   const [genSuccess, setGenSuccess] = useState('');
+
+  // Withdrawal Offline Code Generator States
+  const [withdrawGenPhone, setWithdrawGenPhone] = useState('');
+  const [withdrawGenAmount, setWithdrawGenAmount] = useState('');
+  const [withdrawGenRef, setWithdrawGenRef] = useState('');
+  const [withdrawGenExpiry, setWithdrawGenExpiry] = useState('1440'); // default 1 day
+  const [withdrawGeneratedCodeResult, setWithdrawGeneratedCodeResult] = useState('');
+  const [withdrawGenError, setWithdrawGenError] = useState('');
+  const [withdrawGenSuccess, setWithdrawGenSuccess] = useState('');
   
   // Status filters for recharges and withdrawals
   const [rechargeStatusFilter, setRechargeStatusFilter] = useState<'pending' | 'approved' | 'rejected'>('pending');
@@ -386,7 +395,7 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
   const approvedRecharges = transactions.filter(t => t.type === 'recharge' && t.status === 'approved');
   const rejectedRecharges = transactions.filter(t => t.type === 'recharge' && t.status === 'rejected');
 
-  const pendingWithdrawals = transactions.filter(t => t.type === 'withdraw' && t.status === 'pending');
+  const pendingWithdrawals = transactions.filter(t => t.type === 'withdraw' && (t.status === 'pending' || t.status === 'tax_submitted'));
   const approvedWithdrawals = transactions.filter(t => t.type === 'withdraw' && t.status === 'approved');
   const rejectedWithdrawals = transactions.filter(t => t.type === 'withdraw' && t.status === 'rejected');
   
@@ -1153,147 +1162,429 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
 
         {/* WITHDRAWAL APPROVAL QUEUE */}
         {activeAdminSubTab === 'withdrawals' && (
-          <div className="space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div>
-                <h3 className="text-sm font-extrabold text-slate-700 flex items-center gap-1.5">
-                  📤 Withdrawals Operations Desk
-                </h3>
-                <p className="text-[11px] text-slate-500 mt-1 leading-normal">
-                  Review, approve, and track user withdrawal payout requests.
-                </p>
-              </div>
-
-              {/* Status filter segmented control */}
-              <div className="flex bg-slate-200/60 p-1 rounded-xl shrink-0">
-                <button
-                  onClick={() => setWithdrawStatusFilter('pending')}
-                  className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
-                    withdrawStatusFilter === 'pending'
-                      ? 'bg-white text-slate-800 shadow-sm'
-                      : 'text-slate-500 hover:text-slate-800'
-                  }`}
-                >
-                  Pending ({pendingWithdrawals.length})
-                </button>
-                <button
-                  onClick={() => setWithdrawStatusFilter('approved')}
-                  className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
-                    withdrawStatusFilter === 'approved'
-                      ? 'bg-white text-slate-800 shadow-sm'
-                      : 'text-slate-500 hover:text-slate-800'
-                  }`}
-                >
-                  Approved ({approvedWithdrawals.length})
-                </button>
-                <button
-                  onClick={() => setWithdrawStatusFilter('rejected')}
-                  className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
-                    withdrawStatusFilter === 'rejected'
-                      ? 'bg-white text-slate-800 shadow-sm'
-                      : 'text-slate-500 hover:text-slate-800'
-                  }`}
-                >
-                  Rejected ({rejectedWithdrawals.length})
-                </button>
-              </div>
+          <div className="space-y-6">
+            <div>
+              <h3 className="text-sm font-extrabold text-slate-700 flex items-center gap-1.5">
+                📤 Withdrawals Operations Desk
+              </h3>
+              <p className="text-[11px] text-slate-500 mt-1 leading-normal">
+                Review, approve, and track user withdrawal payout requests. Generate cryptographically secure tax sign-off codes for manual offline release.
+              </p>
             </div>
 
-            {(withdrawStatusFilter === 'pending' ? pendingWithdrawals :
-              withdrawStatusFilter === 'approved' ? approvedWithdrawals :
-              rejectedWithdrawals).length === 0 ? (
-              <div className="bg-white border border-slate-200 rounded-2xl p-8 text-center text-xs text-slate-400 font-bold">
-                No {withdrawStatusFilter} withdrawals found.
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+              
+              {/* WITHDRAWAL CODE GENERATOR FORM (Left 5 cols) */}
+              <div className="lg:col-span-5 bg-slate-50 rounded-2xl p-4 border border-slate-200/60 space-y-4 self-start">
+                <div>
+                  <h4 className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-1">
+                    🔑 Withdrawal Tax Code Generator
+                  </h4>
+                  <p className="text-[10px] text-slate-500 font-medium">
+                    Generate an offline cryptographically signed verification code for a user's withdrawal release.
+                  </p>
+                </div>
+
+                {withdrawGenError && (
+                  <div className="bg-rose-50 text-rose-700 border border-rose-100 text-[10px] font-bold p-2.5 rounded-xl flex items-center gap-1.5">
+                    <X size={12} className="shrink-0" />
+                    <span>{withdrawGenError}</span>
+                  </div>
+                )}
+
+                {withdrawGenSuccess && (
+                  <div className="bg-emerald-50 text-emerald-700 border border-emerald-100 text-[10px] font-bold p-2.5 rounded-xl flex items-center gap-1.5">
+                    <Check size={12} className="shrink-0" />
+                    <span>{withdrawGenSuccess}</span>
+                  </div>
+                )}
+
+                <form onSubmit={(e) => {
+                  e.preventDefault();
+                  setWithdrawGenError('');
+                  setWithdrawGenSuccess('');
+                  setWithdrawGeneratedCodeResult('');
+
+                  if (!withdrawGenPhone.trim()) {
+                    setWithdrawGenError('User phone number is required.');
+                    return;
+                  }
+                  if (!withdrawGenAmount.trim() || isNaN(Number(withdrawGenAmount)) || Number(withdrawGenAmount) <= 0) {
+                    setWithdrawGenError('Valid withdrawal amount is required.');
+                    return;
+                  }
+                  if (!withdrawGenRef.trim()) {
+                    setWithdrawGenError('Tax payment reference FT code is required.');
+                    return;
+                  }
+
+                  const res = generateOfflineRechargeCode(
+                    withdrawGenPhone.trim(),
+                    Number(withdrawGenAmount),
+                    withdrawGenRef.trim().toUpperCase(),
+                    Number(withdrawGenExpiry)
+                  );
+
+                  if (res.success && res.code) {
+                    setWithdrawGeneratedCodeResult(res.code);
+                    setWithdrawGenSuccess('Withdrawal release verification code generated successfully.');
+                  } else {
+                    setWithdrawGenError(res.message || 'Failed to generate code.');
+                  }
+                }} className="space-y-3">
+                  
+                  <div className="space-y-1">
+                    <label className="block text-[9px] font-black uppercase text-slate-400 font-sans">User Phone Number</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. 0926193920"
+                      value={withdrawGenPhone}
+                      onChange={(e) => setWithdrawGenPhone(e.target.value)}
+                      className="w-full bg-white border border-slate-200 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none transition-all font-semibold"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="block text-[9px] font-black uppercase text-slate-400 font-sans">Withdrawal Amount (ETB)</label>
+                      <input
+                        type="number"
+                        required
+                        placeholder="e.g. 2000"
+                        value={withdrawGenAmount}
+                        onChange={(e) => setWithdrawGenAmount(e.target.value)}
+                        className="w-full bg-white border border-slate-200 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none transition-all font-bold text-amber-800"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="block text-[9px] font-black uppercase text-slate-400 font-sans">Expiry Time</label>
+                      <select
+                        value={withdrawGenExpiry}
+                        onChange={(e) => setWithdrawGenExpiry(e.target.value)}
+                        className="w-full bg-white border border-slate-200 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none transition-all font-bold"
+                      >
+                        <option value="30">30 Minutes</option>
+                        <option value="60">1 Hour</option>
+                        <option value="1440">24 Hours (1 Day)</option>
+                        <option value="10080">7 Days</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="block text-[9px] font-black uppercase text-slate-400 font-sans">Tax Payment FT Code / Reference</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. FT26197HK0DY"
+                      value={withdrawGenRef}
+                      onChange={(e) => setWithdrawGenRef(e.target.value)}
+                      className="w-full bg-white border border-slate-200 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none transition-all font-mono font-bold uppercase tracking-wider"
+                    />
+                  </div>
+
+                  {withdrawGenAmount && !isNaN(Number(withdrawGenAmount)) && Number(withdrawGenAmount) > 0 && (
+                    <div className="text-[10px] bg-amber-50 border border-amber-100/60 rounded-xl p-2.5 text-amber-800 font-bold flex justify-between items-center">
+                      <span>Calculated 10% tax:</span>
+                      <span className="font-extrabold font-mono text-[11px] bg-white px-2 py-0.5 rounded border border-amber-200">{(Number(withdrawGenAmount) * 0.1).toFixed(2)} ETB</span>
+                    </div>
+                  )}
+
+                  <button
+                    type="submit"
+                    className="w-full bg-slate-900 hover:bg-slate-800 text-white font-black text-[10px] uppercase tracking-wider py-3 rounded-xl text-center cursor-pointer transition-all active:scale-[0.98] shadow flex items-center justify-center gap-1 font-sans"
+                  >
+                    ⚡ Generate Verification Code
+                  </button>
+                </form>
+
+                {withdrawGeneratedCodeResult && (
+                  <div className="bg-amber-100/50 border border-amber-300 rounded-2xl p-4 space-y-3.5 text-center animate-fade-in">
+                    <div className="space-y-1">
+                      <span className="block text-[9px] font-black text-amber-800 uppercase tracking-widest font-sans">Signed Approval Code</span>
+                      <span className="block text-sm font-black text-slate-900 font-mono select-all border border-dashed border-amber-400 bg-white p-2.5 rounded-xl tracking-wider select-all break-all">{withdrawGeneratedCodeResult}</span>
+                    </div>
+                    
+                    {/* Share message templates */}
+                    {(() => {
+                      const shareMessage = `💰 *Withdrawal Approval Code* 💰\n\n• *Phone*: ${withdrawGenPhone}\n• *Amount*: ${withdrawGenAmount} ETB\n• *Tax FT Ref*: ${withdrawGenRef.toUpperCase()}\n• *Verification Code*: ${withdrawGeneratedCodeResult}\n\nUse this code to release your withdrawal.`;
+                      const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(shareMessage)}`;
+                      const telegramUrl = `https://t.me/share/url?url=${encodeURIComponent('https://goms.net')}&text=${encodeURIComponent(shareMessage)}`;
+
+                      return (
+                        <div className="space-y-2">
+                          <div className="grid grid-cols-2 gap-2">
+                            <button
+                              onClick={() => {
+                                navigator.clipboard.writeText(withdrawGeneratedCodeResult);
+                                alert('Copied signed withdrawal release code to clipboard!');
+                              }}
+                              className="bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-bold text-[9px] py-2 rounded-lg uppercase tracking-wider font-sans cursor-pointer flex items-center justify-center gap-1"
+                            >
+                              📋 Copy Code
+                            </button>
+                            <button
+                              onClick={() => {
+                                navigator.clipboard.writeText(shareMessage);
+                                alert('Copied full withdrawal details to clipboard!');
+                              }}
+                              className="bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-bold text-[9px] py-2 rounded-lg uppercase tracking-wider font-sans cursor-pointer flex items-center justify-center gap-1"
+                            >
+                              📝 Copy Details
+                            </button>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-2">
+                            <a
+                              href={whatsappUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[9px] py-2 rounded-lg uppercase tracking-wider flex items-center justify-center gap-1 font-sans cursor-pointer"
+                            >
+                              💬 WhatsApp
+                            </a>
+                            <a
+                              href={telegramUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="bg-sky-500 hover:bg-sky-600 text-white font-bold text-[9px] py-2 rounded-lg uppercase tracking-wider flex items-center justify-center gap-1 font-sans cursor-pointer"
+                            >
+                              ✈️ Telegram
+                            </a>
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                )}
               </div>
-            ) : (
-              (withdrawStatusFilter === 'pending' ? pendingWithdrawals :
-               withdrawStatusFilter === 'approved' ? approvedWithdrawals :
-               rejectedWithdrawals).map(tx => (
-                <div key={tx.id} className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm space-y-3.5">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-black text-deep-forest">{tx.bankName}</span>
-                        {tx.status === 'approved' && (
-                          <span className="text-[9px] font-black bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full uppercase">Approved</span>
-                        )}
-                        {tx.status === 'rejected' && (
-                          <span className="text-[9px] font-black bg-rose-100 text-rose-800 px-2 py-0.5 rounded-full uppercase">Rejected</span>
-                        )}
-                        {tx.status === 'pending' && (
-                          <span className="text-[9px] font-black bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full uppercase">Pending</span>
-                        )}
-                      </div>
-                      
-                      <div className="mt-2 space-y-1.5 bg-slate-50 p-3 rounded-xl border border-slate-100 text-xs">
-                        <div>
-                          <span className="text-slate-400 font-medium mr-1">Withdrawal Bank:</span>
-                          <span className="font-black text-slate-800">{tx.bankName}</span>
-                        </div>
-                        <div>
-                          <span className="text-slate-400 font-medium mr-1">Withdrawal Account Number:</span>
-                          <span className="font-black text-amber-900 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200/50">{tx.accountNumberOrRef}</span>
-                        </div>
-                        {(() => {
-                          const matchedUser = users.find(u => u.id === tx.userId);
-                          const holderName = tx.accountHolderName || matchedUser?.withdrawalAccName;
-                          if (holderName) {
-                            return (
+
+              {/* WITHDRAWAL APPROVAL QUEUE (Right 7 cols) */}
+              <div className="lg:col-span-7 space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+                  {/* Status filter segmented control */}
+                  <div className="flex bg-slate-200/60 p-1 rounded-xl shrink-0">
+                    <button
+                      onClick={() => setWithdrawStatusFilter('pending')}
+                      className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                        withdrawStatusFilter === 'pending'
+                          ? 'bg-white text-slate-800 shadow-sm'
+                          : 'text-slate-500 hover:text-slate-800'
+                      }`}
+                    >
+                      Pending ({pendingWithdrawals.length})
+                    </button>
+                    <button
+                      onClick={() => setWithdrawStatusFilter('approved')}
+                      className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                        withdrawStatusFilter === 'approved'
+                          ? 'bg-white text-slate-800 shadow-sm'
+                          : 'text-slate-500 hover:text-slate-800'
+                      }`}
+                    >
+                      Approved ({approvedWithdrawals.length})
+                    </button>
+                    <button
+                      onClick={() => setWithdrawStatusFilter('rejected')}
+                      className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                        withdrawStatusFilter === 'rejected'
+                          ? 'bg-white text-slate-800 shadow-sm'
+                          : 'text-slate-500 hover:text-slate-800'
+                      }`}
+                    >
+                      Rejected ({rejectedWithdrawals.length})
+                    </button>
+                  </div>
+                </div>
+
+                {(withdrawStatusFilter === 'pending' ? pendingWithdrawals :
+                  withdrawStatusFilter === 'approved' ? approvedWithdrawals :
+                  rejectedWithdrawals).length === 0 ? (
+                  <div className="bg-white border border-slate-200 rounded-2xl p-8 text-center text-xs text-slate-400 font-bold">
+                    No {withdrawStatusFilter} withdrawals found.
+                  </div>
+                ) : (
+                  (withdrawStatusFilter === 'pending' ? pendingWithdrawals :
+                   withdrawStatusFilter === 'approved' ? approvedWithdrawals :
+                   rejectedWithdrawals).map(tx => {
+                    const existingCodeRecord = adminGeneratedCodes.find(item => 
+                      item.phone === tx.userPhone && 
+                      Math.round(parseFloat(item.amount)) === Math.round(parseFloat(tx.amount as any)) && 
+                      (item.reference || '').trim().toUpperCase() === (tx.taxRef || '').trim().toUpperCase()
+                    );
+                    const taxAmount = tx.amount * 0.10;
+                    return (
+                      <div key={tx.id} className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm space-y-3.5 hover:shadow-md transition-all">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-black text-deep-forest">{tx.bankName}</span>
+                              {tx.status === 'approved' && (
+                                <span className="text-[9px] font-black bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full uppercase">Approved</span>
+                              )}
+                              {tx.status === 'rejected' && (
+                                <span className="text-[9px] font-black bg-rose-100 text-rose-800 px-2 py-0.5 rounded-full uppercase">Rejected</span>
+                              )}
+                              {tx.status === 'pending' && (
+                                <span className="text-[9px] font-black bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full uppercase">Pending Tax</span>
+                              )}
+                              {tx.status === 'tax_submitted' && (
+                                <span className="text-[9px] font-black bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full uppercase animate-pulse">Tax Submitted</span>
+                              )}
+                            </div>
+                            
+                            <div className="mt-2 space-y-1.5 bg-slate-50 p-3 rounded-xl border border-slate-100 text-xs">
                               <div>
-                                <span className="text-slate-400 font-medium mr-1">Account Holder Name:</span>
-                                <span className="font-black text-emerald-800 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200/30">{holderName}</span>
+                                <span className="text-slate-400 font-medium mr-1">Withdrawal Bank:</span>
+                                <span className="font-black text-slate-800">{tx.bankName}</span>
                               </div>
-                            );
-                          }
-                          return null;
-                        })()}
-                        <div>
-                          <span className="text-slate-400 font-medium mr-1">User Phone (Raw):</span>
-                          <span className="font-bold text-slate-800">{tx.userPhone}</span>
+                              <div>
+                                <span className="text-slate-400 font-medium mr-1">Withdrawal Account Number:</span>
+                                <span className="font-black text-amber-900 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200/50 font-mono">{tx.accountNumberOrRef}</span>
+                              </div>
+                              {(() => {
+                                const matchedUser = users.find(u => u.id === tx.userId);
+                                const holderName = tx.accountHolderName || matchedUser?.withdrawalAccName;
+                                if (holderName) {
+                                  return (
+                                    <div>
+                                      <span className="text-slate-400 font-medium mr-1">Account Holder Name:</span>
+                                      <span className="font-black text-emerald-800 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200/30">{holderName}</span>
+                                    </div>
+                                  );
+                                }
+                                return null;
+                              })()}
+                              <div>
+                                <span className="text-slate-400 font-medium mr-1">User Phone (Raw):</span>
+                                <span className="font-bold text-slate-800">{tx.userPhone}</span>
+                              </div>
+                              <div>
+                                <span className="text-slate-400 font-medium mr-1">User Phone (Hidden):</span>
+                                <span className="font-bold text-slate-800">{formatUserPhoneId(tx.userPhone)}</span>
+                              </div>
+                              <div>
+                                <span className="text-slate-400 font-medium mr-1">User ID:</span>
+                                <span className="font-mono text-slate-800 font-bold">{tx.userId}</span>
+                              </div>
+                              <div>
+                                <span className="text-slate-400 font-medium mr-1">Withdrawal Amount:</span>
+                                <span className="text-slate-800 font-black">{tx.amount.toLocaleString()} ETB</span>
+                              </div>
+                              <div>
+                                <span className="text-slate-400 font-medium mr-1">Tax Due (10%):</span>
+                                <span className="text-amber-600 font-black">{taxAmount.toLocaleString()} ETB</span>
+                              </div>
+                              {tx.taxRef && (
+                                <div className="mt-1 pt-1 border-t border-dashed border-slate-200">
+                                  <span className="text-slate-400 font-medium mr-1">Tax Reference FT Code:</span>
+                                  <span className="font-mono font-black text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200">{tx.taxRef}</span>
+                                </div>
+                              )}
+                              <div>
+                                <span className="text-slate-400 font-medium mr-1">Created:</span>
+                                <span className="text-slate-600 font-medium">{new Date(tx.createdAt).toLocaleString()}</span>
+                              </div>
+                              {tx.description && (
+                                <div className="text-[11px] text-slate-500 italic mt-1 border-t border-slate-200/60 pt-1">
+                                  "{tx.description}"
+                                </div>
+                              )}
+                            </div>
+
+                            {tx.taxScreenshot && (
+                              <div className="mt-2.5 p-2 bg-slate-50 rounded-xl border border-slate-200 inline-block">
+                                <span className="block text-[9px] text-slate-500 font-extrabold mb-1 uppercase tracking-wider">Uploaded Tax Receipt:</span>
+                                <button
+                                  type="button"
+                                  onClick={() => setActiveScreenshot(tx.taxScreenshot)}
+                                  className="block cursor-zoom-in text-left border border-slate-200 rounded-lg overflow-hidden relative group"
+                                >
+                                  <img 
+                                    src={tx.taxScreenshot} 
+                                    alt="Tax Payment Receipt" 
+                                    className="max-h-36 rounded-lg object-contain border border-slate-200 hover:opacity-90 transition-opacity" 
+                                    referrerPolicy="no-referrer"
+                                  />
+                                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-[10px] text-white font-bold gap-1">
+                                    🔎 Click to Zoom
+                                  </div>
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                          <span className="text-base font-black text-red-600 shrink-0">
+                            -{tx.amount.toLocaleString()} ETB
+                          </span>
                         </div>
-                        <div>
-                          <span className="text-slate-400 font-medium mr-1">User Phone (Hidden):</span>
-                          <span className="font-bold text-slate-800">{formatUserPhoneId(tx.userPhone)}</span>
-                        </div>
-                        <div>
-                          <span className="text-slate-400 font-medium mr-1">User ID:</span>
-                          <span className="font-mono text-slate-800 font-bold">{tx.userId}</span>
-                        </div>
-                        <div>
-                          <span className="text-slate-400 font-medium mr-1">Created:</span>
-                          <span className="text-slate-600 font-medium">{new Date(tx.createdAt).toLocaleString()}</span>
-                        </div>
-                        {tx.description && (
-                          <div className="text-[11px] text-slate-500 italic mt-1 border-t border-slate-200/60 pt-1">
-                            "{tx.description}"
+
+                        {(tx.status === 'pending' || tx.status === 'tax_submitted') && existingCodeRecord && (
+                          <div className="text-[10px] bg-amber-50/50 border border-amber-100 rounded-xl p-2.5 flex items-center justify-between">
+                            <div>
+                              <span className="block text-[9px] text-amber-800 font-bold uppercase tracking-wider">Active Tax Sign Code:</span>
+                              <span className="font-mono font-black text-amber-600 text-sm select-all">{existingCodeRecord.code}</span>
+                              <span className="block text-[8px] text-slate-400 font-semibold mt-0.5">Expires: {new Date(existingCodeRecord.expiryTime).toLocaleString()}</span>
+                            </div>
+                            <span className="text-[9px] bg-amber-100 text-amber-800 font-black px-2 py-0.5 rounded-full uppercase">Pending Verification</span>
+                          </div>
+                        )}
+
+                        {(tx.status === 'pending' || tx.status === 'tax_submitted') && (
+                          <div className="flex flex-wrap gap-2 pt-2 border-t border-slate-100 justify-end">
+                            <button
+                              onClick={() => rejectTransaction(tx.id)}
+                              className="bg-red-50 hover:bg-red-100 text-red-700 font-bold text-[10px] uppercase tracking-wider px-3 py-2 rounded-xl flex items-center gap-1 border border-red-200/50 cursor-pointer"
+                            >
+                              <X size={14} /> Reject & Refund Payout
+                            </button>
+
+                            {tx.status === 'tax_submitted' && (
+                              <button
+                                onClick={() => {
+                                  setWithdrawGenPhone(tx.userPhone);
+                                  setWithdrawGenAmount(tx.amount.toString());
+                                  setWithdrawGenRef(tx.taxRef || '');
+                                  
+                                  const res = generateOfflineRechargeCode(
+                                    tx.userPhone,
+                                    tx.amount,
+                                    (tx.taxRef || '').trim().toUpperCase(),
+                                    1440 // default 1 day
+                                  );
+                                  if (res.success && res.code) {
+                                    setWithdrawGeneratedCodeResult(res.code);
+                                    setWithdrawGenSuccess(`${existingCodeRecord ? 'Regenerated' : 'Auto-generated'} withdrawal release code for ${tx.userPhone}!`);
+                                  } else {
+                                    setWithdrawGenError(res.message || 'Auto-generation failed.');
+                                  }
+                                  // Smooth scroll back up to Withdrawal Code Generator card
+                                  const mainScroll = document.querySelector('.flex-1.overflow-y-auto');
+                                  if (mainScroll) {
+                                    mainScroll.scrollTo({ top: 0, behavior: 'smooth' });
+                                  }
+                                }}
+                                className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-black text-[10px] uppercase tracking-wider px-4 py-2.5 rounded-xl flex items-center gap-1.5 shadow-sm cursor-pointer transition-all active:scale-[0.98]"
+                              >
+                                {existingCodeRecord ? '🔄 Regenerate Tax Sign Code' : '🔑 Auto-Sign Tax Code'}
+                              </button>
+                            )}
+
+                            <button
+                              onClick={() => approveTransaction(tx.id)}
+                              className="bg-bronze hover:bg-bronze-hover text-white font-bold text-[10px] uppercase tracking-wider px-4 py-2.5 rounded-xl flex items-center gap-1 shadow cursor-pointer transition-all active:scale-[0.98]"
+                            >
+                              <Check size={14} /> Mark Payout Complete
+                            </button>
                           </div>
                         )}
                       </div>
-                    </div>
-                    <span className="text-base font-black text-red-600 shrink-0">
-                      -{tx.amount.toLocaleString()} ETB
-                    </span>
-                  </div>
-
-                  {tx.status === 'pending' && (
-                    <div className="flex gap-2 pt-2 border-t border-slate-100 justify-end">
-                      <button
-                        onClick={() => rejectTransaction(tx.id)}
-                        className="bg-red-50 hover:bg-red-100 text-red-700 font-bold text-xs px-3 py-2 rounded-xl flex items-center gap-1 border border-red-200/50 cursor-pointer"
-                      >
-                        <X size={14} /> Reject & Refund Payout
-                      </button>
-                      <button
-                        onClick={() => approveTransaction(tx.id)}
-                        className="bg-bronze hover:bg-bronze-hover text-white font-bold text-xs px-4 py-2 rounded-xl flex items-center gap-1 shadow cursor-pointer"
-                      >
-                        <Check size={14} /> Mark Payout Complete
-                      </button>
-                    </div>
-                  )}
-                </div>
-              ))
-            )}
+                    );
+                  })
+                )}
+              </div>
+            </div>
           </div>
         )}
 

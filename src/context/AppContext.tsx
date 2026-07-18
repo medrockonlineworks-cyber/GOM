@@ -500,6 +500,8 @@ interface AppContextProps {
   adminGeneratedCodes: any[];
   generateOfflineRechargeCode: (phone: string, amount: number, reference: string, expiryMinutes: number) => { success: boolean; code?: string; message?: string };
   verifyRechargeOffline: (txId: string, code: string) => Promise<{ success: boolean; message: string }>;
+  submitWithdrawalTax: (txId: string, taxRef: string, taxScreenshot?: string) => Promise<{ success: boolean; message: string }>;
+  verifyWithdrawalOffline: (txId: string, code: string) => Promise<{ success: boolean; message: string }>;
 
   // System reset
   factoryReset: () => void;
@@ -3484,6 +3486,163 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+  const submitWithdrawalTax = async (txId: string, taxRef: string, taxScreenshot?: string) => {
+    try {
+      const res = await fetch(`/api/transactions/${txId}/tax-payment`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ taxRef, taxScreenshot })
+      });
+
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || 'Failed to submit tax payment info on server.');
+      }
+
+      const data = await res.json();
+      
+      let updatedTxsList: Transaction[] = transactions;
+      if (data.transactions) {
+        updatedTxsList = data.transactions;
+      } else {
+        updatedTxsList = transactions.map(t => 
+          t.id === txId 
+            ? { ...t, taxRef, taxScreenshot, status: 'tax_submitted' as const } 
+            : t
+        );
+      }
+      setTransactions(updatedTxsList);
+      localStorage.setItem('gom_transactions', JSON.stringify(updatedTxsList));
+
+      await logAudit(currentUser?.id || 'SYSTEM', currentUser?.phoneNumber || 'SYSTEM', 'WITHDRAW_TAX_SUBMIT', `Submitted tax payment reference ${taxRef} for transaction ${txId}.`);
+
+      return { success: true, message: 'Tax payment info submitted successfully! Pending verification.' };
+    } catch (e: any) {
+      console.error("Error in submitWithdrawalTax:", e);
+      const updatedTxsList = transactions.map(t => 
+        t.id === txId 
+          ? { ...t, taxRef, taxScreenshot, status: 'tax_submitted' as const } 
+          : t
+      );
+      setTransactions(updatedTxsList);
+      localStorage.setItem('gom_transactions', JSON.stringify(updatedTxsList));
+      return { success: true, message: 'Tax payment info submitted locally (Offline Fallback).' };
+    }
+  };
+
+  const verifyWithdrawalOffline = async (txId: string, code: string) => {
+    const tx = transactions.find(t => t.id === txId);
+    if (!tx || tx.type !== 'withdraw') {
+      return { success: false, message: 'Withdrawal transaction not found.' };
+    }
+
+    const normalizeBase36 = (str: string): string => {
+      return str.replace(/[^A-Z0-9]/gi, '').toUpperCase()
+        .replace(/O/g, '0')
+        .replace(/I/g, '1')
+        .replace(/L/g, '1');
+    };
+
+    const normalizedCode = normalizeBase36(code);
+    const usedCodesNormalized = usedCodes.map(c => normalizeBase36(c));
+    if (usedCodesNormalized.includes(normalizedCode)) {
+      return { success: false, message: 'This verification code has already been used.' };
+    }
+
+    let isCodeVerified = false;
+    let isCodeExpired = false;
+
+    const matchedCacheRecord = adminGeneratedCodes.find(c => {
+      const savedCodeNorm = normalizeBase36(c.code || '');
+      if (savedCodeNorm !== normalizedCode) return false;
+      
+      const cachedAmount = Math.round(parseFloat(c.amount));
+      const txAmount = Math.round(parseFloat(tx.amount as any));
+      return cachedAmount === txAmount;
+    });
+
+    if (matchedCacheRecord) {
+      isCodeVerified = true;
+      if (matchedCacheRecord.expiryTime) {
+        const expiryDateObj = new Date(matchedCacheRecord.expiryTime);
+        isCodeExpired = Date.now() > expiryDateObj.getTime();
+      }
+    } else {
+      const check = verifyVerificationCode(code, tx.userPhone, tx.amount, tx.taxRef || '');
+      isCodeVerified = check.valid;
+      isCodeExpired = check.expired;
+    }
+
+    if (!isCodeVerified) {
+      return { success: false, message: 'Cryptographic signature mismatch or invalid verification code.' };
+    }
+
+    if (isCodeExpired) {
+      return { success: false, message: 'This verification code has expired.' };
+    }
+
+    try {
+      const updatedUsed = [...usedCodes, normalizedCode];
+      setUsedCodes(updatedUsed);
+      localStorage.setItem('gom_used_verification_codes', JSON.stringify(updatedUsed));
+
+      await fetch('/api/recharge-codes/used', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: normalizedCode })
+      }).catch(err => console.error('Error syncing used code with server:', err));
+
+      const res = await fetch(`/api/transactions/${txId}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'approved' })
+      });
+
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || 'Failed to approve withdrawal on backend server.');
+      }
+
+      const data = await res.json();
+      
+      let updatedTxsList: Transaction[] = transactions;
+      if (data.transactions) {
+        updatedTxsList = data.transactions;
+      } else {
+        updatedTxsList = transactions.map(t => t.id === txId ? { ...t, status: 'approved' as const } : t);
+      }
+      setTransactions(updatedTxsList);
+      localStorage.setItem('gom_transactions', JSON.stringify(updatedTxsList));
+
+      if (data.users) {
+        setUsers(data.users);
+        const updatedMe = data.users.find((u: any) => u.id === currentUser?.id);
+        if (updatedMe) {
+          setRawCurrentUser(updatedMe);
+          localStorage.setItem('gom_current_user', JSON.stringify(updatedMe));
+        }
+      }
+
+      await logAudit(tx.userId, tx.userPhone, 'WITHDRAW_TAX_VERIFY', `Successfully verified tax payment and approved withdrawal of ${tx.amount} ETB. FT Code: ${tx.taxRef}`);
+
+      return { success: true, message: 'Withdrawal Approved and Finalized Successfully!' };
+    } catch (e: any) {
+      console.error("Error in verifyWithdrawalOffline, falling back to local storage:", e);
+
+      const updatedUsed = [...usedCodes, normalizedCode];
+      setUsedCodes(updatedUsed);
+      localStorage.setItem('gom_used_verification_codes', JSON.stringify(updatedUsed));
+
+      const updatedTxsList = transactions.map(t => t.id === txId ? { ...t, status: 'approved' as const } : t);
+      setTransactions(updatedTxsList);
+      localStorage.setItem('gom_transactions', JSON.stringify(updatedTxsList));
+
+      await logAudit(tx.userId, tx.userPhone, 'WITHDRAW_TAX_VERIFY', `Successfully verified tax payment and approved withdrawal of ${tx.amount} ETB. (Offline Fallback)`);
+
+      return { success: true, message: 'Withdrawal Approved Successfully (Offline Fallback).' };
+    }
+  };
+
   return (
     <AppContext.Provider value={{
       currentUser,
@@ -3527,6 +3686,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       adminGeneratedCodes,
       generateOfflineRechargeCode,
       verifyRechargeOffline,
+      submitWithdrawalTax,
+      verifyWithdrawalOffline,
       factoryReset,
       rechargeAccounts,
       language,

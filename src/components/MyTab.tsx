@@ -35,7 +35,8 @@ import {
   Copy,
   Users,
   ShieldCheck,
-  Check
+  Check,
+  UploadCloud
 } from 'lucide-react';
 
 interface MyTabProps {
@@ -48,6 +49,42 @@ interface MyTabProps {
   prefillRechargeAmount: number;
   onToggleAdminView?: (open: boolean) => void;
 }
+
+const compressImage = (base64Str: string, maxWidth = 800, maxHeight = 800): Promise<string> => {
+  return new Promise((resolve) => {
+    const img = new window.Image();
+    img.src = base64Str;
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      let width = img.width;
+      let height = img.height;
+      if (width > height) {
+        if (width > maxWidth) {
+          height = Math.round((height * maxWidth) / width);
+          width = maxWidth;
+        }
+      } else {
+        if (height > maxHeight) {
+          width = Math.round((width * maxHeight) / height);
+          height = maxHeight;
+        }
+      }
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        resolve(base64Str);
+        return;
+      }
+      ctx.drawImage(img, 0, 0, width, height);
+      const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.7);
+      resolve(compressedDataUrl);
+    };
+    img.onerror = () => {
+      resolve(base64Str);
+    };
+  });
+};
 
 export const MyTab: React.FC<MyTabProps> = ({ 
   rechargeModalOpen, 
@@ -70,7 +107,10 @@ export const MyTab: React.FC<MyTabProps> = ({
     registerWithdrawalAccount,
     formatPrice,
     currency,
-    verifyRechargeOffline
+    verifyRechargeOffline,
+    submitWithdrawalTax,
+    verifyWithdrawalOffline,
+    rechargeAccounts
   } = useApp();
 
   const { t } = useTranslation(language);
@@ -305,6 +345,16 @@ export const MyTab: React.FC<MyTabProps> = ({
   const [verificationError, setVerificationError] = useState('');
   const [verificationSuccess, setVerificationSuccess] = useState('');
   const [verificationLoading, setVerificationLoading] = useState(false);
+
+  // Withdrawal tax and offline verification modal states
+  const [selectedPendingWithdrawal, setSelectedPendingWithdrawal] = useState<Transaction | null>(null);
+  const [withdrawalTaxRefInput, setWithdrawalTaxRefInput] = useState('');
+  const [withdrawalTaxScreenshot, setWithdrawalTaxScreenshot] = useState<string | null>(null);
+  const [withdrawalVerificationCode, setWithdrawalVerificationCode] = useState('');
+  const [withdrawalTaxLoading, setWithdrawalTaxLoading] = useState(false);
+  const [withdrawalTaxError, setWithdrawalTaxError] = useState('');
+  const [withdrawalTaxSuccess, setWithdrawalTaxSuccess] = useState('');
+  const [withdrawalDragActive, setWithdrawalDragActive] = useState(false);
 
   // Settings states
   const [showSettingsModal, setShowSettingsModal] = useState(false);
@@ -839,27 +889,55 @@ export const MyTab: React.FC<MyTabProps> = ({
                   userWithdrawals.length === 0 ? (
                     <div className="text-center py-12 text-xs text-slate-400 font-bold">{t('noWithdrawalsFound')}</div>
                   ) : (
-                    userWithdrawals.map(tx => (
-                      <div key={tx.id} className="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm flex justify-between items-center">
-                        <div className="space-y-1">
-                          <span className="block text-xs font-black text-slate-800">{tx.bankName}</span>
-                          <span className="block text-[10px] text-slate-400 font-medium">{t('accountNumber')}: {tx.accountNumberOrRef}</span>
-                          <span className="block text-[9px] text-slate-400 flex items-center gap-0.5">
-                            <Clock size={8} /> {new Date(tx.createdAt).toLocaleString()}
-                          </span>
+                    userWithdrawals.map(tx => {
+                      const isClickable = tx.status === 'pending' || tx.status === 'tax_submitted';
+                      return (
+                        <div 
+                          key={tx.id} 
+                          onClick={() => {
+                            if (isClickable) {
+                              setSelectedPendingWithdrawal(tx);
+                              setWithdrawalTaxRefInput(tx.taxRef || '');
+                              setWithdrawalTaxScreenshot(tx.taxScreenshot || null);
+                              setWithdrawalVerificationCode('');
+                              setWithdrawalTaxError('');
+                              setWithdrawalTaxSuccess('');
+                            }
+                          }}
+                          className={`bg-white border p-4 rounded-2xl shadow-sm flex justify-between items-center transition-all ${
+                            isClickable 
+                              ? 'border-amber-200/80 hover:border-amber-300 cursor-pointer hover:shadow active:scale-[0.99] bg-gradient-to-r from-white to-amber-50/20' 
+                              : 'border-slate-100'
+                          }`}
+                        >
+                          <div className="space-y-1">
+                            <span className="block text-xs font-black text-slate-800">{tx.bankName}</span>
+                            <span className="block text-[10px] text-slate-400 font-medium">{t('accountNumber')}: {tx.accountNumberOrRef}</span>
+                            <span className="block text-[9px] text-slate-400 flex items-center gap-0.5">
+                              <Clock size={8} /> {new Date(tx.createdAt).toLocaleString()}
+                            </span>
+                            {isClickable && (
+                              <span className="block text-[9px] text-amber-600 font-bold animate-pulse mt-1">
+                                🔔 {tx.status === 'pending' ? (language === 'pt' ? 'Pagar taxa de 10% para liberar' : 'Pay 10% tax to release') : (language === 'pt' ? 'Inserir código de verificação' : 'Click to enter verification code')}
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-right">
+                            <span className="block text-xs font-black text-red-500">-{formatPrice(tx.amount)}</span>
+                            <span className={`inline-block text-[8px] font-black uppercase px-2 py-0.5 rounded-full mt-1.5 ${
+                              tx.status === 'pending' ? 'bg-amber-100 text-amber-700' :
+                              tx.status === 'tax_submitted' ? 'bg-blue-100 text-blue-700' :
+                              tx.status === 'approved' ? 'bg-emerald-100 text-emerald-700' :
+                              'bg-red-100 text-red-700'
+                            }`}>
+                              {tx.status === 'pending' ? (language === 'pt' ? 'Pendente' : 'Pending Tax') : 
+                               tx.status === 'tax_submitted' ? (language === 'pt' ? 'Aprovação Pendente' : 'Approval Pending') :
+                               tx.status === 'approved' ? t('approvedStatus') : t('rejectedStatus')}
+                            </span>
+                          </div>
                         </div>
-                        <div className="text-right">
-                          <span className="block text-xs font-black text-red-500">-{formatPrice(tx.amount)}</span>
-                          <span className={`inline-block text-[8px] font-black uppercase px-2 py-0.5 rounded-full mt-1.5 ${
-                            tx.status === 'pending' ? 'bg-amber-100 text-amber-700' :
-                            tx.status === 'approved' ? 'bg-emerald-100 text-emerald-700' :
-                            'bg-red-100 text-red-700'
-                          }`}>
-                            {tx.status === 'pending' ? t('pendingStatus') : tx.status === 'approved' ? t('approvedStatus') : t('rejectedStatus')}
-                          </span>
-                        </div>
-                      </div>
-                    ))
+                      );
+                    })
                   )
                 )}
 
@@ -1533,6 +1611,358 @@ export const MyTab: React.FC<MyTabProps> = ({
                       )}
                     </div>
                   </form>
+                </motion.div>
+              );
+            })()}
+          </div>
+        )}
+
+        {selectedPendingWithdrawal && (
+          <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center z-50 backdrop-blur-sm p-4">
+            {(() => {
+              const currentTxInModal = transactions.find(t => t.id === selectedPendingWithdrawal.id) || selectedPendingWithdrawal;
+              const taxAmount = currentTxInModal.amount * 0.10;
+              return (
+                <motion.div
+                  initial={{ scale: 0.95, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.95, opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="bg-white rounded-[28px] w-full max-w-sm overflow-hidden shadow-2xl border border-slate-100 flex flex-col max-h-[90vh]"
+                >
+                  {/* Header */}
+                  <div className="px-6 pt-6 pb-4 flex justify-between items-center bg-slate-50 border-b border-slate-100 shrink-0">
+                    <div className="flex items-center gap-2">
+                      <ShieldCheck className="text-amber-500 animate-pulse" size={18} />
+                      <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest">
+                        {language === 'pt' ? 'Liberar Retirada' : 'Release Withdrawal'}
+                      </h3>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedPendingWithdrawal(null)}
+                      className="w-7 h-7 rounded-full bg-slate-200/50 hover:bg-slate-200 flex items-center justify-center text-slate-500 hover:text-slate-800 transition-all cursor-pointer"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+
+                  {/* Scrollable Content */}
+                  <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                    
+                    {/* Details Card */}
+                    <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 space-y-2">
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-slate-500 font-bold">{language === 'pt' ? 'Valor da Retirada:' : 'Withdrawal Amount:'}</span>
+                        <span className="text-slate-900 font-black">{formatPrice(currentTxInModal.amount)}</span>
+                      </div>
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-slate-500 font-bold">{language === 'pt' ? 'Imposto (10%):' : 'Tax Due (10%):'}</span>
+                        <span className="text-amber-600 font-black">{formatPrice(taxAmount)}</span>
+                      </div>
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-slate-500 font-bold">{language === 'pt' ? 'Banco:' : 'Bank:'}</span>
+                        <span className="text-slate-800 font-bold">{currentTxInModal.bankName}</span>
+                      </div>
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-slate-500 font-bold">{language === 'pt' ? 'Nº Conta:' : 'Account Nº:'}</span>
+                        <span className="text-slate-800 font-mono font-bold select-all bg-slate-200/60 px-1.5 py-0.5 rounded text-[10px]">{currentTxInModal.accountNumberOrRef}</span>
+                      </div>
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-slate-500 font-bold">Status:</span>
+                        {currentTxInModal.status === 'approved' ? (
+                          <span className="text-emerald-600 font-black flex items-center gap-1">
+                            <CheckCircle2 size={12} className="text-emerald-600" /> {language === 'pt' ? 'Completo' : 'Complete'}
+                          </span>
+                        ) : currentTxInModal.status === 'tax_submitted' ? (
+                          <span className="text-blue-600 font-black flex items-center gap-1 animate-pulse">
+                            <Clock size={10} /> {language === 'pt' ? 'Aprovação Pendente' : 'Approval Pending'}
+                          </span>
+                        ) : (
+                          <span className="text-amber-600 font-black flex items-center gap-1 animate-pulse">
+                            <Clock size={10} /> {language === 'pt' ? 'Taxa Pendente' : 'Tax Pending'}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {withdrawalTaxError && (
+                      <div className="bg-red-50 text-red-600 border border-red-100 text-[10px] font-bold p-3 rounded-xl flex items-center gap-2">
+                        <AlertCircle size={14} className="shrink-0 animate-bounce" />
+                        <span>{withdrawalTaxError}</span>
+                      </div>
+                    )}
+
+                    {withdrawalTaxSuccess && (
+                      <div className="bg-emerald-50 text-emerald-600 border border-emerald-100 text-[10px] font-bold p-3 rounded-xl flex items-center gap-2">
+                        <CheckCircle2 size={14} className="shrink-0 animate-ping" />
+                        <span>{withdrawalTaxSuccess}</span>
+                      </div>
+                    )}
+
+                    {/* Step 1: Submit Tax Proof */}
+                    {currentTxInModal.status === 'pending' && (
+                      <form onSubmit={async (e) => {
+                        e.preventDefault();
+                        if (!withdrawalTaxRefInput.trim()) {
+                          setWithdrawalTaxError(language === 'pt' ? 'Código de referência da taxa é obrigatório.' : 'Tax reference FT code is required.');
+                          return;
+                        }
+                        setWithdrawalTaxLoading(true);
+                        setWithdrawalTaxError('');
+                        setWithdrawalTaxSuccess('');
+                        try {
+                          const res = await submitWithdrawalTax(
+                            currentTxInModal.id,
+                            withdrawalTaxRefInput.trim(),
+                            withdrawalTaxScreenshot || undefined
+                          );
+                          if (res.success) {
+                            setWithdrawalTaxSuccess(res.message);
+                          } else {
+                            setWithdrawalTaxError(res.message);
+                          }
+                        } catch (err: any) {
+                          setWithdrawalTaxError(err.message || 'An error occurred.');
+                        } finally {
+                          setWithdrawalTaxLoading(false);
+                        }
+                      }} className="space-y-4">
+                        <div className="bg-amber-50/50 rounded-2xl p-3.5 border border-amber-100/50 text-[10.5px] leading-relaxed text-slate-600 font-medium">
+                          <p className="font-extrabold text-amber-900 mb-1.5 uppercase tracking-wider text-[9.5px]">
+                            {language === 'pt' ? '⚠️ Pagamento de Taxa Requerido' : '⚠️ Tax Payment Required'}
+                          </p>
+                          <p className="mb-2">
+                            {language === 'pt' 
+                              ? `De acordo com as diretrizes regulatórias, um imposto de liberação de 10% (${formatPrice(taxAmount)}) deve ser pago antes de liberar a transferência.`
+                              : `According to regulatory guidelines, a 10% release tax (${formatPrice(taxAmount)}) must be paid before releasing the transfer.`}
+                          </p>
+                          <div className="bg-white border border-slate-200/50 p-3.5 rounded-xl text-center space-y-2.5">
+                            <div>
+                              <span className="block text-[9px] font-black uppercase tracking-wider text-slate-400">
+                                {language === 'pt' ? 'Pagar Taxa de Liberação para' : 'Pay Release Tax To (CBE)'}
+                              </span>
+                              <span className="block text-sm font-black text-slate-900 font-mono tracking-widest select-all bg-slate-100 px-3 py-1.5 rounded-lg mt-1 inline-block">
+                                1000419524747
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                navigator.clipboard.writeText('1000419524747');
+                                alert(language === 'pt' ? 'Conta CBE copiada para a área de transferência!' : 'CBE account number copied to clipboard!');
+                              }}
+                              className="w-full bg-slate-900 hover:bg-slate-800 text-white font-black text-[9.5px] uppercase tracking-wider py-2 rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 active:scale-[0.98]"
+                            >
+                              📋 {language === 'pt' ? 'Copiar Conta CBE' : 'Copy CBE Account'}
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Reference Input */}
+                        <div className="space-y-1.5">
+                          <label className="block text-[9px] font-black uppercase tracking-wider text-slate-400">
+                            {language === 'pt' ? 'Número de Referência da Taxa (FT Code)' : 'Tax Reference Number (FT Code)'}
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            placeholder="e.g. FT262193910"
+                            value={withdrawalTaxRefInput}
+                            onChange={(e) => setWithdrawalTaxRefInput(e.target.value)}
+                            className="w-full bg-slate-50 border border-slate-200 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 focus:outline-none transition-all font-mono font-bold tracking-widest text-center uppercase"
+                          />
+                        </div>
+
+                        {/* Screenshot Upload */}
+                        <div className="space-y-1.5">
+                          <label className="block text-[9px] font-black uppercase tracking-wider text-slate-400">
+                            {language === 'pt' ? 'Comprovante de Pagamento da Taxa' : 'Tax Payment Screenshot'}
+                          </label>
+                          
+                          <div
+                            onDragOver={(e) => {
+                              e.preventDefault();
+                              setWithdrawalDragActive(true);
+                            }}
+                            onDragLeave={(e) => {
+                              e.preventDefault();
+                              setWithdrawalDragActive(false);
+                            }}
+                            onDrop={(e) => {
+                              e.preventDefault();
+                              setWithdrawalDragActive(false);
+                              if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                                const file = e.dataTransfer.files[0];
+                                const reader = new FileReader();
+                                reader.onload = async (event) => {
+                                  if (event.target?.result) {
+                                    const compressed = await compressImage(event.target.result as string);
+                                    setWithdrawalTaxScreenshot(compressed);
+                                  }
+                                };
+                                reader.readAsDataURL(file);
+                              }
+                            }}
+                            className={`border-2 border-dashed rounded-2xl p-4 text-center cursor-pointer transition-all duration-200 flex flex-col items-center justify-center space-y-2 ${
+                              withdrawalDragActive
+                                ? 'border-amber-500 bg-amber-500/5 scale-[1.01]'
+                                : 'border-slate-200 bg-slate-50 hover:bg-slate-100 hover:border-slate-300'
+                            }`}
+                            onClick={() => {
+                              document.getElementById('tax-receipt-upload-input')?.click();
+                            }}
+                          >
+                            <input
+                              type="file"
+                              id="tax-receipt-upload-input"
+                              className="hidden"
+                              accept="image/*"
+                              onChange={(e) => {
+                                if (e.target.files && e.target.files[0]) {
+                                  const file = e.target.files[0];
+                                  const reader = new FileReader();
+                                  reader.onload = async (event) => {
+                                    if (event.target?.result) {
+                                      const compressed = await compressImage(event.target.result as string);
+                                      setWithdrawalTaxScreenshot(compressed);
+                                    }
+                                  };
+                                  reader.readAsDataURL(file);
+                                }
+                              }}
+                            />
+                            <UploadCloud size={28} className={withdrawalDragActive ? 'text-amber-500' : 'text-slate-400'} />
+                            <div className="space-y-0.5">
+                              <p className="text-[10px] font-bold text-slate-700">
+                                {language === 'pt' ? 'Clique para enviar ou arraste e solte' : 'Click to upload or drag & drop'}
+                              </p>
+                              <p className="text-[8.5px] text-slate-400 font-semibold">
+                                {language === 'pt' ? 'Imagens suportadas (PNG, JPG)' : 'Supported images (PNG, JPG)'}
+                              </p>
+                            </div>
+                          </div>
+
+                          {withdrawalTaxScreenshot && (
+                            <div className="relative border border-slate-200 rounded-xl p-1.5 bg-white inline-block">
+                              <img src={withdrawalTaxScreenshot} alt="Uploaded receipt preview" className="max-h-24 object-contain rounded-lg border border-slate-100" referrerPolicy="no-referrer" />
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setWithdrawalTaxScreenshot(null);
+                                }}
+                                className="absolute -top-1.5 -right-1.5 bg-rose-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold hover:bg-rose-600 transition-colors shadow"
+                              >
+                                &times;
+                              </button>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Submit Button */}
+                        <div className="flex gap-2 pt-2">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedPendingWithdrawal(null)}
+                            className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 font-black text-[10px] uppercase tracking-wider py-3 rounded-xl text-center cursor-pointer transition-all active:scale-[0.98]"
+                          >
+                            {t('cancel')}
+                          </button>
+                          <button
+                            type="submit"
+                            disabled={withdrawalTaxLoading}
+                            className="flex-1 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-black text-[10px] uppercase tracking-wider py-3 rounded-xl text-center cursor-pointer transition-all active:scale-[0.98] shadow-sm flex items-center justify-center gap-1.5"
+                          >
+                            {withdrawalTaxLoading ? (language === 'pt' ? 'Enviando...' : 'Submitting...') : (language === 'pt' ? 'Enviar Comprovante' : 'Submit Tax Proof')}
+                          </button>
+                        </div>
+                      </form>
+                    )}
+
+                    {/* Step 2: Input Verification / Tax Sign Code */}
+                    {currentTxInModal.status === 'tax_submitted' && (
+                      <form onSubmit={async (e) => {
+                        e.preventDefault();
+                        if (!withdrawalVerificationCode.trim()) {
+                          setWithdrawalTaxError(language === 'pt' ? 'Código de verificação é obrigatório.' : 'Verification code is required.');
+                          return;
+                        }
+                        setWithdrawalTaxLoading(true);
+                        setWithdrawalTaxError('');
+                        setWithdrawalTaxSuccess('');
+                        try {
+                          const res = await verifyWithdrawalOffline(currentTxInModal.id, withdrawalVerificationCode.trim());
+                          if (res.success) {
+                            setWithdrawalTaxSuccess(res.message);
+                            setWithdrawalVerificationCode('');
+                            setTimeout(() => {
+                              setSelectedPendingWithdrawal(null);
+                            }, 2000);
+                          } else {
+                            setWithdrawalTaxError(res.message);
+                          }
+                        } catch (err: any) {
+                          setWithdrawalTaxError(err.message || 'Verification failed.');
+                        } finally {
+                          setWithdrawalTaxLoading(false);
+                        }
+                      }} className="space-y-4">
+                        
+                        <div className="bg-blue-50/50 rounded-2xl p-3.5 border border-blue-100/50 text-[10.5px] leading-relaxed text-slate-600 font-medium">
+                          <p className="font-extrabold text-blue-900 mb-1.5 uppercase tracking-wider text-[9.5px]">
+                            {language === 'pt' ? '⏱️ Verificação de Taxa Pendente' : '⏱️ Tax Verification Pending'}
+                          </p>
+                          <p className="mb-2">
+                            {language === 'pt'
+                              ? `Você enviou o comprovante de pagamento de taxa. Forneça o código assinado criptograficamente gerado pelo administrador para validar a liberação.`
+                              : `You have submitted your tax proof. Please enter the cryptographically signed verification code provided by the administrator to release the funds.`}
+                          </p>
+                          <div className="space-y-1 text-slate-500 font-semibold">
+                            <div><span className="font-bold">{language === 'pt' ? 'Código FT:' : 'FT Code:'}</span> <span className="font-mono font-bold bg-white border px-1 rounded text-blue-600 text-[10px]">{currentTxInModal.taxRef}</span></div>
+                          </div>
+                        </div>
+
+                        {/* Verification Code Input */}
+                        <div className="space-y-1.5">
+                          <label className="block text-[9px] font-black uppercase tracking-wider text-slate-400">
+                            {language === 'pt' ? 'Código de Liberação da Taxa' : 'Tax Release Code'}
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            placeholder="e.g. EXP36-SIG36"
+                            value={withdrawalVerificationCode}
+                            onChange={(e) => setWithdrawalVerificationCode(e.target.value)}
+                            className="w-full bg-slate-50 border border-slate-200 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 focus:outline-none transition-all font-mono font-bold placeholder:font-sans placeholder:font-medium tracking-widest text-center"
+                          />
+                          <p className="text-[9px] text-slate-400 leading-normal pt-1 text-center font-medium">
+                            {language === 'pt'
+                              ? 'Obtenha este código de assinatura com o administrador após ele aprovar seu comprovante de pagamento.'
+                              : 'Obtain this sign code from the administrator once they verify your tax payment receipt.'}
+                          </p>
+                        </div>
+
+                        {/* Submit Button */}
+                        <div className="flex gap-2 pt-2">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedPendingWithdrawal(null)}
+                            className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 font-black text-[10px] uppercase tracking-wider py-3 rounded-xl text-center cursor-pointer transition-all active:scale-[0.98]"
+                          >
+                            {language === 'pt' ? 'Fechar' : 'Close'}
+                          </button>
+                          <button
+                            type="submit"
+                            disabled={withdrawalTaxLoading || !!withdrawalTaxSuccess}
+                            className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 disabled:from-slate-300 disabled:to-slate-300 disabled:text-slate-400 text-white font-black text-[10px] uppercase tracking-wider py-3 rounded-xl text-center cursor-pointer transition-all active:scale-[0.98] shadow-sm flex items-center justify-center gap-1.5"
+                          >
+                            {withdrawalTaxLoading ? (language === 'pt' ? 'Liberando...' : 'Releasing...') : (language === 'pt' ? 'Liberar Retirada' : 'Release Withdrawal')}
+                          </button>
+                        </div>
+                      </form>
+                    )}
+                  </div>
                 </motion.div>
               );
             })()}

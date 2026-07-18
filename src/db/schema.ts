@@ -38,6 +38,8 @@ export const transactions = pgTable('transactions', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
   description: text('description').notNull(),
   screenshot: text('screenshot'), // base64 or url
+  taxRef: text('tax_ref'),
+  taxScreenshot: text('tax_screenshot'),
 });
 
 // Define the 'announcements' table

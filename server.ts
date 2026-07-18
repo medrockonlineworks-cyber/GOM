@@ -395,7 +395,7 @@ app.get('/api/transactions', async (req, res) => {
 
 app.post('/api/transactions', async (req, res) => {
   try {
-    const { id, userId, userPhone, type, amount, bankName, accountNumberOrRef, accountHolderName, status, description, screenshot } = req.body;
+    const { id, userId, userPhone, type, amount, bankName, accountNumberOrRef, accountHolderName, status, description, screenshot, taxRef, taxScreenshot } = req.body;
     
     await db.insert(transactions).values({
       id,
@@ -409,11 +409,34 @@ app.post('/api/transactions', async (req, res) => {
       status: status ?? 'pending',
       description,
       screenshot,
+      taxRef,
+      taxScreenshot,
       createdAt: new Date(),
     });
 
     const list = await db.select().from(transactions).orderBy(desc(transactions.createdAt));
     res.json(list);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Update transaction with tax payment info
+app.put('/api/transactions/:id/tax-payment', async (req, res) => {
+  try {
+    const txId = req.params.id;
+    const { taxRef, taxScreenshot } = req.body;
+
+    await db.update(transactions)
+      .set({
+        taxRef,
+        taxScreenshot,
+        status: 'tax_submitted'
+      })
+      .where(eq(transactions.id, txId));
+
+    const list = await db.select().from(transactions).orderBy(desc(transactions.createdAt));
+    res.json({ success: true, transactions: list });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -440,7 +463,7 @@ app.put('/api/transactions/:id/status', async (req, res) => {
       }
       const tx = txList[0];
       
-      if (tx.status !== 'pending') {
+      if (tx.status !== 'pending' && tx.status !== 'tax_submitted') {
         throw new Error('Transaction is already finalized.');
       }
 
