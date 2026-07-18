@@ -86,6 +86,133 @@ const compressImage = (base64Str: string, maxWidth = 800, maxHeight = 800): Prom
   });
 };
 
+const customVerifyT = {
+  en: {
+    verifyRecharge: 'Verify Recharge',
+    amount: 'Amount:',
+    bank: 'Bank:',
+    reference: 'Reference:',
+    approved: 'Approved',
+    pending: 'Pending',
+    adminVerifyCode: 'Admin Verification Code',
+    enterSecureCode: 'Enter the secure code obtained from the admin (via Telegram/WhatsApp) to cryptographically validate the transaction offline.',
+    close: 'Close',
+    verifying: 'Verifying...',
+    verifyCode: 'Verify Code',
+    
+    releaseWithdrawal: 'Release Withdrawal',
+    withdrawalAmount: 'Withdrawal Amount:',
+    taxDue: 'Tax Due (10%):',
+    accountNo: 'Account Nº:',
+    complete: 'Complete',
+    approvalPending: 'Approval Pending',
+    taxPending: 'Tax Pending',
+    taxPaymentRequired: '⚠️ Tax Payment Required',
+    taxDesc: (amountStr: string) => `According to regulatory guidelines, a 10% release tax (${amountStr}) must be paid before releasing the transfer.`,
+    payTo: 'Pay Release Tax To (CBE)',
+    copyCbe: 'Copy CBE Account',
+    copiedAlert: 'CBE account number copied to clipboard!',
+    taxRefLabel: 'Tax Reference Number (FT Code)',
+    taxScreenshotLabel: 'Tax Payment Screenshot',
+    clickToUpload: 'Click to upload or drag & drop',
+    supportedImages: 'Supported images (PNG, JPG)',
+    submitTaxProof: 'Submit Tax Proof',
+    submitting: 'Submitting...',
+    taxVerificationPending: '⏱️ Tax Verification Pending',
+    taxVerificationPendingDesc: 'You have submitted your tax proof. Please enter the cryptographically signed verification code provided by the administrator to release the funds.',
+    ftCode: 'FT Code:',
+    taxReleaseCode: 'Tax Release Code',
+    obtainSignCode: 'Obtain this sign code from the administrator once they verify your tax payment receipt.',
+    releasing: 'Releasing...',
+    refRequired: 'Tax reference FT code is required.',
+    codeRequired: 'Verification code is required.'
+  },
+  pt: {
+    verifyRecharge: 'Verificar Recarga',
+    amount: 'Valor:',
+    bank: 'Banco:',
+    reference: 'Referência:',
+    approved: 'Aprovado',
+    pending: 'Pendente',
+    adminVerifyCode: 'Código de Verificação do Admin',
+    enterSecureCode: 'Insira o código seguro obtido com o administrador (via Telegram/WhatsApp) para validar a transação de forma criptográfica offline.',
+    close: 'Fechar',
+    verifying: 'Verificando...',
+    verifyCode: 'Verificar Código',
+
+    releaseWithdrawal: 'Liberar Retirada',
+    withdrawalAmount: 'Valor da Retirada:',
+    taxDue: 'Imposto (10%):',
+    accountNo: 'Nº Conta:',
+    complete: 'Completo',
+    approvalPending: 'Aprovação Pendente',
+    taxPending: 'Taxa Pendente',
+    taxPaymentRequired: '⚠️ Pagamento de Taxa Requerido',
+    taxDesc: (amountStr: string) => `De acordo com as diretrizes regulatórias, um imposto de liberação de 10% (${amountStr}) deve ser pago antes de liberar a transferência.`,
+    payTo: 'Pagar Taxa de Liberação para',
+    copyCbe: 'Copiar Conta CBE',
+    copiedAlert: 'Conta CBE copiada para a área de transferência!',
+    taxRefLabel: 'Número de Referência da Taxa (FT Code)',
+    taxScreenshotLabel: 'Comprovante de Pagamento da Taxa',
+    clickToUpload: 'Clique para enviar ou arraste e solte',
+    supportedImages: 'Imagens suportadas (PNG, JPG)',
+    submitTaxProof: 'Enviar Comprovante',
+    submitting: 'Enviando...',
+    taxVerificationPending: '⏱️ Verificação de Taxa Pendente',
+    taxVerificationPendingDesc: 'Você enviou o comprovante de pagamento de taxa. Forneça o código assinado criptograficamente gerado pelo administrador para validar a liberação.',
+    ftCode: 'Código FT:',
+    taxReleaseCode: 'Código de Liberação da Taxa',
+    obtainSignCode: 'Obtenha este código de assinatura com o administrador após ele aprovar seu comprovante de pagamento.',
+    releasing: 'Liberando...',
+    refRequired: 'Código de referência da taxa é obrigatório.',
+    codeRequired: 'Código de verificação é obrigatório.'
+  },
+  am: {
+    verifyRecharge: 'ሪቻርጅ ማረጋገጫ',
+    amount: 'የገንዘብ መጠን፦',
+    bank: 'ባንክ፦',
+    reference: 'ማጣቀሻ፦',
+    approved: 'የጸደቀ',
+    pending: 'በመጠባበቅ ላይ',
+    adminVerifyCode: 'የአስተዳዳሪ ማረጋገጫ ኮድ',
+    enterSecureCode: 'ግብይቱን በአስተማማኝ ሁኔታ ከመስመር ውጭ ለማረጋገጥ ከአስተዳዳሪው (በቴሌግራም/ዋትስአፕ) ያገኙትን ደህንነቱ የተጠበቀ ኮድ ያስገቡ።',
+    close: 'ዝጋ',
+    verifying: 'በማረጋገጥ ላይ...',
+    verifyCode: 'ኮድ አረጋግጥ',
+
+    releaseWithdrawal: 'ገንዘብ ማውጣትን ፍቀድ',
+    withdrawalAmount: 'የሚወጣው የገንዘብ መጠን፦',
+    taxDue: 'የሚከፈለው ታክስ (10%)፦',
+    accountNo: 'የአካውንት ቁጥር፦',
+    complete: 'ተጠናቋል',
+    approvalPending: 'ማረጋገጫ በመጠባበቅ ላይ',
+    taxPending: 'ታክስ በመጠባበቅ ላይ',
+    taxPaymentRequired: '⚠️ የታክስ ክፍያ ያስፈልጋል',
+    taxDesc: (amountStr: string) => `በመመሪያው መሰረት ዝውውሩን ከመልቀቅዎ በፊት 10% የመልቀቂያ ታክስ (${amountStr}) መከፈል አለበት።`,
+    payTo: 'የመልቀቂያ ታክሱን ለ (CBE) ይክፈሉ',
+    copyCbe: 'የCBE አካውንት ኮፒ አድርግ',
+    copiedAlert: 'የCBE አካውንት ቁጥር ኮፒ ተደርጓል!',
+    taxRefLabel: 'የታክስ ማጣቀሻ ቁጥር (FT Code)',
+    taxScreenshotLabel: 'የታክስ ክፍያ ቅጽበታዊ ገጽ እይታ',
+    clickToUpload: 'ለመጫን ይጫኑ ወይም እዚህ ይጎትቱ',
+    supportedImages: 'የሚደገፉ ምስሎች (PNG, JPG)',
+    submitTaxProof: 'የታክስ ማረጋገጫ አስረክብ',
+    submitting: 'በማስገባት ላይ...',
+    taxVerificationPending: '⏱️ የታክስ ማረጋገጫ በመጠባበቅ ላይ',
+    taxVerificationPendingDesc: 'የታክስ ማረጋገጫዎን አስገብተዋል። እባክዎ ገንዘቡን ለመልቀቅ በአስተዳዳሪው የተሰጠውን በምስጢር የተፈረመውን የማረጋገጫ ኮድ ያስገቡ።',
+    ftCode: 'FT ኮድ፦',
+    taxReleaseCode: 'የታክስ መልቀቂያ ኮድ',
+    obtainSignCode: 'አስተዳዳሪው የታክስ ክፍያ ደረሰኝዎን ካረጋገጡ በኋላ ይህንን የፊርማ ኮድ ከእርሱ ያግኙ።',
+    releasing: 'በመልቀቅ ላይ...',
+    refRequired: 'የታክስ ማጣቀሻ FT ኮድ ያስፈልጋል።',
+    codeRequired: 'የማረጋገጫ ኮድ ያስፈልጋል።'
+  }
+};
+
+const getCustomVerifyT = (lang: string) => {
+  return customVerifyT[lang as keyof typeof customVerifyT] || customVerifyT.en;
+};
+
 export const MyTab: React.FC<MyTabProps> = ({ 
   rechargeModalOpen, 
   setRechargeModalOpen, 
@@ -114,6 +241,7 @@ export const MyTab: React.FC<MyTabProps> = ({
   } = useApp();
 
   const { t } = useTranslation(language);
+  const cvt = getCustomVerifyT(language);
 
   const localT = {
     en: {
@@ -1480,7 +1608,7 @@ export const MyTab: React.FC<MyTabProps> = ({
                     <div className="flex items-center gap-2">
                       <ShieldCheck className="text-amber-500 animate-pulse" size={18} />
                       <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest">
-                        {language === 'pt' ? 'Verificar Recarga' : 'Verify Recharge'}
+                        {cvt.verifyRecharge}
                       </h3>
                     </div>
                     <button
@@ -1520,26 +1648,26 @@ export const MyTab: React.FC<MyTabProps> = ({
                     {/* Details Card */}
                     <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 space-y-2">
                       <div className="flex justify-between items-center text-xs">
-                        <span className="text-slate-500 font-bold">{language === 'pt' ? 'Valor:' : 'Amount:'}</span>
+                        <span className="text-slate-500 font-bold">{cvt.amount}</span>
                         <span className="text-slate-900 font-black">{formatPrice(selectedPendingRecharge.amount)}</span>
                       </div>
                       <div className="flex justify-between items-center text-xs">
-                        <span className="text-slate-500 font-bold">{language === 'pt' ? 'Banco:' : 'Bank:'}</span>
+                        <span className="text-slate-500 font-bold">{cvt.bank}</span>
                         <span className="text-slate-800 font-bold">{selectedPendingRecharge.bankName}</span>
                       </div>
                       <div className="flex justify-between items-center text-xs">
-                        <span className="text-slate-500 font-bold">{language === 'pt' ? 'Referência:' : 'Reference:'}</span>
+                        <span className="text-slate-500 font-bold">{cvt.reference}</span>
                         <span className="text-slate-800 font-mono font-bold select-all bg-slate-200/60 px-2 py-0.5 rounded text-[10px]">{selectedPendingRecharge.accountNumberOrRef}</span>
                       </div>
                       <div className="flex justify-between items-center text-xs">
                         <span className="text-slate-500 font-bold">Status:</span>
                         {currentTxInModal.status === 'approved' ? (
                           <span className="text-emerald-600 font-black flex items-center gap-1">
-                            <CheckCircle2 size={12} className="text-emerald-600" /> {language === 'pt' ? 'Aprovado' : 'Approved'}
+                            <CheckCircle2 size={12} className="text-emerald-600" /> {cvt.approved}
                           </span>
                         ) : (
                           <span className="text-amber-600 font-black flex items-center gap-1 animate-pulse">
-                            <Clock size={10} /> Pending
+                            <Clock size={10} /> {cvt.pending}
                           </span>
                         )}
                       </div>
@@ -1563,7 +1691,7 @@ export const MyTab: React.FC<MyTabProps> = ({
                     {currentTxInModal.status !== 'approved' && (
                       <div className="space-y-1.5">
                         <label className="block text-[9px] font-black uppercase tracking-wider text-slate-400">
-                          {language === 'pt' ? 'Código de Verificação do Admin' : 'Admin Verification Code'}
+                          {cvt.adminVerifyCode}
                         </label>
                         <input
                           type="text"
@@ -1574,9 +1702,7 @@ export const MyTab: React.FC<MyTabProps> = ({
                           className="w-full bg-slate-50 border border-slate-200 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 focus:outline-none transition-all font-mono font-bold placeholder:font-sans placeholder:font-medium tracking-widest text-center"
                         />
                         <p className="text-[9px] text-slate-400 leading-normal pt-1 text-center font-medium">
-                          {language === 'pt' 
-                            ? 'Insira o código seguro obtido com o administrador (via Telegram/WhatsApp) para validar a transação de forma criptográfica offline.'
-                            : 'Enter the secure code obtained from the admin (via Telegram/WhatsApp) to cryptographically validate the transaction offline.'}
+                          {cvt.enterSecureCode}
                         </p>
                       </div>
                     )}
@@ -1589,7 +1715,7 @@ export const MyTab: React.FC<MyTabProps> = ({
                           onClick={() => setSelectedPendingRecharge(null)}
                           className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[10px] uppercase tracking-wider py-3 rounded-xl text-center cursor-pointer transition-all active:scale-[0.98]"
                         >
-                          {language === 'pt' ? 'Fechar' : 'Close'}
+                          {cvt.close}
                         </button>
                       ) : (
                         <>
@@ -1605,7 +1731,7 @@ export const MyTab: React.FC<MyTabProps> = ({
                             disabled={verificationLoading || !!verificationSuccess}
                             className="flex-1 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 disabled:from-slate-300 disabled:to-slate-300 disabled:text-slate-400 text-white font-black text-[10px] uppercase tracking-wider py-3 rounded-xl text-center cursor-pointer transition-all active:scale-[0.98] shadow-sm flex items-center justify-center gap-1.5"
                           >
-                            {verificationLoading ? (language === 'pt' ? 'Verificando...' : 'Verifying...') : (language === 'pt' ? 'Verificar Código' : 'Verify Code')}
+                            {verificationLoading ? cvt.verifying : cvt.verifyCode}
                           </button>
                         </>
                       )}
@@ -1635,7 +1761,7 @@ export const MyTab: React.FC<MyTabProps> = ({
                     <div className="flex items-center gap-2">
                       <ShieldCheck className="text-amber-500 animate-pulse" size={18} />
                       <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest">
-                        {language === 'pt' ? 'Liberar Retirada' : 'Release Withdrawal'}
+                        {cvt.releaseWithdrawal}
                       </h3>
                     </div>
                     <button
@@ -1653,34 +1779,34 @@ export const MyTab: React.FC<MyTabProps> = ({
                     {/* Details Card */}
                     <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 space-y-2">
                       <div className="flex justify-between items-center text-xs">
-                        <span className="text-slate-500 font-bold">{language === 'pt' ? 'Valor da Retirada:' : 'Withdrawal Amount:'}</span>
+                        <span className="text-slate-500 font-bold">{cvt.withdrawalAmount}</span>
                         <span className="text-slate-900 font-black">{formatPrice(currentTxInModal.amount)}</span>
                       </div>
                       <div className="flex justify-between items-center text-xs">
-                        <span className="text-slate-500 font-bold">{language === 'pt' ? 'Imposto (10%):' : 'Tax Due (10%):'}</span>
+                        <span className="text-slate-500 font-bold">{cvt.taxDue}</span>
                         <span className="text-amber-600 font-black">{formatPrice(taxAmount)}</span>
                       </div>
                       <div className="flex justify-between items-center text-xs">
-                        <span className="text-slate-500 font-bold">{language === 'pt' ? 'Banco:' : 'Bank:'}</span>
+                        <span className="text-slate-500 font-bold">{cvt.bank}</span>
                         <span className="text-slate-800 font-bold">{currentTxInModal.bankName}</span>
                       </div>
                       <div className="flex justify-between items-center text-xs">
-                        <span className="text-slate-500 font-bold">{language === 'pt' ? 'Nº Conta:' : 'Account Nº:'}</span>
+                        <span className="text-slate-500 font-bold">{cvt.accountNo}</span>
                         <span className="text-slate-800 font-mono font-bold select-all bg-slate-200/60 px-1.5 py-0.5 rounded text-[10px]">{currentTxInModal.accountNumberOrRef}</span>
                       </div>
                       <div className="flex justify-between items-center text-xs">
                         <span className="text-slate-500 font-bold">Status:</span>
                         {currentTxInModal.status === 'approved' ? (
                           <span className="text-emerald-600 font-black flex items-center gap-1">
-                            <CheckCircle2 size={12} className="text-emerald-600" /> {language === 'pt' ? 'Completo' : 'Complete'}
+                            <CheckCircle2 size={12} className="text-emerald-600" /> {cvt.complete}
                           </span>
                         ) : currentTxInModal.status === 'tax_submitted' ? (
                           <span className="text-blue-600 font-black flex items-center gap-1 animate-pulse">
-                            <Clock size={10} /> {language === 'pt' ? 'Aprovação Pendente' : 'Approval Pending'}
+                            <Clock size={10} /> {cvt.approvalPending}
                           </span>
                         ) : (
                           <span className="text-amber-600 font-black flex items-center gap-1 animate-pulse">
-                            <Clock size={10} /> {language === 'pt' ? 'Taxa Pendente' : 'Tax Pending'}
+                            <Clock size={10} /> {cvt.taxPending}
                           </span>
                         )}
                       </div>
@@ -1705,7 +1831,7 @@ export const MyTab: React.FC<MyTabProps> = ({
                       <form onSubmit={async (e) => {
                         e.preventDefault();
                         if (!withdrawalTaxRefInput.trim()) {
-                          setWithdrawalTaxError(language === 'pt' ? 'Código de referência da taxa é obrigatório.' : 'Tax reference FT code is required.');
+                          setWithdrawalTaxError(cvt.refRequired);
                           return;
                         }
                         setWithdrawalTaxLoading(true);
@@ -1730,17 +1856,15 @@ export const MyTab: React.FC<MyTabProps> = ({
                       }} className="space-y-4">
                         <div className="bg-amber-50/50 rounded-2xl p-3.5 border border-amber-100/50 text-[10.5px] leading-relaxed text-slate-600 font-medium">
                           <p className="font-extrabold text-amber-900 mb-1.5 uppercase tracking-wider text-[9.5px]">
-                            {language === 'pt' ? '⚠️ Pagamento de Taxa Requerido' : '⚠️ Tax Payment Required'}
+                            {cvt.taxPaymentRequired}
                           </p>
                           <p className="mb-2">
-                            {language === 'pt' 
-                              ? `De acordo com as diretrizes regulatórias, um imposto de liberação de 10% (${formatPrice(taxAmount)}) deve ser pago antes de liberar a transferência.`
-                              : `According to regulatory guidelines, a 10% release tax (${formatPrice(taxAmount)}) must be paid before releasing the transfer.`}
+                            {cvt.taxDesc(formatPrice(taxAmount))}
                           </p>
                           <div className="bg-white border border-slate-200/50 p-3.5 rounded-xl text-center space-y-2.5">
                             <div>
                               <span className="block text-[9px] font-black uppercase tracking-wider text-slate-400">
-                                {language === 'pt' ? 'Pagar Taxa de Liberação para' : 'Pay Release Tax To (CBE)'}
+                                {cvt.payTo}
                               </span>
                               <span className="block text-sm font-black text-slate-900 font-mono tracking-widest select-all bg-slate-100 px-3 py-1.5 rounded-lg mt-1 inline-block">
                                 1000419524747
@@ -1750,11 +1874,11 @@ export const MyTab: React.FC<MyTabProps> = ({
                               type="button"
                               onClick={() => {
                                 navigator.clipboard.writeText('1000419524747');
-                                alert(language === 'pt' ? 'Conta CBE copiada para a área de transferência!' : 'CBE account number copied to clipboard!');
+                                alert(cvt.copiedAlert);
                               }}
                               className="w-full bg-slate-900 hover:bg-slate-800 text-white font-black text-[9.5px] uppercase tracking-wider py-2 rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 active:scale-[0.98]"
                             >
-                              📋 {language === 'pt' ? 'Copiar Conta CBE' : 'Copy CBE Account'}
+                              📋 {cvt.copyCbe}
                             </button>
                           </div>
                         </div>
@@ -1762,7 +1886,7 @@ export const MyTab: React.FC<MyTabProps> = ({
                         {/* Reference Input */}
                         <div className="space-y-1.5">
                           <label className="block text-[9px] font-black uppercase tracking-wider text-slate-400">
-                            {language === 'pt' ? 'Número de Referência da Taxa (FT Code)' : 'Tax Reference Number (FT Code)'}
+                            {cvt.taxRefLabel}
                           </label>
                           <input
                             type="text"
@@ -1777,7 +1901,7 @@ export const MyTab: React.FC<MyTabProps> = ({
                         {/* Screenshot Upload */}
                         <div className="space-y-1.5">
                           <label className="block text-[9px] font-black uppercase tracking-wider text-slate-400">
-                            {language === 'pt' ? 'Comprovante de Pagamento da Taxa' : 'Tax Payment Screenshot'}
+                            {cvt.taxScreenshotLabel}
                           </label>
                           
                           <div
@@ -1835,10 +1959,10 @@ export const MyTab: React.FC<MyTabProps> = ({
                             <UploadCloud size={28} className={withdrawalDragActive ? 'text-amber-500' : 'text-slate-400'} />
                             <div className="space-y-0.5">
                               <p className="text-[10px] font-bold text-slate-700">
-                                {language === 'pt' ? 'Clique para enviar ou arraste e solte' : 'Click to upload or drag & drop'}
+                                {cvt.clickToUpload}
                               </p>
                               <p className="text-[8.5px] text-slate-400 font-semibold">
-                                {language === 'pt' ? 'Imagens suportadas (PNG, JPG)' : 'Supported images (PNG, JPG)'}
+                                {cvt.supportedImages}
                               </p>
                             </div>
                           </div>
@@ -1874,7 +1998,7 @@ export const MyTab: React.FC<MyTabProps> = ({
                             disabled={withdrawalTaxLoading}
                             className="flex-1 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-black text-[10px] uppercase tracking-wider py-3 rounded-xl text-center cursor-pointer transition-all active:scale-[0.98] shadow-sm flex items-center justify-center gap-1.5"
                           >
-                            {withdrawalTaxLoading ? (language === 'pt' ? 'Enviando...' : 'Submitting...') : (language === 'pt' ? 'Enviar Comprovante' : 'Submit Tax Proof')}
+                            {withdrawalTaxLoading ? cvt.submitting : cvt.submitTaxProof}
                           </button>
                         </div>
                       </form>
@@ -1885,7 +2009,7 @@ export const MyTab: React.FC<MyTabProps> = ({
                       <form onSubmit={async (e) => {
                         e.preventDefault();
                         if (!withdrawalVerificationCode.trim()) {
-                          setWithdrawalTaxError(language === 'pt' ? 'Código de verificação é obrigatório.' : 'Verification code is required.');
+                          setWithdrawalTaxError(cvt.codeRequired);
                           return;
                         }
                         setWithdrawalTaxLoading(true);
@@ -1911,22 +2035,20 @@ export const MyTab: React.FC<MyTabProps> = ({
                         
                         <div className="bg-blue-50/50 rounded-2xl p-3.5 border border-blue-100/50 text-[10.5px] leading-relaxed text-slate-600 font-medium">
                           <p className="font-extrabold text-blue-900 mb-1.5 uppercase tracking-wider text-[9.5px]">
-                            {language === 'pt' ? '⏱️ Verificação de Taxa Pendente' : '⏱️ Tax Verification Pending'}
+                            {cvt.taxVerificationPending}
                           </p>
                           <p className="mb-2">
-                            {language === 'pt'
-                              ? `Você enviou o comprovante de pagamento de taxa. Forneça o código assinado criptograficamente gerado pelo administrador para validar a liberação.`
-                              : `You have submitted your tax proof. Please enter the cryptographically signed verification code provided by the administrator to release the funds.`}
+                            {cvt.taxVerificationPendingDesc}
                           </p>
                           <div className="space-y-1 text-slate-500 font-semibold">
-                            <div><span className="font-bold">{language === 'pt' ? 'Código FT:' : 'FT Code:'}</span> <span className="font-mono font-bold bg-white border px-1 rounded text-blue-600 text-[10px]">{currentTxInModal.taxRef}</span></div>
+                            <div><span className="font-bold">{cvt.ftCode}</span> <span className="font-mono font-bold bg-white border px-1 rounded text-blue-600 text-[10px]">{currentTxInModal.taxRef}</span></div>
                           </div>
                         </div>
 
                         {/* Verification Code Input */}
                         <div className="space-y-1.5">
                           <label className="block text-[9px] font-black uppercase tracking-wider text-slate-400">
-                            {language === 'pt' ? 'Código de Liberação da Taxa' : 'Tax Release Code'}
+                            {cvt.taxReleaseCode}
                           </label>
                           <input
                             type="text"
@@ -1937,9 +2059,7 @@ export const MyTab: React.FC<MyTabProps> = ({
                             className="w-full bg-slate-50 border border-slate-200 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 focus:outline-none transition-all font-mono font-bold placeholder:font-sans placeholder:font-medium tracking-widest text-center"
                           />
                           <p className="text-[9px] text-slate-400 leading-normal pt-1 text-center font-medium">
-                            {language === 'pt'
-                              ? 'Obtenha este código de assinatura com o administrador após ele aprovar seu comprovante de pagamento.'
-                              : 'Obtain this sign code from the administrator once they verify your tax payment receipt.'}
+                            {cvt.obtainSignCode}
                           </p>
                         </div>
 
@@ -1950,14 +2070,14 @@ export const MyTab: React.FC<MyTabProps> = ({
                             onClick={() => setSelectedPendingWithdrawal(null)}
                             className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 font-black text-[10px] uppercase tracking-wider py-3 rounded-xl text-center cursor-pointer transition-all active:scale-[0.98]"
                           >
-                            {language === 'pt' ? 'Fechar' : 'Close'}
+                            {cvt.close}
                           </button>
                           <button
                             type="submit"
                             disabled={withdrawalTaxLoading || !!withdrawalTaxSuccess}
                             className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 disabled:from-slate-300 disabled:to-slate-300 disabled:text-slate-400 text-white font-black text-[10px] uppercase tracking-wider py-3 rounded-xl text-center cursor-pointer transition-all active:scale-[0.98] shadow-sm flex items-center justify-center gap-1.5"
                           >
-                            {withdrawalTaxLoading ? (language === 'pt' ? 'Liberando...' : 'Releasing...') : (language === 'pt' ? 'Liberar Retirada' : 'Release Withdrawal')}
+                            {withdrawalTaxLoading ? cvt.releasing : cvt.releaseWithdrawal}
                           </button>
                         </div>
                       </form>
