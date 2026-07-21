@@ -1081,8 +1081,8 @@ function AppContent() {
         return;
       }
     } else {
-      if (inputAmt < 200) {
-        setRechargeError('The minimum recharge amount is 200 ETB.');
+      if (inputAmt < 50) {
+        setRechargeError('The minimum recharge amount is 50 ETB.');
         return;
       }
     }
@@ -1889,7 +1889,7 @@ function AppContent() {
                           type="number"
                           required
                           step="any"
-                          min={currency === 'USD' ? "1" : "200"}
+                          min={currency === 'USD' ? "1" : "50"}
                           placeholder={currency === 'USD' ? "Min $1.00" : t('min200')}
                           value={rechargeAmount}
                           onChange={(e) => setRechargeAmount(e.target.value)}
