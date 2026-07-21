@@ -616,7 +616,7 @@ export const MyTab: React.FC<MyTabProps> = ({
   const userTickets = supportMessages.filter(t => t.userId === currentUser.id);
 
   const handleCopyLink = () => {
-    const inviteUrl = `${window.location.origin}?ref=${currentUser.inviteCode || `GOM${currentUser.phoneNumber.slice(-5)}`}`;
+    const inviteUrl = `${window.location.origin}?ref=${currentUser.inviteCode || `GOM${String(currentUser.phoneNumber || currentUser.id || '').slice(-5)}`}`;
     navigator.clipboard.writeText(inviteUrl);
     setCopiedLink(true);
     setTimeout(() => setCopiedLink(false), 2000);
@@ -1182,7 +1182,7 @@ export const MyTab: React.FC<MyTabProps> = ({
                         <div className="flex items-center justify-between text-[10px] text-emerald-200">
                           <span>{t('yourInviteCode')}</span>
                           <span className="font-mono font-black text-xs bg-emerald-400 text-slate-950 px-3 py-1 rounded-full select-all tracking-wider">
-                            {currentUser.inviteCode || `GOM${currentUser.phoneNumber.slice(-5)}`}
+                            {currentUser.inviteCode || `GOM${String(currentUser.phoneNumber || currentUser.id || '').slice(-5)}`}
                           </span>
                         </div>
 

@@ -255,14 +255,14 @@ export const HomeTab: React.FC<HomeTabProps> = ({
   };
 
   const copyInviteCode = () => {
-    const code = currentUser.inviteCode || `GOM${currentUser.phoneNumber.slice(-5)}`;
+    const code = currentUser.inviteCode || `GOM${String(currentUser.phoneNumber || currentUser.id || '').slice(-5)}`;
     navigator.clipboard.writeText(code);
     setCopiedField('code');
     setTimeout(() => setCopiedField('none'), 2000);
   };
 
   const copyInviteLink = () => {
-    const code = currentUser.inviteCode || `GOM${currentUser.phoneNumber.slice(-5)}`;
+    const code = currentUser.inviteCode || `GOM${String(currentUser.phoneNumber || currentUser.id || '').slice(-5)}`;
     const link = `${window.location.origin}?ref=${code}`;
     navigator.clipboard.writeText(link);
     setCopiedField('link');
@@ -277,7 +277,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-full bg-amber-50 flex items-center justify-center border border-amber-200/50">
             <span className="text-bronze font-black text-xs">
-              {currentUser.phoneNumber.slice(-2)}
+              {String(currentUser.phoneNumber || currentUser.id || '').slice(-2)}
             </span>
           </div>
           <div>

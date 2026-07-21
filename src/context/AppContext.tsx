@@ -571,7 +571,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const updated = { ...u };
       if (!updated.inviteCode) {
         const phoneDigits = String(updated.phoneNumber || '').replace(/[^0-9]/g, '');
-        const suffix = phoneDigits.slice(-5) || updated.id.slice(-5);
+        const suffix = phoneDigits.slice(-5) || String(updated.id || '').slice(-5) || '00000';
         updated.inviteCode = `GOM${suffix}`;
       }
       if (updated.referralCount === undefined) {
@@ -612,7 +612,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const parsed = JSON.parse(saved) as User;
       if (!parsed.inviteCode) {
         const phoneDigits = String(parsed.phoneNumber || '').replace(/[^0-9]/g, '');
-        const suffix = phoneDigits.slice(-5) || parsed.id.slice(-5);
+        const suffix = phoneDigits.slice(-5) || String(parsed.id || '').slice(-5) || '00000';
         parsed.inviteCode = `GOM${suffix}`;
       }
       if (parsed.referralCount === undefined) parsed.referralCount = 0;

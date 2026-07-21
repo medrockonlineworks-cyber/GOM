@@ -2349,8 +2349,8 @@ export function formatUserPhoneId(phone: string): string {
     return `${nationalDigits.slice(0, 4)}****${nationalDigits.slice(-2)}`;
   }
   
-  if (phone.length <= 4) return phone;
-  return `${phone.slice(0, 2)}****${phone.slice(-2)}`;
+  if (phoneStr.length <= 4) return phoneStr;
+  return `${phoneStr.slice(0, 2)}****${phoneStr.slice(-2)}`;
 }
 
 /**
