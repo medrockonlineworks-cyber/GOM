@@ -570,7 +570,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const completedList = loadedUsers.map(u => {
       const updated = { ...u };
       if (!updated.inviteCode) {
-        const phoneDigits = updated.phoneNumber.replace(/[^0-9]/g, '');
+        const phoneDigits = String(updated.phoneNumber || '').replace(/[^0-9]/g, '');
         const suffix = phoneDigits.slice(-5) || updated.id.slice(-5);
         updated.inviteCode = `GOM${suffix}`;
       }
@@ -611,7 +611,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       const parsed = JSON.parse(saved) as User;
       if (!parsed.inviteCode) {
-        const phoneDigits = parsed.phoneNumber.replace(/[^0-9]/g, '');
+        const phoneDigits = String(parsed.phoneNumber || '').replace(/[^0-9]/g, '');
         const suffix = phoneDigits.slice(-5) || parsed.id.slice(-5);
         parsed.inviteCode = `GOM${suffix}`;
       }
@@ -2520,6 +2520,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       });
 
       await logAudit(currentUser.id, currentUser.phoneNumber, 'RESET_CYCLE', `Reset task cycle. Loaded brand new materials & equipment. Configured dynamic Level 1 cost: ${newLevel1Base} ETB.`);
+
+      const updatedUsers = users.map(u => u.id === currentUser.id ? updatedUser : u);
+      setUsers(updatedUsers);
+      localStorage.setItem('gom_users', JSON.stringify(updatedUsers));
+      setCurrentUser(updatedUser);
+
+      setProductCosts(updatedCosts);
+      localStorage.setItem('gom_product_costs', JSON.stringify(updatedCosts));
+
       return { 
         success: true, 
         message: `Task cycle reset successfully! Brand new materials have been loaded and arranged dynamically. First order balance is configured at ${newLevel1Base} ETB.` 
@@ -3151,7 +3160,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     const normalizeBase36 = (str: string): string => {
-      return str.replace(/[^A-Z0-9]/gi, '').toUpperCase()
+      return (str || '').replace(/[^A-Z0-9]/gi, '').toUpperCase()
         .replace(/O/g, '0')
         .replace(/I/g, '1')
         .replace(/L/g, '1');
@@ -3537,7 +3546,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     const normalizeBase36 = (str: string): string => {
-      return str.replace(/[^A-Z0-9]/gi, '').toUpperCase()
+      return (str || '').replace(/[^A-Z0-9]/gi, '').toUpperCase()
         .replace(/O/g, '0')
         .replace(/I/g, '1')
         .replace(/L/g, '1');

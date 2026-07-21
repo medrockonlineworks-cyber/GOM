@@ -293,7 +293,7 @@ export function verifyVerificationCode(
   reference: string
 ): { valid: boolean; expired: boolean; expiryDate: Date | null; error?: string } {
   try {
-    const rawCleaned = code.replace(/[^A-Z0-9]/gi, '').toUpperCase();
+    const rawCleaned = (code || '').replace(/[^A-Z0-9]/gi, '').toUpperCase();
     if (rawCleaned.length !== 10) {
       return { valid: false, expired: false, expiryDate: null, error: "Code must be exactly 10 characters long" };
     }

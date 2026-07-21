@@ -113,13 +113,13 @@ export const OrdersTab: React.FC<OrdersTabProps> = ({ onOpenRechargeModal }) => 
         
         {/* Reset button to clear cycle for continuous testing */}
         <button
-          onClick={() => {
+          onClick={async () => {
             const isCycleCompleted = currentUser && currentUser.completedOrderIds.length >= 15;
             if (!isCycleCompleted) {
               alert(t('completeAllTasksAlert', { completedCount: currentUser?.completedOrderIds.length || 0 }));
               return;
             }
-            const res = resetOrderCycle();
+            const res = await resetOrderCycle();
             if (res && res.message) {
               alert(t('cycleResetAlert'));
             }

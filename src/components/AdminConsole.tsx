@@ -819,7 +819,7 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
                     <div className="text-center py-12 text-xs text-slate-300 font-bold font-sans">No generated codes on file.</div>
                   ) : (
                     adminGeneratedCodes.map((item, idx) => {
-                      const normalizedCode = item.code.replace(/[^A-Z0-9]/gi, '').toUpperCase();
+                      const normalizedCode = (item.code || '').replace(/[^A-Z0-9]/gi, '').toUpperCase();
                       const isUsed = usedCodes.includes(normalizedCode);
                       const isExpired = !isUsed && new Date() > new Date(item.expiryTime);
                       
@@ -1670,7 +1670,7 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
                       u.referredBy === user.id || 
                       (u.referredBy && (
                         u.referredBy === user.phoneNumber || 
-                        u.referredBy.replace(/[^0-9]/g, '') === user.phoneNumber.replace(/[^0-9]/g, '')
+                        String(u.referredBy).replace(/[^0-9]/g, '') === (user.phoneNumber || '').replace(/[^0-9]/g, '')
                       )) ||
                       (u.referredBy && user.inviteCode && u.referredBy.toUpperCase() === user.inviteCode.toUpperCase())
                     );

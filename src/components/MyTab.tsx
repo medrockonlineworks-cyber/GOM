@@ -1115,7 +1115,7 @@ export const MyTab: React.FC<MyTabProps> = ({
                       return (
                         <div key={tx.id} className="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm flex justify-between items-center">
                           <div className="space-y-1">
-                            <span className="block text-xs font-black text-slate-800 capitalize">{tx.type.replace('_', ' ')}</span>
+                            <span className="block text-xs font-black text-slate-800 capitalize">{(tx.type || '').replace('_', ' ')}</span>
                             <span className="block text-[10px] text-slate-500 font-medium leading-relaxed max-w-[200px]">{formatPhoneNumbersInText(tx.description || '')}</span>
                             <span className="block text-[9px] text-slate-400 flex items-center gap-0.5">
                               <Clock size={8} /> {new Date(tx.createdAt).toLocaleString()}

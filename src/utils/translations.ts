@@ -2333,7 +2333,8 @@ export const useTranslation = (lang: Language) => {
  */
 export function formatUserPhoneId(phone: string): string {
   if (!phone) return '';
-  const digits = phone.replace(/\D/g, '');
+  const phoneStr = String(phone);
+  const digits = phoneStr.replace(/\D/g, '');
   
   if (digits.length >= 10) {
     let nationalDigits = digits;

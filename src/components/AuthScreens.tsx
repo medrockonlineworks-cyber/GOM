@@ -43,7 +43,7 @@ const getFlagEmoji = (countryCode: string): string => {
 };
 
 const getFullPhoneNumber = (code: string, rawPhone: string) => {
-  let clean = rawPhone.trim().replace(/\s+/g, '');
+  let clean = String(rawPhone || '').trim().replace(/\s+/g, '');
   if (!code) {
     return clean;
   }

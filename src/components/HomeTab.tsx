@@ -223,7 +223,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
   // Sync active country index with user's phone on opening
   useEffect(() => {
     if (isTelegramOpen && currentUser) {
-      const phone = currentUser.phoneNumber || '';
+      const phone = String(currentUser.phoneNumber || '');
       const cleanPhone = phone.trim().replace(/\s+/g, '');
       let matchedIndex = 0;
       for (let i = 0; i < TELEGRAM_COUNTRIES.length; i++) {
@@ -565,7 +565,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
             </motion.div>
           </div>
         )}        {isTelegramOpen && (() => {
-          const phone = currentUser?.phoneNumber || '';
+          const phone = String(currentUser?.phoneNumber || '');
           const cleanPhone = phone.trim().replace(/\s+/g, '');
           let registeredCountry = 'Ethiopia';
           for (const cc of TELEGRAM_COUNTRIES) {
