@@ -694,7 +694,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   currentUserRef.current = currentUser;
 
   const setCurrentUser = (user: User | null | ((prev: User | null) => User | null)) => {
-    setRawCurrentUser(user);
+    setRawCurrentUser(prev => {
+      const next = typeof user === 'function' ? user(prev) : user;
+      if (next) {
+        localStorage.setItem('gom_current_user', JSON.stringify(next));
+        if (next.role === 'admin' || isSamePhone(next.phoneNumber, '0951560276')) {
+          localStorage.setItem('gom_admin_device', 'true');
+        }
+      } else {
+        localStorage.removeItem('gom_current_user');
+      }
+      return next;
+    });
   };
 
   const [language, setLanguageState] = useState<Language>(() => {
@@ -1531,7 +1542,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const currentDeviceId = getOrCreateDeviceId();
     const isAdminDevice = localStorage.getItem('gom_admin_device') === 'true' || 
-                          users.some(u => u.deviceId === currentDeviceId && u.role === 'admin');
+                          users.some(u => u.deviceId === currentDeviceId && (u.role === 'admin' || isSamePhone(u.phoneNumber, '0951560276'))) ||
+                          isSamePhone(trimmedPhone, '0951560276');
 
     const deviceAssociatedUser = users.find(u => u.deviceId === currentDeviceId);
     if (deviceAssociatedUser && !isAdminDevice) {
@@ -2002,7 +2014,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const currentDeviceId = getOrCreateDeviceId();
     const isAdminDevice = localStorage.getItem('gom_admin_device') === 'true' || 
-                          users.some(u => u.deviceId === currentDeviceId && u.role === 'admin');
+                          users.some(u => u.deviceId === currentDeviceId && (u.role === 'admin' || isSamePhone(u.phoneNumber, '0951560276'))) ||
+                          matchedUser.role === 'admin' ||
+                          isAdminPhone;
 
     const deviceBoundToOtherUser = users.find(
       u => u.deviceId === currentDeviceId && u.id !== matchedUser!.id
