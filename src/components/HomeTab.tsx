@@ -6,6 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { useTranslation, formatUserPhoneId } from '../utils/translations';
+import { INITIAL_ANNOUNCEMENTS } from '../utils/mockData';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Wallet, 
@@ -284,12 +285,16 @@ export const HomeTab: React.FC<HomeTabProps> = ({
   // Active Order info
   const activeOrder = orders.find(o => o.status === 'available' || o.status === 'in_cart');
 
+  const activeAnnouncements = (announcements && announcements.length > 0) ? announcements : INITIAL_ANNOUNCEMENTS;
+
   const handleNextAnnouncement = () => {
-    setAnnouncementIndex((prev) => (prev + 1) % announcements.length);
+    if (activeAnnouncements.length === 0) return;
+    setAnnouncementIndex((prev) => (prev + 1) % activeAnnouncements.length);
   };
 
   const handlePrevAnnouncement = () => {
-    setAnnouncementIndex((prev) => (prev - 1 + announcements.length) % announcements.length);
+    if (activeAnnouncements.length === 0) return;
+    setAnnouncementIndex((prev) => (prev - 1 + activeAnnouncements.length) % activeAnnouncements.length);
   };
 
   const copyInviteCode = () => {
@@ -446,7 +451,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
 
 
       {/* COMPANY ANNOUNCEMENTS CAROUSEL IN DESIGN THEME */}
-      {announcements.length > 0 && (
+      {activeAnnouncements.length > 0 && (
         <div className="bg-deep-forest text-white rounded-3xl p-5 shadow-xl relative overflow-hidden flex flex-col gap-3">
           <div className="flex items-center justify-between border-b border-white/10 pb-2">
             <span className="text-[10px] font-black text-amber-400 uppercase tracking-widest flex items-center gap-1.5">
@@ -460,7 +465,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                 <ChevronLeft size={12} />
               </button>
               <span className="text-[9px] text-slate-300 font-bold">
-                {announcementIndex + 1}/{announcements.length}
+                {announcementIndex + 1}/{activeAnnouncements.length}
               </span>
               <button 
                 onClick={handleNextAnnouncement} 
@@ -479,7 +484,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
           >
             <h4 className="text-xs font-black text-white">
               {(() => {
-                const ann = announcements[announcementIndex] || announcements[0];
+                const ann = activeAnnouncements[announcementIndex] || activeAnnouncements[0];
                 if (!ann) return '';
                 if (ann.id === 'ann-1' || ann.title?.includes('Welcome to GOM')) {
                   return t('welcomeGomTitle');
@@ -492,7 +497,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
             </h4>
             <p className="text-[11px] text-slate-300 leading-relaxed font-medium whitespace-pre-line">
               {(() => {
-                const ann = announcements[announcementIndex] || announcements[0];
+                const ann = activeAnnouncements[announcementIndex] || activeAnnouncements[0];
                 if (!ann) return '';
                 if (ann.id === 'ann-1' || ann.content?.includes('thrilled to launch') || ann.content?.includes('excited to introduce')) {
                   return t('welcomeGomContent', { reward: formatPrice(750) });

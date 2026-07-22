@@ -762,7 +762,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [announcements, setAnnouncements] = useState<Announcement[]>(() => {
     try {
       const saved = localStorage.getItem('gom_announcements');
-      return saved ? JSON.parse(saved) : INITIAL_ANNOUNCEMENTS;
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+      return INITIAL_ANNOUNCEMENTS;
     } catch (e) {
       return INITIAL_ANNOUNCEMENTS;
     }
@@ -973,9 +977,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const res = await fetch('/api/announcements');
       if (res.ok) {
         const aList = await res.json();
-        if (Array.isArray(aList)) {
+        if (Array.isArray(aList) && aList.length > 0) {
           setAnnouncements(aList);
           localStorage.setItem('gom_announcements', JSON.stringify(aList));
+        } else {
+          setAnnouncements(INITIAL_ANNOUNCEMENTS);
+          localStorage.setItem('gom_announcements', JSON.stringify(INITIAL_ANNOUNCEMENTS));
         }
       } else {
         throw new Error('Response not ok');
@@ -986,10 +993,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (savedAnns) {
         try {
           const aList = JSON.parse(savedAnns);
-          if (Array.isArray(aList)) {
+          if (Array.isArray(aList) && aList.length > 0) {
             setAnnouncements(aList);
+          } else {
+            setAnnouncements(INITIAL_ANNOUNCEMENTS);
           }
-        } catch (e) {}
+        } catch (e) {
+          setAnnouncements(INITIAL_ANNOUNCEMENTS);
+        }
+      } else {
+        setAnnouncements(INITIAL_ANNOUNCEMENTS);
       }
     }
 
