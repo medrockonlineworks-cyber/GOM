@@ -2004,8 +2004,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     if (isAdminPhone) {
       matchedUser.role = 'admin';
-    } else {
-      matchedUser.role = 'user';
     }
 
     if (!isAdminPhone && !isSpecialUser && matchedUser.passwordHash !== hashed) {
