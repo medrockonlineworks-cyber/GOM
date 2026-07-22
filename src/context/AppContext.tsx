@@ -48,6 +48,24 @@ const DEFAULT_MARKETPLACE_LOGOS: { [key: string]: string } = {
   airbnb: 'https://www.vectorlogo.zone/logos/airbnb/airbnb-ar21.svg'
 };
 
+export const DEFAULT_ETH_RECHARGE_ACCOUNTS: RechargeAccount[] = [
+  { id: 'acc-1', bank: 'Commercial Bank of Ethiopia (CBE)', accName: 'Ethiopia agent-Leykun jemaneh', accNo: '1000419524747' },
+  { id: 'acc-2', bank: 'Telebirr', accName: 'Ethiopia agent-Leykun jemaneh', accNo: '0926193920' }
+];
+
+export function ensureDefaultRechargeAccounts(list: RechargeAccount[]): RechargeAccount[] {
+  if (!Array.isArray(list) || list.length === 0) return DEFAULT_ETH_RECHARGE_ACCOUNTS;
+  const result = [...list];
+  if (!result.some(a => a.bank.includes('Commercial Bank') || a.bank.includes('CBE'))) {
+    result.unshift(DEFAULT_ETH_RECHARGE_ACCOUNTS[0]);
+  }
+  if (!result.some(a => a.bank.toLowerCase().includes('telebirr'))) {
+    const cbeIdx = result.findIndex(a => a.bank.includes('Commercial Bank') || a.bank.includes('CBE'));
+    result.splice(cbeIdx >= 0 ? cbeIdx + 1 : 0, 0, DEFAULT_ETH_RECHARGE_ACCOUNTS[1]);
+  }
+  return result;
+}
+
 export const isSamePhone = (phoneA: string, phoneB: string): boolean => {
   const cleanA = (phoneA || '').replace(/\D/g, '');
   const cleanB = (phoneB || '').replace(/\D/g, '');
@@ -792,17 +810,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        if (parsed.length === 2 && parsed.some((a: any) => a.accNo === '1000419524747' && a.accName === 'Ethiopia agent-Leykun jemaneh') && parsed.some((a: any) => a.accNo === '0926193920' && a.accName === 'Ethiopia agent-Leykun jemaneh')) {
-          return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return ensureDefaultRechargeAccounts(parsed);
         }
       } catch (e) {
         // Fallback
       }
     }
-    return [
-      { id: 'acc-1', bank: 'Commercial Bank of Ethiopia (CBE)', accName: 'Ethiopia agent-Leykun jemaneh', accNo: '1000419524747' },
-      { id: 'acc-2', bank: 'Telebirr', accName: 'Ethiopia agent-Leykun jemaneh', accNo: '0926193920' }
-    ];
+    return DEFAULT_ETH_RECHARGE_ACCOUNTS;
   });
 
   const [bankLogos, setBankLogos] = useState<{ [key: string]: string }>(() => {
@@ -1026,8 +1041,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (res.ok) {
         const accList = await res.json();
         if (Array.isArray(accList)) {
-          setRechargeAccounts(accList);
-          localStorage.setItem('gom_recharge_accounts', JSON.stringify(accList));
+          const finalAccs = ensureDefaultRechargeAccounts(accList);
+          setRechargeAccounts(finalAccs);
+          localStorage.setItem('gom_recharge_accounts', JSON.stringify(finalAccs));
         }
       } else {
         throw new Error('Response not ok');
@@ -1039,7 +1055,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         try {
           const accList = JSON.parse(savedAccs);
           if (Array.isArray(accList)) {
-            setRechargeAccounts(accList);
+            setRechargeAccounts(ensureDefaultRechargeAccounts(accList));
           }
         } catch (e) {}
       }

@@ -1512,88 +1512,122 @@ function AppContent() {
                       >
                         {/* LOCAL METHODS GROUP */}
                         <div className="space-y-1">
-                          <div className="px-2.5 py-1 text-[9px] font-extrabold text-slate-400 uppercase tracking-widest bg-slate-50 rounded-lg">
-                            📍 Local Payment Methods
-                          </div>
-                          
-                          {/* Ethiopia Local Accounts */}
-                          {rechargeAccounts && rechargeAccounts.map((acc, index) => {
-                            const isAvailable = isEth;
-                            return (
-                              <button
-                                key={`eth-local-${acc.id || index}`}
-                                type="button"
-                                onClick={() => {
-                                  if (!isAvailable) {
-                                    alert('Ethiopian local accounts are only available to users in Ethiopia.');
-                                    return;
-                                  }
-                                  setRechargeBank(acc.bank);
-                                  setShowChannelDropdown(false);
-                                }}
-                                className={`w-full text-left px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-between hover:bg-slate-50 ${
-                                  rechargeBank === acc.bank ? 'text-bronze bg-amber-50/40 font-black' : 'text-slate-600'
-                                } ${!isAvailable ? 'opacity-40 cursor-not-allowed' : ''}`}
-                              >
-                                <div className="flex items-center gap-2">
-                                  <span>🇪🇹 {acc.bank}</span>
-                                  {!isAvailable && (
-                                    <span className="text-[7px] font-extrabold bg-red-50 text-red-600 border border-red-200/50 px-1 py-0.5 rounded">
-                                      Restricted
-                                    </span>
-                                  )}
-                                </div>
-                                {rechargeBank === acc.bank && <Check size={13} className="text-bronze shrink-0" />}
-                              </button>
-                            );
-                          })}
+                          {isEth ? (
+                            <>
+                              <div className="px-2.5 py-1 text-[9px] font-extrabold text-amber-700 uppercase tracking-widest bg-amber-50/80 rounded-lg flex items-center gap-1">
+                                <span>🇪🇹</span> Ethiopia Local Payment Methods
+                              </div>
+                              
+                              {/* Ethiopia Local Accounts */}
+                              {(() => {
+                                const fallbackEthAccounts = [
+                                  { id: 'acc-1', bank: 'Commercial Bank of Ethiopia (CBE)', accName: 'Ethiopia agent-Leykun jemaneh', accNo: '1000419524747' },
+                                  { id: 'acc-2', bank: 'Telebirr', accName: 'Ethiopia agent-Leykun jemaneh', accNo: '0926193920' }
+                                ];
+                                const ethAccs = (!rechargeAccounts || rechargeAccounts.length === 0)
+                                  ? fallbackEthAccounts
+                                  : (() => {
+                                      const res = [...rechargeAccounts];
+                                      if (!res.some(a => a.bank.includes('Commercial Bank') || a.bank.includes('CBE'))) {
+                                        res.unshift(fallbackEthAccounts[0]);
+                                      }
+                                      if (!res.some(a => a.bank.toLowerCase().includes('telebirr'))) {
+                                        const cbeIdx = res.findIndex(a => a.bank.includes('Commercial Bank') || a.bank.includes('CBE'));
+                                        res.splice(cbeIdx >= 0 ? cbeIdx + 1 : 0, 0, fallbackEthAccounts[1]);
+                                      }
+                                      return res;
+                                    })();
 
-                          {/* Other Country Local Accounts */}
-                          {COUNTRY_LOCAL_METHODS.map((method, index) => {
-                            const userCountry = getUserCountry(currentUser?.phoneNumber);
-                            const isAvailable = userCountry?.code === method.countryCode;
-                            const isUnavailableForEth = isEth;
+                                return ethAccs.map((acc, index) => (
+                                  <button
+                                    key={`eth-local-${acc.id || index}`}
+                                    type="button"
+                                    onClick={() => {
+                                      setRechargeBank(acc.bank);
+                                      setShowChannelDropdown(false);
+                                    }}
+                                    className={`w-full text-left px-3 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-between hover:bg-amber-50/60 cursor-pointer ${
+                                      rechargeBank === acc.bank ? 'text-bronze bg-amber-100/50 font-black border border-amber-200/50' : 'text-slate-700'
+                                    }`}
+                                  >
+                                    <div className="flex items-center gap-2">
+                                      <span>🇪🇹</span>
+                                      <span>{acc.bank}</span>
+                                      <span className="text-[7.5px] font-black bg-emerald-100 text-emerald-800 border border-emerald-200 px-1.5 py-0.5 rounded-full uppercase">
+                                        Local
+                                      </span>
+                                    </div>
+                                    {rechargeBank === acc.bank && <Check size={14} className="text-bronze shrink-0" />}
+                                  </button>
+                                ));
+                              })()}
 
-                            return (
-                              <button
-                                key={`other-local-${index}`}
-                                type="button"
-                                onClick={() => {
-                                  if (isEth) {
-                                    alert('Unavailable for Ethiopia. Ethiopia has its own local payment methods (CBE/Telebirr).');
-                                    return;
-                                  }
-                                  if (!isAvailable) {
-                                    alert(`This method is restricted to users in ${method.countryName}.`);
-                                    return;
-                                  }
-                                  setRechargeBank(method.bank);
-                                  setShowChannelDropdown(false);
-                                }}
-                                className={`w-full text-left px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-between hover:bg-slate-50 ${
-                                  rechargeBank === method.bank ? 'text-bronze bg-amber-50/40 font-black' : 'text-slate-600'
-                                } ${isUnavailableForEth || !isAvailable ? 'opacity-40 cursor-not-allowed' : ''}`}
-                              >
-                                <div className="flex items-center gap-2">
-                                  <span>{method.flag} {method.bank}</span>
-                                  {isUnavailableForEth ? (
-                                    <span className="text-[7px] font-extrabold bg-red-50 text-red-600 border border-red-200/50 px-1 py-0.5 rounded">
-                                      Unavailable for Ethiopia
-                                    </span>
-                                  ) : !isAvailable ? (
-                                    <span className="text-[7px] font-extrabold bg-slate-50 text-slate-500 border border-slate-200/50 px-1 py-0.5 rounded">
-                                      Restricted
-                                    </span>
-                                  ) : (
-                                    <span className="text-[7px] font-extrabold bg-emerald-50 text-emerald-600 border border-emerald-200/50 px-1 py-0.5 rounded">
-                                      Local
-                                    </span>
-                                  )}
+                              <div className="mt-2 pt-2 border-t border-slate-100 space-y-1">
+                                <div className="px-2.5 py-1 text-[9px] font-extrabold text-slate-400 uppercase tracking-widest bg-slate-50 rounded-lg">
+                                  🌍 Regional / Other Country Methods
                                 </div>
-                                {rechargeBank === method.bank && <Check size={13} className="text-bronze shrink-0" />}
-                              </button>
-                            );
-                          })}
+                                {COUNTRY_LOCAL_METHODS.map((method, index) => (
+                                  <button
+                                    key={`other-local-${index}`}
+                                    type="button"
+                                    onClick={() => {
+                                      alert('Unavailable for Ethiopia. Ethiopia has its own local payment methods (CBE / Telebirr).');
+                                    }}
+                                    className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-between hover:bg-slate-50 text-slate-400 opacity-60 cursor-not-allowed"
+                                  >
+                                    <div className="flex items-center gap-2">
+                                      <span>{method.flag} {method.bank}</span>
+                                      <span className="text-[7px] font-extrabold bg-red-50 text-red-600 border border-red-200/50 px-1 py-0.5 rounded">
+                                        Unavailable for Ethiopia
+                                      </span>
+                                    </div>
+                                  </button>
+                                ))}
+                              </div>
+                            </>
+                          ) : (
+                            <>
+                              <div className="px-2.5 py-1 text-[9px] font-extrabold text-slate-400 uppercase tracking-widest bg-slate-50 rounded-lg">
+                                📍 Local Payment Methods
+                              </div>
+                              {COUNTRY_LOCAL_METHODS.map((method, index) => {
+                                const userCountry = getUserCountry(currentUser?.phoneNumber);
+                                const isAvailable = userCountry?.code === method.countryCode;
+
+                                return (
+                                  <button
+                                    key={`other-local-${index}`}
+                                    type="button"
+                                    onClick={() => {
+                                      if (!isAvailable) {
+                                        alert(`This method is restricted to users in ${method.countryName}.`);
+                                        return;
+                                      }
+                                      setRechargeBank(method.bank);
+                                      setShowChannelDropdown(false);
+                                    }}
+                                    className={`w-full text-left px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-between hover:bg-slate-50 ${
+                                      rechargeBank === method.bank ? 'text-bronze bg-amber-50/40 font-black' : 'text-slate-600'
+                                    } ${!isAvailable ? 'opacity-40 cursor-not-allowed' : ''}`}
+                                  >
+                                    <div className="flex items-center gap-2">
+                                      <span>{method.flag} {method.bank}</span>
+                                      {!isAvailable ? (
+                                        <span className="text-[7px] font-extrabold bg-slate-50 text-slate-500 border border-slate-200/50 px-1 py-0.5 rounded">
+                                          Restricted
+                                        </span>
+                                      ) : (
+                                        <span className="text-[7px] font-extrabold bg-emerald-50 text-emerald-600 border border-emerald-200/50 px-1 py-0.5 rounded">
+                                          Local
+                                        </span>
+                                      )}
+                                    </div>
+                                    {rechargeBank === method.bank && <Check size={13} className="text-bronze shrink-0" />}
+                                  </button>
+                                );
+                              })}
+                            </>
+                          )}
                         </div>
 
                         {/* INTERNATIONAL METHODS GROUP */}
@@ -1636,39 +1670,97 @@ function AppContent() {
                     )}
                   </div>
 
-                  {/* Active selected account details shown in a simplified layout */}
-                  {rechargeAccounts && rechargeAccounts.find(acc => acc.bank === rechargeBank) && (() => {
-                    const selectedAccount = rechargeAccounts.find(acc => acc.bank === rechargeBank)!;
+                  {/* Active selected account details shown in a rich layout with copy buttons */}
+                  {(() => {
+                    const fallbackEthAccounts = [
+                      { id: 'acc-1', bank: 'Commercial Bank of Ethiopia (CBE)', accName: 'Ethiopia agent-Leykun jemaneh', accNo: '1000419524747' },
+                      { id: 'acc-2', bank: 'Telebirr', accName: 'Ethiopia agent-Leykun jemaneh', accNo: '0926193920' }
+                    ];
+                    const allEthAccounts = (rechargeAccounts && rechargeAccounts.length > 0) ? rechargeAccounts : fallbackEthAccounts;
+                    
+                    const selectedAccount = allEthAccounts.find(acc => 
+                      acc.bank === rechargeBank || 
+                      acc.bank.toLowerCase().includes(rechargeBank.toLowerCase()) || 
+                      rechargeBank.toLowerCase().includes(acc.bank.toLowerCase())
+                    ) || (
+                      rechargeBank.toLowerCase().includes('cbe') || rechargeBank.toLowerCase().includes('commercial bank')
+                        ? fallbackEthAccounts[0]
+                        : rechargeBank.toLowerCase().includes('telebirr')
+                        ? fallbackEthAccounts[1]
+                        : null
+                    );
+
+                    if (!selectedAccount) return null;
+
                     return (
                       <motion.div
                         key={selectedAccount.bank}
                         initial={{ opacity: 0, scale: 0.98 }}
                         animate={{ opacity: 1, scale: 1 }}
-                        className="bg-gradient-to-br from-[#0F2022] via-[#162E30] to-[#0C1A1C] text-white p-4.5 rounded-2xl border border-emerald-950/20 shadow-lg relative overflow-hidden"
+                        className="bg-gradient-to-br from-[#0F2022] via-[#162E30] to-[#0C1A1C] text-white p-4.5 rounded-2xl border border-emerald-900/40 shadow-lg relative overflow-hidden space-y-3"
                       >
-                        <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 rounded-full blur-xl pointer-events-none" />
-                        <div className="flex justify-between items-center gap-4">
-                          <div className="flex items-center gap-3">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none" />
+                        
+                        <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
+                          <div className="flex items-center gap-2">
+                            <span className="text-base">🇪🇹</span>
+                            <span className="text-xs font-black tracking-tight text-amber-400 uppercase">
+                              {selectedAccount.bank}
+                            </span>
+                          </div>
+                          <span className="text-[9px] font-black uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full">
+                            Official Deposit Account
+                          </span>
+                        </div>
+
+                        <div className="space-y-2">
+                          {/* Account Number Row with Copy Button */}
+                          <div className="flex justify-between items-center bg-white/5 border border-white/10 rounded-xl p-3">
                             <div className="space-y-0.5">
-                              <span className="block text-[11px] font-black tracking-tight text-amber-400 uppercase">
-                                {selectedAccount.bank}
+                              <span className="block text-[9px] uppercase tracking-wider text-slate-400 font-extrabold">
+                                Account Number / Phone No
                               </span>
-                              <span className="block text-lg font-mono font-bold tracking-wider text-white select-all">
+                              <span className="block text-lg font-mono font-black tracking-wider text-white select-all">
                                 {selectedAccount.accNo}
                               </span>
                             </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                navigator.clipboard.writeText(selectedAccount.accNo);
+                                alert(`${selectedAccount.bank} account number copied: ${selectedAccount.accNo}`);
+                              }}
+                              className="bg-amber-400 hover:bg-amber-300 text-slate-950 px-3.5 py-2 rounded-xl font-black cursor-pointer active:scale-95 transition-all text-xs flex items-center gap-1.5 shrink-0 shadow-md"
+                            >
+                              <Copy size={13} />
+                              <span>Copy Account</span>
+                            </button>
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              navigator.clipboard.writeText(selectedAccount.accNo);
-                              alert(`${selectedAccount.bank} Account number copied: ${selectedAccount.accNo}`);
-                            }}
-                            className="bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/20 px-3 py-2 rounded-xl font-extrabold cursor-pointer active:scale-95 transition-all text-[10px] flex items-center gap-1.5 shrink-0 shadow-xs"
-                          >
-                            <Copy size={11} />
-                            <span>Copy</span>
-                          </button>
+
+                          {/* Beneficiary Name Row */}
+                          {selectedAccount.accName && (
+                            <div className="flex justify-between items-center bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs">
+                              <div className="space-y-0.5">
+                                <span className="block text-[8px] uppercase tracking-wider text-slate-400 font-extrabold">
+                                  Account Name / Beneficiary
+                                </span>
+                                <span className="block font-bold text-slate-200 select-all">
+                                  {selectedAccount.accName}
+                                </span>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(selectedAccount.accName);
+                                  alert(`Beneficiary name copied: ${selectedAccount.accName}`);
+                                }}
+                                className="bg-white/10 hover:bg-white/20 text-slate-200 border border-white/10 px-2.5 py-1 rounded-lg font-bold cursor-pointer transition-all text-[10px] flex items-center gap-1 shrink-0"
+                              >
+                                <Copy size={10} />
+                                <span>Copy Name</span>
+                              </button>
+                            </div>
+                          )}
                         </div>
                       </motion.div>
                     );
