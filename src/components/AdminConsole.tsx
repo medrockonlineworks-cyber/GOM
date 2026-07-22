@@ -26,7 +26,9 @@ import {
   Settings,
   Terminal,
   Activity,
-  Edit
+  Edit,
+  Gift,
+  Copy
 } from 'lucide-react';
 
 import { formatUserPhoneId, useTranslation } from '../utils/translations';
@@ -204,7 +206,10 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
     adminUpdateUserStage,
     adminGeneratedCodes,
     usedCodes,
-    generateOfflineRechargeCode
+    generateOfflineRechargeCode,
+    adminGiftCodes,
+    generateAdminGiftCode,
+    deleteAdminGiftCode
   } = useApp();
 
   const { t } = useTranslation(language);
@@ -227,8 +232,39 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
     }
   };
 
-  const [activeAdminSubTab, setActiveAdminSubTab] = useState<'users' | 'recharges' | 'withdrawals' | 'orders' | 'announcements' | 'support' | 'reports' | 'logos'>('recharges');
+  const [activeAdminSubTab, setActiveAdminSubTab] = useState<'users' | 'recharges' | 'withdrawals' | 'orders' | 'announcements' | 'support' | 'reports' | 'logos' | 'gifts'>('recharges');
   const [activeScreenshot, setActiveScreenshot] = useState<string | null>(null);
+
+  // Admin Gift Code Generator States
+  const [giftTargetPhone, setGiftTargetPhone] = useState('');
+  const [giftAmount, setGiftAmount] = useState('500');
+  const [giftCustomCode, setGiftCustomCode] = useState('');
+  const [giftSuccess, setGiftSuccess] = useState('');
+  const [giftError, setGiftError] = useState('');
+
+  const handleGenerateGiftCodeSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setGiftError('');
+    setGiftSuccess('');
+
+    if (!giftTargetPhone.trim()) {
+      setGiftError('Please select or enter a valid user phone number.');
+      return;
+    }
+    const num = parseFloat(giftAmount);
+    if (isNaN(num) || num <= 0) {
+      setGiftError('Please enter a valid gift amount greater than 0 ETB.');
+      return;
+    }
+
+    const res = await generateAdminGiftCode(giftTargetPhone, num, giftCustomCode);
+    if (res.success) {
+      setGiftSuccess(res.message);
+      setGiftCustomCode('');
+    } else {
+      setGiftError(res.message);
+    }
+  };
 
   // Offline Code Generator States
   const [genPhone, setGenPhone] = useState('');
@@ -633,6 +669,18 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
         >
           <Settings size={13} />
           Customize Logos
+        </button>
+
+        <button
+          onClick={() => setActiveAdminSubTab('gifts')}
+          className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap shrink-0 transition-all flex items-center gap-1.5 ${
+            activeAdminSubTab === 'gifts' 
+              ? 'bg-bronze text-white shadow-sm' 
+              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+          }`}
+        >
+          <Gift size={13} />
+          🎁 Gift Cards
         </button>
       </div>
 
@@ -1729,7 +1777,7 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
                     <div className="flex gap-2">
                       <input
                         type="number"
-                        placeholder="Amount in ETB (e.g. 588)"
+                        placeholder="Amount in ETB (e.g. 750)"
                         value={adjustAmounts[user.id] || ''}
                         onChange={(e) => setAdjustAmounts(prev => ({ ...prev, [user.id]: e.target.value }))}
                         className="flex-1 min-w-0 bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-bronze"
@@ -2274,6 +2322,199 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
                   );
                 })}
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* GIFT CODES MANAGEMENT TAB */}
+        {activeAdminSubTab === 'gifts' && (
+          <div className="space-y-6">
+            <div>
+              <h3 className="text-sm font-extrabold text-slate-700 flex items-center gap-1.5">
+                🎁 Phone-Targeted Gift Codes Desk
+              </h3>
+              <p className="text-[11px] text-slate-500 mt-1 leading-normal">
+                Generate gift codes bound to specific user phone numbers and wallet balances. The system strictly verifies the redeeming account's phone number before adding funds to their wallet.
+              </p>
+            </div>
+
+            {/* GENERATE GIFT CODE FORM */}
+            <form onSubmit={handleGenerateGiftCodeSubmit} className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-sm space-y-4">
+              <h4 className="text-xs font-black text-slate-800 uppercase tracking-wide flex items-center gap-1.5">
+                <Plus size={14} className="text-bronze" /> Create New Gift Code
+              </h4>
+
+              {giftError && (
+                <div className="p-3 bg-rose-50 border border-rose-100 text-rose-600 rounded-xl text-xs font-bold">
+                  {giftError}
+                </div>
+              )}
+
+              {giftSuccess && (
+                <div className="p-3 bg-emerald-50 border border-emerald-100 text-emerald-700 rounded-xl text-xs font-bold flex items-center justify-between">
+                  <span>{giftSuccess}</span>
+                  <button
+                    type="button"
+                    onClick={() => setGiftSuccess('')}
+                    className="text-emerald-800 hover:text-emerald-950 text-[10px] font-black underline ml-2 cursor-pointer"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              )}
+
+              <div className="space-y-3">
+                {/* Target Phone */}
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-bold text-slate-600 block">Target User Phone Number *</label>
+                  <input
+                    type="text"
+                    value={giftTargetPhone}
+                    onChange={(e) => setGiftTargetPhone(e.target.value)}
+                    placeholder="e.g. 0926193920 or 0911223344"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-1 focus:ring-bronze"
+                    required
+                  />
+                  {/* Quick Select Registered Users */}
+                  {users.length > 0 && (
+                    <div className="space-y-1 pt-1">
+                      <span className="text-[10px] text-slate-400 font-bold block">Quick Select Registered User:</span>
+                      <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto p-1 bg-slate-50 rounded-xl border border-slate-100">
+                        {users.filter(u => u.role !== 'admin').map((u) => (
+                          <button
+                            key={u.id}
+                            type="button"
+                            onClick={() => setGiftTargetPhone(u.phoneNumber)}
+                            className={`text-[10px] font-bold px-2 py-1 rounded-lg border transition-all cursor-pointer ${
+                              giftTargetPhone === u.phoneNumber
+                                ? 'bg-bronze text-white border-bronze shadow-xs'
+                                : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
+                            }`}
+                          >
+                            📱 {u.phoneNumber} ({u.walletBalance} ETB)
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Amount & Custom Code */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-bold text-slate-600 block">Gift Balance (ETB) *</label>
+                    <input
+                      type="number"
+                      value={giftAmount}
+                      onChange={(e) => setGiftAmount(e.target.value)}
+                      placeholder="500"
+                      min="1"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-1 focus:ring-bronze"
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-bold text-slate-600 block">Custom Code (Optional)</label>
+                    <input
+                      type="text"
+                      value={giftCustomCode}
+                      onChange={(e) => setGiftCustomCode(e.target.value.toUpperCase())}
+                      placeholder="e.g. WELCOME500 (or leave blank)"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 uppercase focus:outline-none focus:ring-1 focus:ring-bronze"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                className="w-full bg-bronze hover:bg-bronze-hover text-white font-extrabold text-xs py-2.5 rounded-xl shadow-sm transition-all cursor-pointer flex items-center justify-center gap-1.5"
+              >
+                <Gift size={14} />
+                Generate & Issue Gift Code
+              </button>
+            </form>
+
+            {/* GENERATED GIFT CODES LIST */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs font-black text-slate-700 uppercase tracking-wide">
+                  📋 Issued Gift Codes History ({adminGiftCodes.length})
+                </h4>
+              </div>
+
+              {adminGiftCodes.length === 0 ? (
+                <div className="bg-white border border-slate-200 rounded-2xl p-8 text-center text-xs text-slate-400 font-bold">
+                  No gift codes issued yet. Use the form above to generate phone-bound gift codes.
+                </div>
+              ) : (
+                <div className="space-y-2.5">
+                  {adminGiftCodes.map((gift) => (
+                    <div
+                      key={gift.id}
+                      className="bg-white border border-slate-200/80 rounded-2xl p-3.5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                    >
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-xs font-black text-slate-800 tracking-wider font-mono bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-lg">
+                            {gift.code}
+                          </span>
+                          <span
+                            className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
+                              gift.status === 'active'
+                                ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                                : 'bg-slate-100 text-slate-600 border border-slate-200'
+                            }`}
+                          >
+                            {gift.status === 'active' ? '● Active' : '✓ Redeemed'}
+                          </span>
+                          <span className="text-xs font-extrabold text-emerald-600">
+                            +{formatPrice(gift.amount)}
+                          </span>
+                        </div>
+
+                        <div className="text-[11px] text-slate-500 font-medium space-x-2">
+                          <span>Target Phone: <strong className="text-slate-700 font-bold">{gift.targetPhone}</strong></span>
+                          <span>•</span>
+                          <span>Created: {new Date(gift.createdAt).toLocaleDateString()}</span>
+                        </div>
+
+                        {gift.redeemedBy && (
+                          <div className="text-[10px] text-slate-400 font-semibold">
+                            Redeemed by {gift.redeemedBy} on {new Date(gift.redeemedAt || '').toLocaleString()}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard.writeText(gift.code);
+                            alert(`Gift code "${gift.code}" copied to clipboard!`);
+                          }}
+                          className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[10px] px-2.5 py-1.5 rounded-xl border border-slate-200 flex items-center gap-1 transition-all cursor-pointer"
+                        >
+                          <Copy size={12} /> Copy
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (confirm(`Are you sure you want to delete gift code "${gift.code}"?`)) {
+                              deleteAdminGiftCode(gift.id);
+                            }
+                          }}
+                          className="bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold text-[10px] px-2.5 py-1.5 rounded-xl border border-rose-100 flex items-center gap-1 transition-all cursor-pointer"
+                        >
+                          <Trash2 size={12} /> Delete
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}

@@ -8,7 +8,7 @@ import { useApp } from '../context/AppContext';
 import { useTranslation } from '../utils/translations';
 import LanguageSelector from './LanguageSelector';
 import { motion } from 'motion/react';
-import { Phone, Lock, Eye, EyeOff, KeyRound, ShoppingBag, Landmark, ArrowLeft, Coins, Gift } from 'lucide-react';
+import { Phone, Lock, Eye, EyeOff, KeyRound, ShoppingBag, Landmark, ArrowLeft, Coins } from 'lucide-react';
 import { secureStorage } from '../utils/crypto';
 
 type AuthView = 'login' | 'register' | 'forgot';
@@ -83,9 +83,6 @@ export const AuthScreens: React.FC = () => {
     return remember ? (secureStorage.getItem('gom_remembered_pass') || '') : '';
   });
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [referralCode, setReferralCode] = useState(() => {
-    return new URLSearchParams(window.location.search).get('ref') || '';
-  });
   
   // Visual indicators
   const [showPassword, setShowPassword] = useState(false);
@@ -257,7 +254,6 @@ export const AuthScreens: React.FC = () => {
     setForgotCountryCode('+251');
     setPassword((targetView === 'login' && remember) ? (secureStorage.getItem('gom_remembered_pass') || '') : '');
     setConfirmPassword('');
-    setReferralCode(new URLSearchParams(window.location.search).get('ref') || '');
     setError(null);
     setSuccess(null);
   };
@@ -327,7 +323,7 @@ export const AuthScreens: React.FC = () => {
     setIsLoading(true);
     try {
       const fullPhone = getFullPhoneNumber(registerCountryCode, phoneNumber);
-      const res = await register(fullPhone, password, referralCode);
+      const res = await register(fullPhone, password);
       if (res.success) {
         setSuccess(res.message);
         // Instant success, context automatically redirects current session
@@ -697,24 +693,6 @@ export const AuthScreens: React.FC = () => {
                         value={confirmPassword}
                         onChange={(e) => setConfirmPassword(e.target.value)}
                         className="w-full bg-slate-50 text-slate-800 text-sm pl-10 pr-10 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-bronze/40 focus:border-bronze focus:bg-white transition-all font-medium placeholder-slate-400/80 shadow-xs"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
-                      <span>{t('referralCodeLabel')}</span>
-                    </label>
-                    <div className="relative group">
-                      <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-emerald-600 group-focus-within:text-emerald-700 transition-colors">
-                        <Gift size={16} />
-                      </span>
-                      <input
-                        type="text"
-                        placeholder="e.g. GOM12345"
-                        value={referralCode}
-                        onChange={(e) => setReferralCode(e.target.value)}
-                        className="w-full bg-emerald-50/40 text-slate-800 text-sm pl-10 pr-4 py-3 rounded-xl border border-emerald-100/60 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500 focus:bg-white transition-all font-mono tracking-wider placeholder:font-sans placeholder:tracking-normal shadow-xs"
                       />
                     </div>
                   </div>

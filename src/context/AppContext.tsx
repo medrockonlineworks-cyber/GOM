@@ -14,7 +14,8 @@ import {
   SystemReport,
   OrderStatus,
   RechargeAccount,
-  Currency
+  Currency,
+  AdminGiftCode
 } from '../types';
 import { hashPassword, generateUserId, generateId } from '../utils/security';
 import { 
@@ -485,6 +486,13 @@ interface AppContextProps {
   // Wallet actions
   deposit: (amount: number, bankName: string, refCode: string, screenshot?: string) => Promise<{ success: boolean; message: string }>;
   withdraw: (amount: number, bankName: string, accNo: string, accName?: string) => Promise<{ success: boolean; message: string }>;
+  
+  // Gift System actions
+  adminGiftCodes: AdminGiftCode[];
+  generateAdminGiftCode: (targetPhone: string, amount: number, customCode?: string) => Promise<{ success: boolean; message: string; giftCode?: AdminGiftCode }>;
+  deleteAdminGiftCode: (id: string) => Promise<{ success: boolean; message: string }>;
+  redeemGiftCode: (code: string) => Promise<{ success: boolean; message: string; amount?: number }>;
+  createGiftCard: (amount: number) => Promise<{ success: boolean; message: string; code?: string }>;
   
   // Admin approvals
   approveTransaction: (id: string) => void;
@@ -1143,6 +1151,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         } catch (e) {}
       }
     }
+
+    // 9. Fetch Admin Gift Codes
+    try {
+      const res = await fetch('/api/gift-codes');
+      if (res.ok) {
+        const data = await res.json();
+        if (data && Array.isArray(data.giftCodes)) {
+          setAdminGiftCodes(data.giftCodes);
+          localStorage.setItem('gom_admin_gift_codes', JSON.stringify(data.giftCodes));
+        }
+      }
+    } catch (err: any) {
+      console.warn('[fetchAllData] Error fetching gift-codes, falling back to local storage:', err.message || err);
+    }
   };
 
   // Real-time synchronization listeners using standard local polling
@@ -1512,8 +1534,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const suffix = phoneDigits.slice(-5) || userId.slice(-5);
     const userInviteCode = `GOM${suffix}`;
 
-    let baseWelcomeBonus = 588;
-    let initialBalance = 588;
+    let baseWelcomeBonus = 750;
+    let initialBalance = 750;
     let referredBy: string | undefined = undefined;
     const additionalTxs: Transaction[] = [];
     let freshUsers = [...users];
@@ -1553,7 +1575,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
 
       referredBy = referrer.id;
-      initialBalance = 784; // 588 welcome + 196 bonus
+      initialBalance = 946; // 750 welcome + 196 bonus
 
       // Referral bonus transaction for new user
       additionalTxs.push({
@@ -1618,10 +1640,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       userId: userId,
       userPhone: trimmedPhone,
       type: 'welcome_bonus',
-      amount: 588,
+      amount: 750,
       status: 'completed',
       createdAt: new Date().toISOString(),
-      description: 'Registration 588 ETB Welcome Bonus credited.'
+      description: 'Registration 750 ETB Welcome Bonus credited.'
     };
 
     try {
@@ -1667,7 +1689,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       // Sync active session
       setCurrentUser(newUser);
 
-      await logAudit(userId, trimmedPhone, 'REGISTER', `Successfully registered. Automatically credited 588 Welcome Bonus.${referredBy ? ' Plus 196 referral bonus.' : ''}`);
+      await logAudit(userId, trimmedPhone, 'REGISTER', `Successfully registered. Automatically credited 750 Welcome Bonus.${referredBy ? ' Plus 196 referral bonus.' : ''}`);
       if (referredBy) {
         const referrerToUpdate = freshUsers.find(u => u.id === referredBy);
         if (referrerToUpdate) {
@@ -1675,7 +1697,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
       }
 
-      return { success: true, message: `Registration successful! Welcome bonus of 588 ETB credited.${referredBy ? ' Additional 196 ETB referral bonus credited!' : ''}` };
+      return { success: true, message: `Registration successful! Welcome bonus of 750 ETB credited.${referredBy ? ' Additional 196 ETB referral bonus credited!' : ''}` };
     } catch (e) {
       console.error("Error committing registration batch to Firestore, falling back to local storage:", e);
       
@@ -1712,7 +1734,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           userId: newUser.id,
           userPhone: trimmedPhone,
           action: 'REGISTER',
-          details: `Successfully registered (Local Fallback). Automatically credited 588 Welcome Bonus.${referredBy ? ' Plus 196 referral bonus.' : ''}`,
+          details: `Successfully registered (Local Fallback). Automatically credited 750 Welcome Bonus.${referredBy ? ' Plus 196 referral bonus.' : ''}`,
           createdAt: new Date().toISOString()
         },
         ...(referredBy ? [{
@@ -1728,7 +1750,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setAuditLogs(localLogs);
       localStorage.setItem('gom_audit_logs', JSON.stringify(localLogs));
 
-      return { success: true, message: `Registration successful (Offline Fallback)! Welcome bonus of 588 ETB credited.${referredBy ? ' Additional 196 ETB referral bonus credited!' : ''}` };
+      return { success: true, message: `Registration successful (Offline Fallback)! Welcome bonus of 750 ETB credited.${referredBy ? ' Additional 196 ETB referral bonus credited!' : ''}` };
     }
   };
 
@@ -1885,8 +1907,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           id: userId,
           phoneNumber: trimmedPhone,
           passwordHash: hashed,
-          walletBalance: 588,
-          welcomeBonus: 588,
+          walletBalance: 750,
+          welcomeBonus: 750,
           totalEarnings: 0,
           role: 'user',
           createdAt: new Date().toISOString(),
@@ -2282,6 +2304,269 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+  // GIFT SYSTEM ACTIONS
+  const generateAdminGiftCode = async (
+    targetPhone: string,
+    amount: number,
+    customCode?: string
+  ): Promise<{ success: boolean; message: string; giftCode?: AdminGiftCode }> => {
+    if (!targetPhone || !targetPhone.trim()) {
+      return { success: false, message: 'User phone number is required.' };
+    }
+    if (!amount || amount <= 0) {
+      return { success: false, message: 'Gift balance must be greater than 0 ETB.' };
+    }
+
+    const cleanTargetPhone = targetPhone.trim();
+    const code = customCode && customCode.trim() 
+      ? customCode.trim().toUpperCase() 
+      : `GIFT-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+
+    // Check if code already exists and is active
+    const existing = adminGiftCodes.find(g => g.code.toUpperCase() === code);
+    if (existing && existing.status === 'active') {
+      return { success: false, message: `Gift code "${code}" already exists and is active.` };
+    }
+
+    const newGift: AdminGiftCode = {
+      id: generateId('GFT'),
+      code,
+      targetPhone: cleanTargetPhone,
+      amount,
+      createdAt: new Date().toISOString(),
+      createdBy: currentUser?.phoneNumber || 'Admin',
+      status: 'active',
+    };
+
+    const updatedList = [newGift, ...adminGiftCodes.filter(g => g.code.toUpperCase() !== code)];
+    setAdminGiftCodes(updatedList);
+    localStorage.setItem('gom_admin_gift_codes', JSON.stringify(updatedList));
+
+    try {
+      await fetch('/api/gift-codes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ giftCodes: updatedList }),
+      });
+    } catch (e) {
+      console.error('Failed to sync gift code to server:', e);
+    }
+
+    if (currentUser) {
+      await logAudit(currentUser.id, currentUser.phoneNumber, 'GENERATE_GIFT_CODE', `Admin generated gift code ${code} (${amount} ETB) for user ${cleanTargetPhone}`);
+    }
+
+    return {
+      success: true,
+      message: `Gift Code "${code}" (${amount} ETB) created for user ${cleanTargetPhone}.`,
+      giftCode: newGift,
+    };
+  };
+
+  const deleteAdminGiftCode = async (id: string): Promise<{ success: boolean; message: string }> => {
+    const updatedList = adminGiftCodes.filter(g => g.id !== id);
+    setAdminGiftCodes(updatedList);
+    localStorage.setItem('gom_admin_gift_codes', JSON.stringify(updatedList));
+
+    try {
+      await fetch('/api/gift-codes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ giftCodes: updatedList }),
+      });
+    } catch (e) {}
+
+    return { success: true, message: 'Gift code removed.' };
+  };
+
+  const redeemGiftCode = async (rawCode: string): Promise<{ success: boolean; message: string; amount?: number }> => {
+    if (!currentUser) return { success: false, message: 'Not logged in.' };
+    const code = rawCode.trim().toUpperCase();
+    if (!code) return { success: false, message: 'Please enter a valid gift code.' };
+
+    const claimed = currentUser.claimedGiftCodes || [];
+    if (claimed.map(c => c.toUpperCase()).includes(code)) {
+      return { success: false, message: `You have already redeemed gift code "${code}".` };
+    }
+
+    // 1. Search in adminGiftCodes
+    let matchedGift = adminGiftCodes.find(g => g.code.toUpperCase() === code);
+
+    // Fallback: Check custom gift cards created in local storage if not found
+    if (!matchedGift) {
+      const savedCustomCards = localStorage.getItem('gom_custom_gift_cards');
+      if (savedCustomCards) {
+        try {
+          const cards: { code: string; amount: number; active: boolean; createdBy?: string }[] = JSON.parse(savedCustomCards);
+          const foundCard = cards.find(c => c.code.toUpperCase() === code && c.active);
+          if (foundCard) {
+            matchedGift = {
+              id: generateId('GFT'),
+              code: foundCard.code,
+              targetPhone: currentUser.phoneNumber, // custom legacy cards match current user
+              amount: foundCard.amount,
+              createdAt: new Date().toISOString(),
+              status: 'active',
+            };
+          }
+        } catch (e) {}
+      }
+    }
+
+    if (!matchedGift) {
+      return {
+        success: false,
+        message: `Invalid gift code "${code}". Please ask the administrator to generate a gift code for your phone number (${currentUser.phoneNumber}).`
+      };
+    }
+
+    if (matchedGift.status === 'redeemed') {
+      return { success: false, message: `Gift code "${code}" has already been redeemed.` };
+    }
+
+    // STRICT PHONE NUMBER CHECK USING isSamePhone
+    if (!isSamePhone(matchedGift.targetPhone, currentUser.phoneNumber)) {
+      return {
+        success: false,
+        message: `This gift code was generated for another phone number. It cannot be redeemed by your account (${currentUser.phoneNumber}).`
+      };
+    }
+
+    const rewardAmount = matchedGift.amount;
+
+    // Mark matched gift as redeemed
+    const updatedGiftCodes = adminGiftCodes.map(g => {
+      if (g.code.toUpperCase() === code) {
+        return {
+          ...g,
+          status: 'redeemed' as const,
+          redeemedBy: currentUser.phoneNumber,
+          redeemedAt: new Date().toISOString(),
+        };
+      }
+      return g;
+    });
+
+    setAdminGiftCodes(updatedGiftCodes);
+    localStorage.setItem('gom_admin_gift_codes', JSON.stringify(updatedGiftCodes));
+
+    const updatedClaimed = [...claimed, code];
+    const updatedUser: User = {
+      ...currentUser,
+      walletBalance: currentUser.walletBalance + rewardAmount,
+      totalEarnings: (currentUser.totalEarnings || 0) + rewardAmount,
+      claimedGiftCodes: updatedClaimed,
+    };
+
+    const giftTx: Transaction = {
+      id: generateId('GFT'),
+      userId: currentUser.id,
+      userPhone: currentUser.phoneNumber,
+      type: 'gift_reward',
+      amount: rewardAmount,
+      status: 'completed',
+      createdAt: new Date().toISOString(),
+      description: `Gift Code (${code}) redeemed: +${rewardAmount} ETB credited to wallet.`,
+    };
+
+    setCurrentUser(updatedUser);
+    setUsers(prev => prev.map(u => u.id === currentUser.id ? updatedUser : u));
+    setTransactions(prev => [giftTx, ...prev]);
+
+    localStorage.setItem('gom_current_user', JSON.stringify(updatedUser));
+
+    try {
+      await fetch('/api/gift-codes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ giftCodes: updatedGiftCodes }),
+      });
+      await fetch('/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedUser)
+      });
+      await fetch('/api/transactions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(giftTx)
+      });
+    } catch (e) {
+      console.error('Failed to sync gift redemption to backend:', e);
+    }
+
+    await logAudit(currentUser.id, currentUser.phoneNumber, 'REDEEM_GIFT_CODE', `Redeemed gift code ${code} for +${rewardAmount} ETB.`);
+
+    return {
+      success: true,
+      message: `Gift Code ${code} redeemed successfully! +${formatPrice(rewardAmount)} credited to your wallet balance.`,
+      amount: rewardAmount,
+    };
+  };
+
+
+  const createGiftCard = async (amount: number): Promise<{ success: boolean; message: string; code?: string }> => {
+    if (!currentUser) return { success: false, message: 'Not logged in.' };
+    if (amount < 10) return { success: false, message: 'Minimum gift card amount is 10 ETB.' };
+    if (currentUser.walletBalance < amount) return { success: false, message: 'Insufficient wallet balance.' };
+
+    const randomSuffix = Math.random().toString(36).substring(2, 8).toUpperCase();
+    const newCode = `GIFT-${randomSuffix}`;
+
+    const updatedUser: User = {
+      ...currentUser,
+      walletBalance: currentUser.walletBalance - amount,
+    };
+
+    const tx: Transaction = {
+      id: generateId('GFT'),
+      userId: currentUser.id,
+      userPhone: currentUser.phoneNumber,
+      type: 'gift_created',
+      amount,
+      status: 'completed',
+      createdAt: new Date().toISOString(),
+      description: `Gift Card created (${newCode}) for ${amount} ETB.`,
+    };
+
+    const savedCustomCards = localStorage.getItem('gom_custom_gift_cards');
+    let cards: any[] = [];
+    if (savedCustomCards) {
+      try { cards = JSON.parse(savedCustomCards); } catch(e) {}
+    }
+    cards.push({ code: newCode, amount, active: true, createdBy: currentUser.phoneNumber, createdAt: new Date().toISOString() });
+    localStorage.setItem('gom_custom_gift_cards', JSON.stringify(cards));
+
+    setCurrentUser(updatedUser);
+    setUsers(prev => prev.map(u => u.id === currentUser.id ? updatedUser : u));
+    setTransactions(prev => [tx, ...prev]);
+
+    localStorage.setItem('gom_current_user', JSON.stringify(updatedUser));
+
+    try {
+      await fetch('/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedUser)
+      });
+      await fetch('/api/transactions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(tx)
+      });
+    } catch (e) {
+      console.error('Failed to sync create gift card to backend:', e);
+    }
+
+    await logAudit(currentUser.id, currentUser.phoneNumber, 'CREATE_GIFT_CARD', `Created gift card ${newCode} worth ${amount} ETB.`);
+
+    return {
+      success: true,
+      message: `Gift Card created successfully! Code: ${newCode}`,
+      code: newCode,
+    };
+  };
+
   // ADMIN ACTIONS
   const approveTransaction = async (txId: string) => {
     const tx = transactions.find(t => t.id === txId);
@@ -2638,29 +2923,63 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       createdAt: new Date().toISOString()
     };
     try {
-      await fetch('/api/announcements', {
+      const res = await fetch('/api/announcements', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newAnn)
       });
+      if (res.ok) {
+        const updated = await res.json();
+        if (Array.isArray(updated) && updated.length > 0) {
+          setAnnouncements(updated);
+          localStorage.setItem('gom_announcements', JSON.stringify(updated));
+        } else {
+          const updatedAnns = [newAnn, ...announcements];
+          setAnnouncements(updatedAnns);
+          localStorage.setItem('gom_announcements', JSON.stringify(updatedAnns));
+        }
+      } else {
+        const updatedAnns = [newAnn, ...announcements];
+        setAnnouncements(updatedAnns);
+        localStorage.setItem('gom_announcements', JSON.stringify(updatedAnns));
+      }
       await logAudit('ADMIN', 'ADMIN', 'ADD_ANNOUNCEMENT', `Created announcement: "${title}"`);
     } catch (e) {
       console.error("Error adding announcement, falling back to local storage:", e);
       const updatedAnns = [newAnn, ...announcements];
       setAnnouncements(updatedAnns);
       localStorage.setItem('gom_announcements', JSON.stringify(updatedAnns));
+    } finally {
+      fetchAllData();
     }
   };
 
   const deleteAnnouncement = async (id: string) => {
     try {
-      await fetch('/api/announcements/' + id, { method: 'DELETE' });
+      const res = await fetch('/api/announcements/' + id, { method: 'DELETE' });
+      if (res.ok) {
+        const updated = await res.json();
+        if (Array.isArray(updated)) {
+          setAnnouncements(updated);
+          localStorage.setItem('gom_announcements', JSON.stringify(updated));
+        } else {
+          const updatedAnns = announcements.filter(a => a.id !== id);
+          setAnnouncements(updatedAnns);
+          localStorage.setItem('gom_announcements', JSON.stringify(updatedAnns));
+        }
+      } else {
+        const updatedAnns = announcements.filter(a => a.id !== id);
+        setAnnouncements(updatedAnns);
+        localStorage.setItem('gom_announcements', JSON.stringify(updatedAnns));
+      }
       await logAudit('ADMIN', 'ADMIN', 'DELETE_ANNOUNCEMENT', `Deleted announcement with ID ${id}`);
     } catch (e) {
       console.error("Error deleting announcement, falling back to local storage:", e);
       const updatedAnns = announcements.filter(a => a.id !== id);
       setAnnouncements(updatedAnns);
       localStorage.setItem('gom_announcements', JSON.stringify(updatedAnns));
+    } finally {
+      fetchAllData();
     }
   };
 
@@ -3128,6 +3447,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [adminGeneratedCodes, setAdminGeneratedCodes] = useState<any[]>(() => {
     try {
       const saved = localStorage.getItem('gom_generated_codes');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
+
+  const [adminGiftCodes, setAdminGiftCodes] = useState<AdminGiftCode[]>(() => {
+    try {
+      const saved = localStorage.getItem('gom_admin_gift_codes');
       return saved ? JSON.parse(saved) : [];
     } catch (e) {
       return [];
@@ -3688,6 +4016,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       registerWithdrawalAccount,
       deposit,
       withdraw,
+      adminGiftCodes,
+      generateAdminGiftCode,
+      deleteAdminGiftCode,
+      redeemGiftCode,
+      createGiftCard,
       approveTransaction,
       rejectTransaction,
       addToCart,

@@ -492,7 +492,7 @@ app.put('/api/transactions/:id/status', async (req, res) => {
             phoneNumber: tx.userPhone,
             passwordHash: '5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8', // default fallback hash for 'Password123'
             walletBalance: Number(tx.amount),
-            welcomeBonus: 588, // default fallback
+            welcomeBonus: 750, // default fallback
             totalEarnings: 0,
             role: 'user',
             createdAt: new Date(),
@@ -959,6 +959,45 @@ app.post('/api/recharge-codes/generated', async (req, res) => {
     }
     
     res.json({ success: true, generatedCodes });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET admin gift codes
+app.get('/api/gift-codes', async (req, res) => {
+  try {
+    const giftList = await db.select().from(systemConfig).where(eq(systemConfig.key, 'admin_gift_codes'));
+    const giftCodes = giftList.length > 0 ? (giftList[0].productCosts as any[]) : [];
+    res.json({ giftCodes });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST admin gift codes list
+app.post('/api/gift-codes', async (req, res) => {
+  try {
+    const { giftCodes } = req.body;
+    if (!Array.isArray(giftCodes)) {
+      return res.status(400).json({ error: 'giftCodes must be an array.' });
+    }
+    
+    const existing = await db.select().from(systemConfig).where(eq(systemConfig.key, 'admin_gift_codes'));
+    if (existing.length > 0) {
+      await db.update(systemConfig)
+        .set({ productCosts: giftCodes })
+        .where(eq(systemConfig.key, 'admin_gift_codes'));
+    } else {
+      await db.insert(systemConfig).values({
+        key: 'admin_gift_codes',
+        productCosts: giftCodes,
+        bankLogos: {},
+        marketplaceLogos: {},
+      });
+    }
+    
+    res.json({ success: true, giftCodes });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }

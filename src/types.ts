@@ -28,9 +28,22 @@ export interface User {
   withdrawalBank?: string; // Registered withdrawal bank name
   withdrawalAccNo?: string; // Registered withdrawal account number
   withdrawalAccName?: string; // Registered withdrawal account holder name
+  claimedGiftCodes?: string[]; // Array of redeemed gift codes
 }
 
-export type TransactionType = 'recharge' | 'withdraw' | 'payment' | 'reward' | 'welcome_bonus' | 'referral_bonus';
+export interface AdminGiftCode {
+  id: string;
+  code: string;
+  targetPhone: string; // The user's phone number this gift is issued for
+  amount: number; // Gift balance in ETB
+  createdAt: string;
+  createdBy?: string;
+  status: 'active' | 'redeemed';
+  redeemedBy?: string;
+  redeemedAt?: string;
+}
+
+export type TransactionType = 'recharge' | 'withdraw' | 'payment' | 'reward' | 'welcome_bonus' | 'referral_bonus' | 'gift_reward' | 'gift_created';
 export type TransactionStatus = 'pending' | 'approved' | 'rejected' | 'completed';
 
 export interface Transaction {

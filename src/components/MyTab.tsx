@@ -237,7 +237,8 @@ export const MyTab: React.FC<MyTabProps> = ({
     verifyRechargeOffline,
     submitWithdrawalTax,
     verifyWithdrawalOffline,
-    rechargeAccounts
+    rechargeAccounts,
+    redeemGiftCode
   } = useApp();
 
   const { t } = useTranslation(language);
@@ -466,6 +467,30 @@ export const MyTab: React.FC<MyTabProps> = ({
   const [copiedLink, setCopiedLink] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [resetConfirmationInput, setResetConfirmationInput] = useState('');
+
+  // Gift Box state in MyTab
+  const [myTabGiftCodeInput, setMyTabGiftCodeInput] = useState('');
+  const [myTabGiftMsg, setMyTabGiftMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [myTabRedeeming, setMyTabRedeeming] = useState(false);
+
+  const handleMyTabRedeem = async () => {
+    if (!myTabGiftCodeInput.trim()) return;
+    setMyTabRedeeming(true);
+    setMyTabGiftMsg(null);
+    try {
+      const res = await redeemGiftCode(myTabGiftCodeInput);
+      if (res.success) {
+        setMyTabGiftMsg({ type: 'success', text: res.message });
+        setMyTabGiftCodeInput('');
+      } else {
+        setMyTabGiftMsg({ type: 'error', text: res.message });
+      }
+    } catch (e: any) {
+      setMyTabGiftMsg({ type: 'error', text: e.message || 'Error redeeming gift code.' });
+    } finally {
+      setMyTabRedeeming(false);
+    }
+  };
 
   // Offline verification modal states
   const [selectedPendingRecharge, setSelectedPendingRecharge] = useState<Transaction | null>(null);
@@ -776,6 +801,27 @@ export const MyTab: React.FC<MyTabProps> = ({
             </div>
           </button>
 
+          {/* Gift Box & Rewards */}
+          <button 
+            onClick={() => setActiveHistoryPanel('referrals')}
+            className="w-full py-3 flex items-center justify-between group text-left cursor-pointer transition-colors hover:bg-slate-50/50 -mx-2 px-2 rounded-xl"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 border border-amber-100/50">
+                <Gift size={15} />
+              </div>
+              <div>
+                <span className="text-xs font-black text-slate-800 block">Gift Box & Promo Rewards</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] font-black bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full">
+                CLAIM
+              </span>
+              <ChevronRight size={14} className="text-slate-300 group-hover:text-slate-500 transition-colors" />
+            </div>
+          </button>
+
           {/* Bonus Records */}
           <button 
             onClick={() => setActiveHistoryPanel('bonuses')}
@@ -948,10 +994,10 @@ export const MyTab: React.FC<MyTabProps> = ({
                     {activeHistoryPanel === 'bonuses' && localT[language].bonusTransactions}
                     {activeHistoryPanel === 'transactions' && t('completeLedgerLog')}
                     {activeHistoryPanel === 'orders' && t('finishedMatchingTasks')}
-                    {activeHistoryPanel === 'referrals' && t('referralRewardsProgram')}
+                    {activeHistoryPanel === 'referrals' && 'Gift Box & Rewards Center'}
                   </h3>
                   <p className="text-[10px] text-slate-400 font-bold mt-0.5">
-                    {activeHistoryPanel === 'referrals' ? t('inviteFriendsGetRewards') : activeHistoryPanel === 'bonuses' ? localT[language].bonusSub : t('etbAssetsLedger')}
+                    {activeHistoryPanel === 'referrals' ? 'Redeem promo codes & claim daily gift box rewards' : activeHistoryPanel === 'bonuses' ? localT[language].bonusSub : t('etbAssetsLedger')}
                   </p>
                 </div>
                 <button
@@ -1164,60 +1210,47 @@ export const MyTab: React.FC<MyTabProps> = ({
                   )
                 )}
 
-                {/* REFERRALS SYSTEM DETAILS */}
+                {/* GIFT BOX CENTER DETAILS */}
                 {activeHistoryPanel === 'referrals' && (
                   <div className="space-y-4">
-                    <div className="bg-emerald-950 text-white rounded-2xl p-5 border border-emerald-900 space-y-4 shadow-sm">
+                    <div className="bg-gradient-to-br from-amber-500 via-amber-600 to-amber-700 text-white rounded-2xl p-5 border border-amber-400 space-y-4 shadow-sm">
                       <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 bg-emerald-500 rounded-xl flex items-center justify-center text-slate-950 shrink-0 shadow-sm font-bold select-none">
+                        <div className="w-8 h-8 bg-white rounded-xl flex items-center justify-center text-amber-600 shrink-0 shadow-sm font-bold select-none">
                           <Gift size={16} />
                         </div>
                         <div>
-                          <h3 className="text-xs font-black uppercase tracking-wider text-emerald-100">{t('referAndEarnBonus')}</h3>
-                          <p className="text-[9px] text-emerald-300">{t('inviteFriendsGetRewards')}</p>
+                          <h3 className="text-xs font-black uppercase tracking-wider text-white">Gift Center</h3>
                         </div>
                       </div>
 
-                      <div className="bg-emerald-900/40 border border-emerald-800/60 rounded-xl p-4 space-y-3">
-                        <div className="flex items-center justify-between text-[10px] text-emerald-200">
-                          <span>{t('yourInviteCode')}</span>
-                          <span className="font-mono font-black text-xs bg-emerald-400 text-slate-950 px-3 py-1 rounded-full select-all tracking-wider">
-                            {currentUser.inviteCode || `GOM${String(currentUser.phoneNumber || currentUser.id || '').slice(-5)}`}
-                          </span>
+                      {myTabGiftMsg && (
+                        <div className={`p-3 rounded-xl text-xs font-bold ${
+                          myTabGiftMsg.type === 'success' ? 'bg-emerald-900/80 text-emerald-100 border border-emerald-400' : 'bg-red-900/80 text-red-100 border border-red-400'
+                        }`}>
+                          {myTabGiftMsg.text}
                         </div>
+                      )}
 
-                        <div className="text-[10px] text-emerald-300 leading-relaxed font-medium space-y-1 pt-1">
-                          <p>• {t('youGet100Etb', { reward: formatPrice(196) })}</p>
-                          <p>• {t('yourFriendGets100Etb', { reward: formatPrice(196) })}</p>
+                      <div className="bg-black/20 border border-white/20 rounded-xl p-3 space-y-2">
+                        <span className="block text-[10px] uppercase font-extrabold tracking-wider text-amber-100">Enter Gift Code</span>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={myTabGiftCodeInput}
+                            onChange={(e) => setMyTabGiftCodeInput(e.target.value)}
+                            placeholder="Enter Gift Code"
+                            className="flex-1 bg-white/20 border border-white/30 text-white placeholder-amber-200/70 font-mono font-bold text-xs px-3 py-2 rounded-lg focus:outline-none uppercase"
+                          />
+                          <button
+                            type="button"
+                            disabled={myTabRedeeming || !myTabGiftCodeInput.trim()}
+                            onClick={handleMyTabRedeem}
+                            className="bg-white hover:bg-amber-50 disabled:opacity-50 text-slate-900 font-black text-[10px] uppercase tracking-wider px-4 py-2 rounded-lg transition-all cursor-pointer shadow-xs"
+                          >
+                            Redeem
+                          </button>
                         </div>
                       </div>
-
-                      <div className="grid grid-cols-2 gap-2 text-center">
-                        <div className="bg-emerald-900/50 rounded-xl p-2.5 border border-emerald-800/30">
-                          <span className="block text-[8px] uppercase tracking-wider text-emerald-300">{t('totalReferrals')}</span>
-                          <span className="block text-sm font-black text-emerald-400 mt-0.5">{currentUser.referralCount || 0}</span>
-                        </div>
-                        <div className="bg-emerald-900/50 rounded-xl p-2.5 border border-emerald-800/30">
-                          <span className="block text-[8px] uppercase tracking-wider text-emerald-300">{t('referralEarnings')}</span>
-                          <span className="block text-sm font-black text-emerald-400 mt-0.5">{formatPrice(currentUser.referralEarnings || 0)}</span>
-                        </div>
-                      </div>
-
-                      <button
-                        onClick={handleCopyLink}
-                        className="w-full bg-emerald-400 hover:bg-emerald-500 text-slate-950 font-black text-[10px] uppercase tracking-wider py-3 rounded-xl text-center cursor-pointer transition-all hover:scale-[1.01] active:scale-[0.99] shadow-sm flex items-center justify-center gap-1.5"
-                      >
-                        <Copy size={11} /> {t('copyInviteLinkCode')}
-                      </button>
-                    </div>
-
-                    <div className="bg-white border border-slate-100 rounded-2xl p-4 space-y-2.5 shadow-sm">
-                      <h4 className="text-[11px] font-black uppercase tracking-wider text-slate-700">{t('howItWorks')}</h4>
-                      <ol className="text-[10px] text-slate-500 space-y-1.5 list-decimal list-inside font-medium leading-relaxed font-sans">
-                        <li>{t('shareUniqueInvitation')}</li>
-                        <li>{t('whenTheyComplete')}</li>
-                        <li>{t('instantCashBonus', { reward: formatPrice(196) })}</li>
-                      </ol>
                     </div>
                   </div>
                 )}
