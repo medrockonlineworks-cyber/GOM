@@ -562,6 +562,7 @@ app.post('/api/users', async (req, res) => {
       withdrawalBank: userToSave.withdrawalBank ?? null,
       withdrawalAccNo: userToSave.withdrawalAccNo ?? null,
       withdrawalAccName: userToSave.withdrawalAccName ?? null,
+      claimedGiftCodes: userToSave.claimedGiftCodes ?? [],
     };
 
     if (existing.length > 0) {
@@ -613,6 +614,7 @@ app.post('/api/users/sync-bulk', async (req, res) => {
         withdrawalBank: lu.withdrawalBank ?? null,
         withdrawalAccNo: lu.withdrawalAccNo ?? null,
         withdrawalAccName: lu.withdrawalAccName ?? null,
+        claimedGiftCodes: lu.claimedGiftCodes ?? [],
       };
 
       if (!match) {

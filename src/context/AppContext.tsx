@@ -2459,8 +2459,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const rewardAmount = matchedGift.amount;
 
+    // Deactivate custom gift card if applicable
+    const savedCustomCards = localStorage.getItem('gom_custom_gift_cards');
+    if (savedCustomCards) {
+      try {
+        const cards: { code: string; amount: number; active: boolean; createdBy?: string }[] = JSON.parse(savedCustomCards);
+        const updatedCustom = cards.map(c => c.code.toUpperCase() === code ? { ...c, active: false } : c);
+        localStorage.setItem('gom_custom_gift_cards', JSON.stringify(updatedCustom));
+      } catch (e) {}
+    }
+
     // Mark matched gift as redeemed
-    const updatedGiftCodes = adminGiftCodes.map(g => {
+    let updatedGiftCodes = adminGiftCodes.map(g => {
       if (g.code.toUpperCase() === code) {
         return {
           ...g,
@@ -2471,6 +2481,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
       return g;
     });
+
+    if (!adminGiftCodes.some(g => g.code.toUpperCase() === code)) {
+      updatedGiftCodes.unshift({
+        ...matchedGift,
+        status: 'redeemed' as const,
+        redeemedBy: currentUser.phoneNumber,
+        redeemedAt: new Date().toISOString(),
+      });
+    }
 
     setAdminGiftCodes(updatedGiftCodes);
     localStorage.setItem('gom_admin_gift_codes', JSON.stringify(updatedGiftCodes));
@@ -2495,8 +2514,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
 
     setCurrentUser(updatedUser);
-    setUsers(prev => prev.map(u => u.id === currentUser.id ? updatedUser : u));
-    setTransactions(prev => [giftTx, ...prev]);
+    setUsers(prev => {
+      const next = prev.map(u => u.id === currentUser.id ? updatedUser : u);
+      localStorage.setItem('gom_users', JSON.stringify(next));
+      return next;
+    });
+    setTransactions(prev => {
+      const next = [giftTx, ...prev];
+      localStorage.setItem('gom_transactions', JSON.stringify(next));
+      return next;
+    });
 
     localStorage.setItem('gom_current_user', JSON.stringify(updatedUser));
 

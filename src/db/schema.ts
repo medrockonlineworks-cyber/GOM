@@ -22,6 +22,7 @@ export const users = pgTable('users', {
   withdrawalBank: text('withdrawal_bank'),
   withdrawalAccNo: text('withdrawal_acc_no'),
   withdrawalAccName: text('withdrawal_acc_name'),
+  claimedGiftCodes: jsonb('claimed_gift_codes').default([]),
 });
 
 // Define the 'transactions' table
