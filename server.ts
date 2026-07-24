@@ -165,8 +165,7 @@ async function seedDatabaseIfEmpty() {
     if (existingAccounts.length === 0) {
       console.log('[Seeder] Seeding default recharge accounts...');
       await db.insert(rechargeAccounts).values([
-        { id: 'acc-1', bank: 'Commercial Bank of Ethiopia (CBE)', accName: 'Ethiopia agent-Leykun jemaneh', accNo: '1000419524747' },
-        { id: 'acc-2', bank: 'Telebirr', accName: 'Ethiopia agent-Leykun jemaneh', accNo: '0926193920' }
+        { id: 'acc-1', bank: 'Commercial Bank of Ethiopia (CBE)', accName: 'Ethiopia agent-Leykun jemaneh', accNo: '1000419524747' }
       ]);
     }
 
@@ -232,7 +231,8 @@ app.post('/api/system-config', async (req, res) => {
 app.get('/api/recharge-accounts', async (req, res) => {
   try {
     const list = await db.select().from(rechargeAccounts);
-    res.json(list);
+    const filtered = list.filter(a => !a.bank.toLowerCase().includes('telebirr'));
+    res.json(filtered);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }

@@ -1042,6 +1042,12 @@ function AppContent() {
     setRechargeError('');
     setRechargeSuccess(false);
 
+    // Reject Telebirr if selected
+    if (rechargeBank.toLowerCase().includes('telebirr')) {
+      setRechargeError('Telebirr payment method is currently unavailable for recharge. Please select Commercial Bank of Ethiopia (CBE).');
+      return;
+    }
+
     // Validate if selected method is a local method of another country and user is from Ethiopia
     const matchedOtherCountryMethod = COUNTRY_LOCAL_METHODS.find(m => m.bank === rechargeBank);
     if (matchedOtherCountryMethod) {
@@ -1521,45 +1527,61 @@ function AppContent() {
                               {/* Ethiopia Local Accounts */}
                               {(() => {
                                 const fallbackEthAccounts = [
-                                  { id: 'acc-1', bank: 'Commercial Bank of Ethiopia (CBE)', accName: 'Ethiopia agent-Leykun jemaneh', accNo: '1000419524747' },
-                                  { id: 'acc-2', bank: 'Telebirr', accName: 'Ethiopia agent-Leykun jemaneh', accNo: '0926193920' }
+                                  { id: 'acc-1', bank: 'Commercial Bank of Ethiopia (CBE)', accName: 'Ethiopia agent-Leykun jemaneh', accNo: '1000419524747' }
                                 ];
                                 const ethAccs = (!rechargeAccounts || rechargeAccounts.length === 0)
                                   ? fallbackEthAccounts
                                   : (() => {
-                                      const res = [...rechargeAccounts];
+                                      const res = rechargeAccounts.filter(a => !a.bank.toLowerCase().includes('telebirr'));
                                       if (!res.some(a => a.bank.includes('Commercial Bank') || a.bank.includes('CBE'))) {
                                         res.unshift(fallbackEthAccounts[0]);
-                                      }
-                                      if (!res.some(a => a.bank.toLowerCase().includes('telebirr'))) {
-                                        const cbeIdx = res.findIndex(a => a.bank.includes('Commercial Bank') || a.bank.includes('CBE'));
-                                        res.splice(cbeIdx >= 0 ? cbeIdx + 1 : 0, 0, fallbackEthAccounts[1]);
                                       }
                                       return res;
                                     })();
 
-                                return ethAccs.map((acc, index) => (
-                                  <button
-                                    key={`eth-local-${acc.id || index}`}
-                                    type="button"
-                                    onClick={() => {
-                                      setRechargeBank(acc.bank);
-                                      setShowChannelDropdown(false);
-                                    }}
-                                    className={`w-full text-left px-3 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-between hover:bg-amber-50/60 cursor-pointer ${
-                                      rechargeBank === acc.bank ? 'text-bronze bg-amber-100/50 font-black border border-amber-200/50' : 'text-slate-700'
-                                    }`}
-                                  >
-                                    <div className="flex items-center gap-2">
-                                      <span>🇪🇹</span>
-                                      <span>{acc.bank}</span>
-                                      <span className="text-[7.5px] font-black bg-emerald-100 text-emerald-800 border border-emerald-200 px-1.5 py-0.5 rounded-full uppercase">
-                                        Local
-                                      </span>
-                                    </div>
-                                    {rechargeBank === acc.bank && <Check size={14} className="text-bronze shrink-0" />}
-                                  </button>
-                                ));
+                                return (
+                                  <>
+                                    {ethAccs.map((acc, index) => (
+                                      <button
+                                        key={`eth-local-${acc.id || index}`}
+                                        type="button"
+                                        onClick={() => {
+                                          setRechargeBank(acc.bank);
+                                          setShowChannelDropdown(false);
+                                        }}
+                                        className={`w-full text-left px-3 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-between hover:bg-amber-50/60 cursor-pointer ${
+                                          rechargeBank === acc.bank ? 'text-bronze bg-amber-100/50 font-black border border-amber-200/50' : 'text-slate-700'
+                                        }`}
+                                      >
+                                        <div className="flex items-center gap-2">
+                                          <span>🇪🇹</span>
+                                          <span>{acc.bank}</span>
+                                          <span className="text-[7.5px] font-black bg-emerald-100 text-emerald-800 border border-emerald-200 px-1.5 py-0.5 rounded-full uppercase">
+                                            Local
+                                          </span>
+                                        </div>
+                                        {rechargeBank === acc.bank && <Check size={14} className="text-bronze shrink-0" />}
+                                      </button>
+                                    ))}
+
+                                    {/* Telebirr - Temporarily Unavailable */}
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        alert('Telebirr payment method is currently unavailable for recharge. Please use Commercial Bank of Ethiopia (CBE).');
+                                      }}
+                                      className="w-full text-left px-3 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-between bg-slate-50/80 text-slate-400 opacity-60 cursor-not-allowed border border-dashed border-slate-200/80"
+                                    >
+                                      <div className="flex items-center gap-2">
+                                        <span>🇪🇹</span>
+                                        <span>Telebirr</span>
+                                        <span className="text-[7.5px] font-black bg-amber-50 text-amber-700 border border-amber-200/60 px-1.5 py-0.5 rounded-full uppercase">
+                                          Unavailable for now
+                                        </span>
+                                      </div>
+                                    </button>
+                                  </>
+                                );
                               })()}
 
                               <div className="mt-2 pt-2 border-t border-slate-100 space-y-1">
@@ -1672,11 +1694,25 @@ function AppContent() {
 
                   {/* Active selected account details shown in a rich layout with copy buttons */}
                   {(() => {
+                    if (rechargeBank.toLowerCase().includes('telebirr')) {
+                      return (
+                        <div className="bg-amber-50 border border-amber-200/80 text-amber-900 p-4 rounded-2xl text-xs font-bold space-y-1">
+                          <div className="flex items-center gap-2 text-amber-950 font-black uppercase tracking-wider text-[10px]">
+                            <span>⚠️ Payment Method Unavailable</span>
+                          </div>
+                          <p className="text-[11px] text-amber-800 font-medium leading-relaxed">
+                            Telebirr payment method is currently unavailable for recharge. Please select Commercial Bank of Ethiopia (CBE) from the payment options above.
+                          </p>
+                        </div>
+                      );
+                    }
+
                     const fallbackEthAccounts = [
-                      { id: 'acc-1', bank: 'Commercial Bank of Ethiopia (CBE)', accName: 'Ethiopia agent-Leykun jemaneh', accNo: '1000419524747' },
-                      { id: 'acc-2', bank: 'Telebirr', accName: 'Ethiopia agent-Leykun jemaneh', accNo: '0926193920' }
+                      { id: 'acc-1', bank: 'Commercial Bank of Ethiopia (CBE)', accName: 'Ethiopia agent-Leykun jemaneh', accNo: '1000419524747' }
                     ];
-                    const allEthAccounts = (rechargeAccounts && rechargeAccounts.length > 0) ? rechargeAccounts : fallbackEthAccounts;
+                    const allEthAccounts = (rechargeAccounts && rechargeAccounts.length > 0)
+                      ? rechargeAccounts.filter(a => !a.bank.toLowerCase().includes('telebirr'))
+                      : fallbackEthAccounts;
                     
                     const selectedAccount = allEthAccounts.find(acc => 
                       acc.bank === rechargeBank || 
@@ -1685,8 +1721,6 @@ function AppContent() {
                     ) || (
                       rechargeBank.toLowerCase().includes('cbe') || rechargeBank.toLowerCase().includes('commercial bank')
                         ? fallbackEthAccounts[0]
-                        : rechargeBank.toLowerCase().includes('telebirr')
-                        ? fallbackEthAccounts[1]
                         : null
                     );
 

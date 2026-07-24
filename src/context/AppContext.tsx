@@ -50,19 +50,15 @@ const DEFAULT_MARKETPLACE_LOGOS: { [key: string]: string } = {
 };
 
 export const DEFAULT_ETH_RECHARGE_ACCOUNTS: RechargeAccount[] = [
-  { id: 'acc-1', bank: 'Commercial Bank of Ethiopia (CBE)', accName: 'Ethiopia agent-Leykun jemaneh', accNo: '1000419524747' },
-  { id: 'acc-2', bank: 'Telebirr', accName: 'Ethiopia agent-Leykun jemaneh', accNo: '0926193920' }
+  { id: 'acc-1', bank: 'Commercial Bank of Ethiopia (CBE)', accName: 'Ethiopia agent-Leykun jemaneh', accNo: '1000419524747' }
 ];
 
 export function ensureDefaultRechargeAccounts(list: RechargeAccount[]): RechargeAccount[] {
   if (!Array.isArray(list) || list.length === 0) return DEFAULT_ETH_RECHARGE_ACCOUNTS;
-  const result = [...list];
+  // Filter out Telebirr from active recharge accounts
+  const result = list.filter(a => !a.bank.toLowerCase().includes('telebirr'));
   if (!result.some(a => a.bank.includes('Commercial Bank') || a.bank.includes('CBE'))) {
     result.unshift(DEFAULT_ETH_RECHARGE_ACCOUNTS[0]);
-  }
-  if (!result.some(a => a.bank.toLowerCase().includes('telebirr'))) {
-    const cbeIdx = result.findIndex(a => a.bank.includes('Commercial Bank') || a.bank.includes('CBE'));
-    result.splice(cbeIdx >= 0 ? cbeIdx + 1 : 0, 0, DEFAULT_ETH_RECHARGE_ACCOUNTS[1]);
   }
   return result;
 }
