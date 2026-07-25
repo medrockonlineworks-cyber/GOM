@@ -2243,13 +2243,53 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const code = rawCode.trim().toUpperCase();
     if (!code) return { success: false, message: 'Please enter a valid gift code.' };
 
+    const normalizeCodeStr = (str: string) => {
+      return (str || '')
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, '')
+        .replace(/O/g, '0')
+        .replace(/I/g, '1')
+        .replace(/L/g, '1');
+    };
+
+    const normInput = normalizeCodeStr(code);
+
+    // Refresh gift codes from backend to ensure state is latest
+    let currentGiftList = [...adminGiftCodes];
+    try {
+      const res = await fetch('/api/gift-codes');
+      if (res.ok) {
+        const data = await res.json();
+        if (data && Array.isArray(data.giftCodes)) {
+          currentGiftList = data.giftCodes;
+          setAdminGiftCodes(data.giftCodes);
+          localStorage.setItem('gom_admin_gift_codes', JSON.stringify(data.giftCodes));
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to refresh gift codes from server:', e);
+    }
+
     const claimed = currentUser.claimedGiftCodes || [];
-    if (claimed.map(c => c.toUpperCase()).includes(code)) {
+    if (claimed.some(c => normalizeCodeStr(c) === normInput)) {
       return { success: false, message: `You have already redeemed gift code "${code}".` };
     }
 
-    // 1. Search in adminGiftCodes
-    let matchedGift = adminGiftCodes.find(g => g.code.toUpperCase() === code);
+    // 1. Search in currentGiftList using normalized code matching (handles '0' vs 'O', missing hyphens, etc.)
+    let matchedGift = currentGiftList.find(g => {
+      const normStored = normalizeCodeStr(g.code);
+      return normStored === normInput || 
+             (normStored.length > 3 && normInput.length > 3 && (normStored.endsWith(normInput) || normInput.endsWith(normStored)));
+    });
+
+    // Fallback: Check if there's an active gift code assigned to this user's phone number
+    if (!matchedGift) {
+      matchedGift = currentGiftList.find(g => 
+        g.status === 'active' && 
+        isSamePhone(g.targetPhone, currentUser.phoneNumber) &&
+        (normInput.length >= 4 || normInput.includes('GIFT'))
+      );
+    }
 
     // Fallback: Check custom gift cards created in local storage if not found
     if (!matchedGift) {
@@ -2257,7 +2297,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (savedCustomCards) {
         try {
           const cards: { code: string; amount: number; active: boolean; createdBy?: string }[] = JSON.parse(savedCustomCards);
-          const foundCard = cards.find(c => c.code.toUpperCase() === code && c.active);
+          const foundCard = cards.find(c => {
+            const normC = normalizeCodeStr(c.code);
+            return (normC === normInput || normC.endsWith(normInput) || normInput.endsWith(normC)) && c.active;
+          });
           if (foundCard) {
             matchedGift = {
               id: generateId('GFT'),
@@ -2280,7 +2323,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     if (matchedGift.status === 'redeemed') {
-      return { success: false, message: `Gift code "${code}" has already been redeemed.` };
+      return { success: false, message: `Gift code "${matchedGift.code}" has already been redeemed.` };
     }
 
     // STRICT PHONE NUMBER CHECK USING isSamePhone

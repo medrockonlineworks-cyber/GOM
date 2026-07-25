@@ -1163,22 +1163,22 @@ function AppContent() {
     }
 
     const baseAmt = currency === 'USD' ? inputAmt * 196 : inputAmt;
-    if (baseAmt < 200) {
+    if (baseAmt < 200000) {
       setWithdrawError(currency === 'USD'
-        ? 'The minimum withdrawal amount is $1.02 (200 ETB).'
-        : 'The minimum withdrawal amount is 200 ETB.'
+        ? 'The minimum withdrawal amount is $1,020.41 (200,000 ETB).'
+        : (t('withdrawMinError') || 'The minimum withdrawal amount is 200,000 ETB.')
       );
       return;
     }
 
     const isTelebirr = withdrawBank.toLowerCase().includes('telebirr');
-    const maxWithdraw = isTelebirr ? 75000 : 600000;
+    const maxWithdraw = 600000;
     if (baseAmt > maxWithdraw) {
       setWithdrawError(`The maximum withdrawal amount per single order for ${withdrawBank} is ${formatPrice(maxWithdraw)}.`);
       return;
     }
 
-    const dailyLimit = isTelebirr ? 150000 : 600000;
+    const dailyLimit = 600000;
     const withdrawnToday = (transactions || []).filter(t => {
       if (t.userId !== currentUser?.id || t.type !== 'withdraw' || t.status === 'rejected') {
         return false;
@@ -2490,15 +2490,15 @@ function AppContent() {
                               <input
                                 type="number"
                                 required
-                                min={currency === 'USD' ? "1.02" : "200"}
+                                min={currency === 'USD' ? "1020.41" : "200000"}
                                 max={currency === 'USD' 
-                                  ? (withdrawBank.toLowerCase().includes('telebirr') ? (75000 / 196).toFixed(2) : (600000 / 196).toFixed(2)) 
-                                  : (withdrawBank.toLowerCase().includes('telebirr') ? "75000" : "600000")
+                                  ? (600000 / 196).toFixed(2) 
+                                  : "600000"
                                 }
                                 disabled={isLocked}
                                 placeholder={currency === 'USD' 
-                                  ? `Min 1.02 - Max ${(withdrawBank.toLowerCase().includes('telebirr') ? 75000 / 196 : 600000 / 196).toFixed(1)}` 
-                                  : (withdrawBank.toLowerCase().includes('telebirr') ? "Min 200 - Max 75k" : "Min 200 - Max 600k")
+                                  ? `Min 1020.41 - Max ${(600000 / 196).toFixed(1)}` 
+                                  : "Min 200k - Max 600k"
                                 }
                                 value={withdrawAmount}
                                 onChange={(e) => setWithdrawAmount(e.target.value)}
@@ -2506,8 +2506,8 @@ function AppContent() {
                               />
                               <span className="text-[9px] text-slate-400 mt-1 block leading-normal">
                                 {currency === 'USD' 
-                                  ? `Min: $1.02 | Max: $${(withdrawBank.toLowerCase().includes('telebirr') ? 75000 / 196 : 600000 / 196).toLocaleString(undefined, { maximumFractionDigits: 2 })} USD`
-                                  : `Min: 200 | Max: ${withdrawBank.toLowerCase().includes('telebirr') ? "75,000" : "600,000"} ETB`
+                                  ? `Min: $1,020.41 | Max: $${(600000 / 196).toLocaleString(undefined, { maximumFractionDigits: 2 })} USD`
+                                  : `Min: 200,000 | Max: 600,000 ETB`
                                 }
                               </span>
                             </div>

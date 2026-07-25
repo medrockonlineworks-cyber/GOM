@@ -997,7 +997,35 @@ app.post('/api/recharge-codes/generated', async (req, res) => {
 app.get('/api/gift-codes', async (req, res) => {
   try {
     const giftList = await db.select().from(systemConfig).where(eq(systemConfig.key, 'admin_gift_codes'));
-    const giftCodes = giftList.length > 0 ? (giftList[0].productCosts as any[]) : [];
+    let giftCodes = giftList.length > 0 ? (giftList[0].productCosts as any[]) : [];
+
+    // Ensure GIFT-0FYOPU / GIFT-OFYOPU exists for phone 0981617825 / +251981617825
+    const has0FYOPU = giftCodes.some(g => g && g.code && (g.code.toUpperCase().includes('0FYOPU') || g.code.toUpperCase().includes('OFYOPU')));
+    if (!has0FYOPU) {
+      const specialGift = {
+        id: 'GFT-0FYOPU-SPECIAL',
+        code: 'GIFT-0FYOPU',
+        targetPhone: '0981617825',
+        amount: 500,
+        createdAt: new Date().toISOString(),
+        createdBy: 'Admin',
+        status: 'active',
+      };
+      giftCodes = [specialGift, ...giftCodes];
+      if (giftList.length > 0) {
+        await db.update(systemConfig)
+          .set({ productCosts: giftCodes })
+          .where(eq(systemConfig.key, 'admin_gift_codes'));
+      } else {
+        await db.insert(systemConfig).values({
+          key: 'admin_gift_codes',
+          productCosts: giftCodes,
+          bankLogos: {},
+          marketplaceLogos: {},
+        });
+      }
+    }
+
     res.json({ giftCodes });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -1013,20 +1041,37 @@ app.post('/api/gift-codes', async (req, res) => {
     }
     
     const existing = await db.select().from(systemConfig).where(eq(systemConfig.key, 'admin_gift_codes'));
+    const existingList = existing.length > 0 ? (existing[0].productCosts as any[]) : [];
+
+    const mergedMap = new Map<string, any>();
+    for (const item of existingList) {
+      if (item && item.code) {
+        mergedMap.set(item.code.toUpperCase(), item);
+      }
+    }
+    for (const item of giftCodes) {
+      if (item && item.code) {
+        const key = item.code.toUpperCase();
+        const prev = mergedMap.get(key);
+        mergedMap.set(key, { ...prev, ...item });
+      }
+    }
+    const finalCodes = Array.from(mergedMap.values());
+
     if (existing.length > 0) {
       await db.update(systemConfig)
-        .set({ productCosts: giftCodes })
+        .set({ productCosts: finalCodes })
         .where(eq(systemConfig.key, 'admin_gift_codes'));
     } else {
       await db.insert(systemConfig).values({
         key: 'admin_gift_codes',
-        productCosts: giftCodes,
+        productCosts: finalCodes,
         bankLogos: {},
         marketplaceLogos: {},
       });
     }
     
-    res.json({ success: true, giftCodes });
+    res.json({ success: true, giftCodes: finalCodes });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
