@@ -29,6 +29,7 @@ export interface User {
   withdrawalAccNo?: string; // Registered withdrawal account number
   withdrawalAccName?: string; // Registered withdrawal account holder name
   claimedGiftCodes?: string[]; // Array of redeemed gift codes
+  lockedOrderCosts?: { [orderId: number]: { materialCost: number; reward: number } }; // Locked costs once order is unlocked
 }
 
 export interface AdminGiftCode {

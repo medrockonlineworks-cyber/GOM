@@ -563,6 +563,7 @@ app.post('/api/users', async (req, res) => {
       withdrawalAccNo: userToSave.withdrawalAccNo ?? null,
       withdrawalAccName: userToSave.withdrawalAccName ?? null,
       claimedGiftCodes: userToSave.claimedGiftCodes ?? [],
+      lockedOrderCosts: userToSave.lockedOrderCosts ?? {},
     };
 
     if (existing.length > 0) {
@@ -615,6 +616,7 @@ app.post('/api/users/sync-bulk', async (req, res) => {
         withdrawalAccNo: lu.withdrawalAccNo ?? null,
         withdrawalAccName: lu.withdrawalAccName ?? null,
         claimedGiftCodes: lu.claimedGiftCodes ?? [],
+        lockedOrderCosts: lu.lockedOrderCosts ?? {},
       };
 
       if (!match) {
@@ -668,6 +670,8 @@ app.post('/api/users/update-stage', async (req, res) => {
     const configRow = await db.select().from(systemConfig).where(eq(systemConfig.key, 'global'));
     const productCosts = (configRow[0]?.productCosts as any[]) || [];
 
+    const existingLockedCosts = (userToUpdate.lockedOrderCosts as Record<string, { materialCost: number; reward: number }>) || {};
+
     // Calculate simulated cost and balance for the user
     let userSeed = 0;
     const userIdStr = userId || '';
@@ -699,37 +703,59 @@ app.post('/api/users/update-stage', async (req, res) => {
 
     const r2 = (n: number) => Math.round(n * 100) / 100;
 
-    const configuredLvl1Cost = productCosts.find((p: any) => p.id === 1)?.baseCost || 699;
-    let userLevel1Base = 699;
-    if (configuredLvl1Cost === 699) {
-      userLevel1Base = 699 + (userSeed % 301); // 699 to 999
-    } else {
-      const offset = (userSeed % 41) - 20; // stable -20 to +20 offset around configured
-      userLevel1Base = Math.max(699, Math.min(999, configuredLvl1Cost + offset));
-    }
     const decimalsPool = [0.78, 0.45, 0.12, 0.89, 0.56, 0.23, 0.67, 0.34];
-    const decimal1 = decimalsPool[userSeed % decimalsPool.length];
-    simulatedCosts[1] = r2(userLevel1Base + decimal1);
-    simulatedBalances[1] = r2(simulatedCosts[1] + (simulatedCosts[1] * calculatedPcts[1]));
 
-    for (let k = 2; k <= 15; k++) {
-      const decimalK = decimalsPool[(userSeed + k) % decimalsPool.length];
-      if (k === 4) {
-        simulatedCosts[k] = r2(simulatedBalances[3] + (simulatedBalances[3] * 0.30) + decimalK);
-      } else if (k === 8) {
-        simulatedCosts[k] = r2(simulatedBalances[7] + (simulatedBalances[7] * 0.38) + decimalK);
-      } else if (k === 11) {
-        simulatedCosts[k] = r2(simulatedBalances[10] + (simulatedBalances[10] * 0.30) + decimalK);
-      } else if (k === 15) {
-        simulatedCosts[k] = r2(simulatedBalances[14] + (simulatedBalances[14] * 0.13) + decimalK);
+    for (let k = 1; k <= 15; k++) {
+      const locked = existingLockedCosts[k] || existingLockedCosts[String(k)];
+      if (locked && typeof locked.materialCost === 'number') {
+        simulatedCosts[k] = locked.materialCost;
+        const lockedReward = typeof locked.reward === 'number'
+          ? locked.reward
+          : r2(simulatedCosts[k] * calculatedPcts[k]);
+        simulatedBalances[k] = r2(simulatedCosts[k] + lockedReward);
       } else {
-        simulatedCosts[k] = r2(simulatedBalances[k - 1] - 5 + (decimalK - 0.5));
+        if (k === 1) {
+          const configuredLvl1Cost = productCosts.find((p: any) => p.id === 1)?.baseCost || 699;
+          let userLevel1Base = 699;
+          if (configuredLvl1Cost === 699) {
+            userLevel1Base = 699 + (userSeed % 301); // 699 to 999
+          } else {
+            const offset = (userSeed % 41) - 20; // stable -20 to +20 offset around configured
+            userLevel1Base = Math.max(699, Math.min(999, configuredLvl1Cost + offset));
+          }
+          const decimal1 = decimalsPool[userSeed % decimalsPool.length];
+          simulatedCosts[1] = r2(userLevel1Base + decimal1);
+          simulatedBalances[1] = r2(simulatedCosts[1] + (simulatedCosts[1] * calculatedPcts[1]));
+        } else {
+          const decimalK = decimalsPool[(userSeed + k) % decimalsPool.length];
+          if (k === 4) {
+            simulatedCosts[k] = r2(simulatedBalances[3] + (simulatedBalances[3] * 0.30) + decimalK);
+          } else if (k === 8) {
+            simulatedCosts[k] = r2(simulatedBalances[7] + (simulatedBalances[7] * 0.38) + decimalK);
+          } else if (k === 11) {
+            simulatedCosts[k] = r2(simulatedBalances[10] + (simulatedBalances[10] * 0.30) + decimalK);
+          } else if (k === 15) {
+            simulatedCosts[k] = r2(simulatedBalances[14] + (simulatedBalances[14] * 0.13) + decimalK);
+          } else {
+            simulatedCosts[k] = r2(simulatedBalances[k - 1] - 5 + (decimalK - 0.5));
+          }
+          simulatedBalances[k] = r2(simulatedBalances[k - 1] + (simulatedCosts[k] * calculatedPcts[k]));
+        }
       }
-      simulatedBalances[k] = r2(simulatedBalances[k - 1] + (simulatedCosts[k] * calculatedPcts[k]));
     }
 
     const orderCost = simulatedCosts[newStage] || 0;
     const newBalance = orderCost;
+
+    // Build updated locked order costs up to newStage
+    const updatedLockedCosts = { ...existingLockedCosts };
+    for (let k = 1; k <= newStage; k++) {
+      if (!updatedLockedCosts[k] && !updatedLockedCosts[String(k)]) {
+        const cost = simulatedCosts[k] || 0;
+        const reward = r2(cost * calculatedPcts[k]);
+        updatedLockedCosts[k] = { materialCost: cost, reward };
+      }
+    }
 
     // Sum of rewards for completed orders (1 to newStage - 1)
     let totalEarnings = 0;
@@ -757,7 +783,8 @@ app.post('/api/users/update-stage', async (req, res) => {
         currentOrderIndex: newIndex,
         completedOrderIds,
         walletBalance: newBalance,
-        totalEarnings
+        totalEarnings,
+        lockedOrderCosts: updatedLockedCosts
       })
       .where(eq(users.id, userId));
 
