@@ -52,7 +52,7 @@ async function seedDatabaseIfEmpty() {
     if (existingConfig.length === 0) {
       console.log('[Seeder] Seeding default system configuration...');
       const initialProducts = [
-        { id: 1, baseCost: 699, rewardMultiplier: 0.25 },
+        { id: 1, baseCost: 800, rewardMultiplier: 0.25 },
         { id: 2, baseCost: 995, rewardMultiplier: 0.27 },
         { id: 3, baseCost: 1264, rewardMultiplier: 0.30 },
         { id: 4, baseCost: 2098, rewardMultiplier: 0.32 },
@@ -706,26 +706,17 @@ app.post('/api/users/update-stage', async (req, res) => {
     const decimalsPool = [0.78, 0.45, 0.12, 0.89, 0.56, 0.23, 0.67, 0.34];
 
     for (let k = 1; k <= 15; k++) {
-      const locked = existingLockedCosts[k] || existingLockedCosts[String(k)];
-      if (locked && typeof locked.materialCost === 'number') {
-        simulatedCosts[k] = locked.materialCost;
-        const lockedReward = typeof locked.reward === 'number'
-          ? locked.reward
-          : r2(simulatedCosts[k] * calculatedPcts[k]);
-        simulatedBalances[k] = r2(simulatedCosts[k] + lockedReward);
+      if (k === 1) {
+        simulatedCosts[1] = 800;
+        simulatedBalances[1] = r2(simulatedCosts[1] + (simulatedCosts[1] * calculatedPcts[1]));
       } else {
-        if (k === 1) {
-          const configuredLvl1Cost = productCosts.find((p: any) => p.id === 1)?.baseCost || 699;
-          let userLevel1Base = 699;
-          if (configuredLvl1Cost === 699) {
-            userLevel1Base = 699 + (userSeed % 301); // 699 to 999
-          } else {
-            const offset = (userSeed % 41) - 20; // stable -20 to +20 offset around configured
-            userLevel1Base = Math.max(699, Math.min(999, configuredLvl1Cost + offset));
-          }
-          const decimal1 = decimalsPool[userSeed % decimalsPool.length];
-          simulatedCosts[1] = r2(userLevel1Base + decimal1);
-          simulatedBalances[1] = r2(simulatedCosts[1] + (simulatedCosts[1] * calculatedPcts[1]));
+        const locked = existingLockedCosts[k] || existingLockedCosts[String(k)];
+        if (locked && typeof locked.materialCost === 'number') {
+          simulatedCosts[k] = locked.materialCost;
+          const lockedReward = typeof locked.reward === 'number'
+            ? locked.reward
+            : r2(simulatedCosts[k] * calculatedPcts[k]);
+          simulatedBalances[k] = r2(simulatedCosts[k] + lockedReward);
         } else {
           const decimalK = decimalsPool[(userSeed + k) % decimalsPool.length];
           if (k === 4) {

@@ -285,26 +285,17 @@ export const getSimulatedCostAndBalanceForUser = (
   const decimalsPool = [0.78, 0.45, 0.12, 0.89, 0.56, 0.23, 0.67, 0.34];
 
   for (let k = 1; k <= 15; k++) {
-    const locked = userLockedCosts?.[k] || (userLockedCosts as any)?.[String(k)];
-    if (locked && typeof locked.materialCost === 'number') {
-      simulatedCosts[k] = locked.materialCost;
-      const lockedReward = typeof locked.reward === 'number'
-        ? locked.reward
-        : r2(simulatedCosts[k] * calculatedPcts[k]);
-      simulatedBalances[k] = r2(simulatedCosts[k] + lockedReward);
+    if (k === 1) {
+      simulatedCosts[1] = 800;
+      simulatedBalances[1] = r2(simulatedCosts[1] + (simulatedCosts[1] * calculatedPcts[1]));
     } else {
-      if (k === 1) {
-        const configuredLvl1Cost = productCosts.find(p => p.id === 1)?.baseCost || 699;
-        let userLevel1Base = 699;
-        if (configuredLvl1Cost === 699) {
-          userLevel1Base = 699 + (userSeed % 301); // 699 to 999
-        } else {
-          const offset = (userSeed % 41) - 20; // stable -20 to +20 offset around configured
-          userLevel1Base = Math.max(699, Math.min(999, configuredLvl1Cost + offset));
-        }
-        const decimal1 = decimalsPool[userSeed % decimalsPool.length];
-        simulatedCosts[1] = r2(userLevel1Base + decimal1);
-        simulatedBalances[1] = r2(simulatedCosts[1] + (simulatedCosts[1] * calculatedPcts[1]));
+      const locked = userLockedCosts?.[k] || (userLockedCosts as any)?.[String(k)];
+      if (locked && typeof locked.materialCost === 'number') {
+        simulatedCosts[k] = locked.materialCost;
+        const lockedReward = typeof locked.reward === 'number'
+          ? locked.reward
+          : r2(simulatedCosts[k] * calculatedPcts[k]);
+        simulatedBalances[k] = r2(simulatedCosts[k] + lockedReward);
       } else {
         const decimalK = decimalsPool[(userSeed + k) % decimalsPool.length];
         if (k === 4) {
@@ -376,7 +367,7 @@ export const sanitizeProductCosts = (costs: { id: number; baseCost: number; rewa
   const result: { id: number; baseCost: number; rewardMultiplier: number }[] = [];
   
   sorted.forEach((p, idx) => {
-    let cost = p.baseCost;
+    let cost = p.id === 1 ? 800 : p.baseCost;
     const rawMult = (typeof p.rewardMultiplier === 'number' && p.rewardMultiplier > 0) ? p.rewardMultiplier : 0.15;
     const currentMult = p.id > 7 ? 0.40 : rawMult;
     
@@ -832,12 +823,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const savedMultiplier = localStorage.getItem('gom_scaling_multiplier');
     const scaling = savedMultiplier ? Number(savedMultiplier) : 1.5;
 
-    // Generate dynamic starting cost for Level 1 between 699 and 999 ETB
-    const dynamicLevel1Base = Math.floor(Math.random() * (999 - 699 + 1)) + 699;
+    // Fixed Level 1 base cost set to 800 ETB
+    const dynamicLevel1Base = 800;
 
     // Always map over all 12 initial products to guarantee all 12 exist
     const rawCosts = INITIAL_PRODUCTS_RAW.map((p, idx) => {
       const existing = loaded.find((item: any) => item.id === p.id);
+      if (p.id === 1) {
+        return {
+          id: 1,
+          baseCost: 800,
+          rewardMultiplier: (existing && typeof existing.rewardMultiplier === 'number' && existing.rewardMultiplier > 0) ? existing.rewardMultiplier : p.rewardMultiplier
+        };
+      }
       if (existing && typeof existing.baseCost === 'number' && existing.baseCost > 0) {
         return {
           id: p.id,
@@ -1058,8 +1056,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             localStorage.setItem('gom_scaling_multiplier', String(dbConfig.scalingMultiplier));
           }
           if (dbConfig.productCosts) {
-            setProductCosts(dbConfig.productCosts);
-            localStorage.setItem('gom_product_costs', JSON.stringify(dbConfig.productCosts));
+            const sanitizedCosts = dbConfig.productCosts.map((p: any) => p.id === 1 ? { ...p, baseCost: 800 } : p);
+            setProductCosts(sanitizedCosts);
+            localStorage.setItem('gom_product_costs', JSON.stringify(sanitizedCosts));
           }
           if (dbConfig.bankLogos) {
             setBankLogos(dbConfig.bankLogos);
@@ -2708,8 +2707,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
     }
 
-    // Generate a new dynamic Level 1 base cost between 699 and 999 ETB
-    const newLevel1Base = Math.floor(Math.random() * (999 - 699 + 1)) + 699;
+    // Fixed Level 1 base cost set to 800 ETB
+    const newLevel1Base = 800;
 
     // Dynamically adjust/arrange all 12 product level costs based on this starting cost
     const rawScaledCosts = productCosts.map((p, idx) => {
