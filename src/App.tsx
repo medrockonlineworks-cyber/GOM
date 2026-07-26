@@ -1163,10 +1163,10 @@ function AppContent() {
     }
 
     const baseAmt = currency === 'USD' ? inputAmt * 196 : inputAmt;
-    if (baseAmt < 200000) {
+    if (baseAmt < 100000) {
       setWithdrawError(currency === 'USD'
-        ? 'The minimum withdrawal amount is $1,020.41 (200,000 ETB).'
-        : (t('withdrawMinError') || 'The minimum withdrawal amount is 200,000 ETB.')
+        ? 'The minimum withdrawal amount is $510.20 (100,000 ETB).'
+        : (t('withdrawMinError') || 'The minimum withdrawal amount is 100,000 ETB.')
       );
       return;
     }
@@ -2490,15 +2490,15 @@ function AppContent() {
                               <input
                                 type="number"
                                 required
-                                min={currency === 'USD' ? "1020.41" : "200000"}
+                                min={currency === 'USD' ? "510.20" : "100000"}
                                 max={currency === 'USD' 
                                   ? (600000 / 196).toFixed(2) 
                                   : "600000"
                                 }
                                 disabled={isLocked}
                                 placeholder={currency === 'USD' 
-                                  ? `Min 1020.41 - Max ${(600000 / 196).toFixed(1)}` 
-                                  : "Min 200k - Max 600k"
+                                  ? `Min 510.20 - Max ${(600000 / 196).toFixed(1)}` 
+                                  : "Min 100k - Max 600k"
                                 }
                                 value={withdrawAmount}
                                 onChange={(e) => setWithdrawAmount(e.target.value)}
@@ -2506,8 +2506,8 @@ function AppContent() {
                               />
                               <span className="text-[9px] text-slate-400 mt-1 block leading-normal">
                                 {currency === 'USD' 
-                                  ? `Min: $1,020.41 | Max: $${(600000 / 196).toLocaleString(undefined, { maximumFractionDigits: 2 })} USD`
-                                  : `Min: 200,000 | Max: 600,000 ETB`
+                                  ? `Min: $510.20 | Max: $${(600000 / 196).toLocaleString(undefined, { maximumFractionDigits: 2 })} USD`
+                                  : `Min: 100,000 | Max: 600,000 ETB`
                                 }
                               </span>
                             </div>
