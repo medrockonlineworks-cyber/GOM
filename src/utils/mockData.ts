@@ -11,84 +11,84 @@ export const INITIAL_PRODUCTS_RAW = [
     productName: "Premium Leather Messenger Bag",
     productImage: "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=400&auto=format&fit=crop&q=60",
     baseCost: 800,
-    rewardMultiplier: 0.25, // 25% reward
+    rewardMultiplier: 0.35, // 35% reward
   },
   {
     id: 2,
     productName: "Pro Noise-Cancelling Wireless Headphones",
     productImage: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400&auto=format&fit=crop&q=60",
     baseCost: 995,
-    rewardMultiplier: 0.27, // 27% reward
+    rewardMultiplier: 0.85, // 85% reward
   },
   {
     id: 3,
     productName: "Minimalist Automatic Mechanical Watch",
     productImage: "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&auto=format&fit=crop&q=60",
     baseCost: 1264,
-    rewardMultiplier: 0.30, // 30% reward
+    rewardMultiplier: 0.95, // 95% reward
   },
   {
     id: 4,
     productName: "Ergonomic Orthopedic Workspace Chair",
     productImage: "https://images.unsplash.com/photo-1580481072645-022f9a6dbf27?w=400&auto=format&fit=crop&q=60",
     baseCost: 2098,
-    rewardMultiplier: 0.32, // 32% reward
+    rewardMultiplier: 0.70, // 70% reward
   },
   {
     id: 5,
     productName: "Ultra-Light Carbon Fiber Executive Smartpad",
     productImage: "https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?w=400&auto=format&fit=crop&q=60",
     baseCost: 3200,
-    rewardMultiplier: 0.35, // 35% reward
+    rewardMultiplier: 0.70, // 70% reward
   },
   {
     id: 6,
     productName: "4K HDR Professional Design Monitor",
     productImage: "https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?w=400&auto=format&fit=crop&q=60",
     baseCost: 4900,
-    rewardMultiplier: 0.38, // 38% reward
+    rewardMultiplier: 0.65, // 65% reward
   },
   {
     id: 7,
     productName: "Premium Handcrafted Walnut Desktop Console",
     productImage: "https://images.unsplash.com/photo-1585776245991-cf89dd7fc73a?w=400&auto=format&fit=crop&q=60",
     baseCost: 7350,
-    rewardMultiplier: 0.40, // 40% reward
+    rewardMultiplier: 0.60, // 60% reward
   },
   {
     id: 8,
     productName: "Hi-Fi Studio Reference Soundbar System",
     productImage: "https://images.unsplash.com/photo-1545454675-3531b543be5d?w=400&auto=format&fit=crop&q=60",
     baseCost: 11000,
-    rewardMultiplier: 0.45, // 45% reward
+    rewardMultiplier: 0.50, // 50% reward
   },
   {
     id: 9,
     productName: "Vanguard Titanium Expedition Camera Rig",
     productImage: "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=400&auto=format&fit=crop&q=60",
     baseCost: 16500,
-    rewardMultiplier: 0.48, // 48% reward
+    rewardMultiplier: 0.45, // 45% reward
   },
   {
     id: 10,
     productName: "Hyperion Quantum Elite Workspace Station",
     productImage: "https://images.unsplash.com/photo-1593642632823-8f785ba67e45?w=400&auto=format&fit=crop&q=60",
     baseCost: 24700,
-    rewardMultiplier: 0.52, // 52% reward
+    rewardMultiplier: 0.40, // 40% reward
   },
   {
     id: 11,
     productName: "Enterprise Quantum Core Server Rack",
     productImage: "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=400&auto=format&fit=crop&q=60",
     baseCost: 37000,
-    rewardMultiplier: 0.55, // 55% reward
+    rewardMultiplier: 0.35, // 35% reward
   },
   {
     id: 12,
     productName: "Ultimate Pro Holographic AI Studio",
     productImage: "https://images.unsplash.com/photo-1600132806370-bf17e65e942f?w=400&auto=format&fit=crop&q=60",
     baseCost: 55000,
-    rewardMultiplier: 0.60, // 60% reward
+    rewardMultiplier: 0.70, // 70% reward
   },
   {
     id: 13,
@@ -102,14 +102,14 @@ export const INITIAL_PRODUCTS_RAW = [
     productName: "Industrial Silicon Processing Cluster",
     productImage: "https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=400&auto=format&fit=crop&q=60",
     baseCost: 125000,
-    rewardMultiplier: 0.70, // 70% reward
+    rewardMultiplier: 0.60, // 60% reward
   },
   {
     id: 15,
     productName: "Global Satellite Uplink Mainframe",
     productImage: "https://images.unsplash.com/photo-1541185933-ef5d8ed016c2?w=400&auto=format&fit=crop&q=60",
     baseCost: 190000,
-    rewardMultiplier: 0.75, // 75% reward
+    rewardMultiplier: 1.50, // 150% reward
   }
 ];
 

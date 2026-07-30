@@ -267,20 +267,20 @@ export const getSimulatedCostAndBalanceForUser = (
 
   for (let i = 1; i <= 15; i++) {
     const prodConf = productCosts.find(p => p.id === i);
-    const defaultPct = i === 1 ? 0.25 : 
-                       i === 2 ? 0.70 : 
-                       i === 3 ? 0.8038 : 
-                       i === 4 ? 0.50 : 
-                       i === 5 ? 0.50 : 
-                       i === 6 ? 0.45 : 
-                       i === 7 ? 0.4101 : 
-                       i === 8 ? 0.20 : 
-                       i === 9 ? 0.15 : 
-                       i === 10 ? 0.08 : 
-                       i === 11 ? 0.0619 : 
-                       i === 12 ? 0.50 : 
-                       i === 13 ? 0.45 : 
-                       i === 14 ? 0.3705 : 1.25;
+    const defaultPct = i === 1 ? 0.35 : 
+                       i === 2 ? 0.85 : 
+                       i === 3 ? 0.95 : 
+                       i === 4 ? 0.70 : 
+                       i === 5 ? 0.70 : 
+                       i === 6 ? 0.65 : 
+                       i === 7 ? 0.60 : 
+                       i === 8 ? 0.50 : 
+                       i === 9 ? 0.45 : 
+                       i === 10 ? 0.40 : 
+                       i === 11 ? 0.35 : 
+                       i === 12 ? 0.70 : 
+                       i === 13 ? 0.65 : 
+                       i === 14 ? 0.60 : 1.50;
     calculatedPcts[i] = (typeof prodConf?.rewardMultiplier === 'number' && prodConf.rewardMultiplier > 0)
       ? prodConf.rewardMultiplier
       : defaultPct;
@@ -293,38 +293,18 @@ export const getSimulatedCostAndBalanceForUser = (
     if (k === 1) {
       simulatedCosts[1] = 800;
       simulatedBalances[1] = r2(simulatedCosts[1] + (simulatedCosts[1] * calculatedPcts[1]));
+    } else if (k === 4 || k === 8 || k === 12 || k === 15) {
+      const baseRecharge = k === 4 ? 3456.44 : k === 8 ? 18390 : k === 12 ? 39936 : 145633;
+      const minAdd = k === 4 ? 399 : k === 8 ? 1500 : k === 12 ? 5000 : 15000;
+      simulatedCosts[k] = Math.max(baseRecharge, r2(simulatedBalances[k - 1] + minAdd));
+      const reward = r2(simulatedCosts[k] * calculatedPcts[k]);
+      simulatedBalances[k] = r2(simulatedCosts[k] + reward);
     } else {
-      const locked = userLockedCosts?.[k] || (userLockedCosts as any)?.[String(k)];
-      if (k === 4) {
-        simulatedCosts[k] = 3456.44;
-      } else if (k === 8) {
-        simulatedCosts[k] = 18390;
-      } else if (k === 12) {
-        simulatedCosts[k] = 39936;
-      } else if (k === 15) {
-        simulatedCosts[k] = 145633;
-      } else if (locked && typeof locked.materialCost === 'number') {
-        simulatedCosts[k] = locked.materialCost;
-      } else {
-        simulatedCosts[k] = r2(simulatedBalances[k - 1] - 5);
-      }
-
-      // Guarantee next order material cost is always strictly greater than previous order material cost
-      if (simulatedCosts[k] <= simulatedCosts[k - 1]) {
-        simulatedCosts[k] = r2(simulatedCosts[k - 1] + 100);
-      }
-
-      const reward = (k === 4 || k === 8 || k === 12 || k === 15)
-        ? r2(simulatedCosts[k] * calculatedPcts[k])
-        : ((locked && typeof locked.reward === 'number' && locked.materialCost === simulatedCosts[k])
-            ? locked.reward
-            : r2(simulatedCosts[k] * calculatedPcts[k]));
-
-      simulatedBalances[k] = r2(
-        (k === 4 || k === 8 || k === 12 || k === 15)
-          ? (simulatedCosts[k] + reward)
-          : (simulatedBalances[k - 1] + reward)
-      );
+      // Non-recharge orders: 2, 3, 5, 6, 7, 9, 10, 11, 13, 14
+      // Material cost is slightly lower than current wallet balance (by 3.50 ETB) so it can be completed without recharge
+      simulatedCosts[k] = r2(simulatedBalances[k - 1] - 3.50);
+      const reward = r2(simulatedCosts[k] * calculatedPcts[k]);
+      simulatedBalances[k] = r2(simulatedBalances[k - 1] + reward);
     }
   }
 
@@ -1247,20 +1227,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
 
       // Ensure the reward commission percentage is valid (never 0, fallback to default if corrupt or undefined)
-      const defaultPct = rawProd.id === 1 ? 0.25 : 
-                         rawProd.id === 2 ? 0.70 : 
-                         rawProd.id === 3 ? 0.8038 : 
-                         rawProd.id === 4 ? 0.50 : 
-                         rawProd.id === 5 ? 0.50 : 
-                         rawProd.id === 6 ? 0.45 : 
-                         rawProd.id === 7 ? 0.4101 : 
-                         rawProd.id === 8 ? 0.20 : 
-                         rawProd.id === 9 ? 0.15 : 
-                         rawProd.id === 10 ? 0.08 : 
-                         rawProd.id === 11 ? 0.0619 : 
-                         rawProd.id === 12 ? 0.50 : 
-                         rawProd.id === 13 ? 0.45 : 
-                         rawProd.id === 14 ? 0.3705 : 1.25;
+      const defaultPct = rawProd.id === 1 ? 0.35 : 
+                         rawProd.id === 2 ? 0.85 : 
+                         rawProd.id === 3 ? 0.95 : 
+                         rawProd.id === 4 ? 0.70 : 
+                         rawProd.id === 5 ? 0.70 : 
+                         rawProd.id === 6 ? 0.65 : 
+                         rawProd.id === 7 ? 0.60 : 
+                         rawProd.id === 8 ? 0.50 : 
+                         rawProd.id === 9 ? 0.45 : 
+                         rawProd.id === 10 ? 0.40 : 
+                         rawProd.id === 11 ? 0.35 : 
+                         rawProd.id === 12 ? 0.70 : 
+                         rawProd.id === 13 ? 0.65 : 
+                         rawProd.id === 14 ? 0.60 : 1.50;
       const pct = (typeof rawProd.rewardMultiplier === 'number' && rawProd.rewardMultiplier > 0)
         ? rawProd.rewardMultiplier
         : defaultPct;
@@ -3340,46 +3320,44 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // Build updated locked order costs
     const updatedLockedCosts = { ...existingLocked };
     for (let k = 1; k <= newStage; k++) {
-      if (k === 4 || k === 8 || k === 12 || k === 15 || (!updatedLockedCosts[k] && !(updatedLockedCosts as any)[String(k)])) {
-        const cost = simulatedCosts[k] || 0;
-        const prodConf = productCosts.find(p => p.id === k);
-        const defaultPct = k === 1 ? 0.25 : 
-                           k === 2 ? 0.70 : 
-                           k === 3 ? 0.8038 : 
-                           k === 4 ? 0.50 : 
-                           k === 5 ? 0.50 : 
-                           k === 6 ? 0.45 : 
-                           k === 7 ? 0.4101 : 
-                           k === 8 ? 0.20 : 
-                           k === 9 ? 0.15 : 
-                           k === 10 ? 0.08 : 
-                           k === 11 ? 0.0619 : 
-                           k === 12 ? 0.50 : 
-                           k === 13 ? 0.45 : 
-                           k === 14 ? 0.3705 : 1.25;
-        const pct = (typeof prodConf?.rewardMultiplier === 'number' && prodConf.rewardMultiplier > 0)
-          ? prodConf.rewardMultiplier
-          : defaultPct;
-        updatedLockedCosts[k] = { materialCost: cost, reward: r2(cost * pct) };
-      }
+      const cost = simulatedCosts[k] || 0;
+      const prodConf = productCosts.find(p => p.id === k);
+      const defaultPct = k === 1 ? 0.35 : 
+                         k === 2 ? 0.85 : 
+                         k === 3 ? 0.95 : 
+                         k === 4 ? 0.70 : 
+                         k === 5 ? 0.70 : 
+                         k === 6 ? 0.65 : 
+                         k === 7 ? 0.60 : 
+                         k === 8 ? 0.50 : 
+                         k === 9 ? 0.45 : 
+                         k === 10 ? 0.40 : 
+                         k === 11 ? 0.35 : 
+                         k === 12 ? 0.70 : 
+                         k === 13 ? 0.65 : 
+                         k === 14 ? 0.60 : 1.50;
+      const pct = (typeof prodConf?.rewardMultiplier === 'number' && prodConf.rewardMultiplier > 0)
+        ? prodConf.rewardMultiplier
+        : defaultPct;
+      updatedLockedCosts[k] = { materialCost: cost, reward: r2(cost * pct) };
     }
 
     for (let i = 1; i <= newIndex; i++) {
       const prodConf = productCosts.find(p => p.id === i);
-      const defaultPct = i === 1 ? 0.25 : 
-                         i === 2 ? 0.70 : 
-                         i === 3 ? 0.8038 : 
-                         i === 4 ? 0.50 : 
-                         i === 5 ? 0.50 : 
-                         i === 6 ? 0.45 : 
-                         i === 7 ? 0.4101 : 
-                         i === 8 ? 0.20 : 
-                         i === 9 ? 0.15 : 
-                         i === 10 ? 0.08 : 
-                         i === 11 ? 0.0619 : 
-                         i === 12 ? 0.50 : 
-                         i === 13 ? 0.45 : 
-                         i === 14 ? 0.3705 : 1.25;
+      const defaultPct = i === 1 ? 0.35 : 
+                         i === 2 ? 0.85 : 
+                         i === 3 ? 0.95 : 
+                         i === 4 ? 0.70 : 
+                         i === 5 ? 0.70 : 
+                         i === 6 ? 0.65 : 
+                         i === 7 ? 0.60 : 
+                         i === 8 ? 0.50 : 
+                         i === 9 ? 0.45 : 
+                         i === 10 ? 0.40 : 
+                         i === 11 ? 0.35 : 
+                         i === 12 ? 0.70 : 
+                         i === 13 ? 0.65 : 
+                         i === 14 ? 0.60 : 1.50;
       const pct = (typeof prodConf?.rewardMultiplier === 'number' && prodConf.rewardMultiplier > 0)
         ? prodConf.rewardMultiplier
         : defaultPct;
