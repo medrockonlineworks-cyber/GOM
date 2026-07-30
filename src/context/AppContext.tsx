@@ -1241,7 +1241,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (status === 'available' || status === 'in_cart') {
         const rechargesMap: { [key: number]: number } = { 1: 50, 4: 399, 8: 2497, 12: 10832, 15: 26600 };
         if (rechargesMap[orderId] !== undefined) {
-          cost = r2(currentUser.walletBalance + rechargesMap[orderId]);
+          const targetCost = simulatedCosts[orderId] || (750 + rechargesMap[orderId]);
+          if (currentUser.walletBalance <= targetCost) {
+            cost = targetCost;
+          } else {
+            cost = r2(currentUser.walletBalance + rechargesMap[orderId]);
+          }
         } else {
           // Normal Orders: 1-5 ETB lower than current wallet balance
           cost = r2(Math.max(10, currentUser.walletBalance - 3.50));
