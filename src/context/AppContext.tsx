@@ -15,7 +15,8 @@ import {
   OrderStatus,
   RechargeAccount,
   Currency,
-  AdminGiftCode
+  AdminGiftCode,
+  LockedOrderData
 } from '../types';
 import { hashPassword, generateUserId, generateId } from '../utils/security';
 import { 
@@ -64,26 +65,33 @@ export function ensureDefaultRechargeAccounts(list: RechargeAccount[]): Recharge
 }
 
 export const isSamePhone = (phoneA: string, phoneB: string): boolean => {
-  const cleanA = (phoneA || '').replace(/\D/g, '');
-  const cleanB = (phoneB || '').replace(/\D/g, '');
-  if (!cleanA || !cleanB) return false;
-  if (cleanA === cleanB) return true;
-  
-  const stripA = cleanA.replace(/^0+/, '');
-  const stripB = cleanB.replace(/^0+/, '');
-  if (stripA === stripB) return true;
-  
-  const prefixes = ['251', '254', '234'];
-  for (const prefix of prefixes) {
-    const aHas = stripA.startsWith(prefix);
-    const bHas = stripB.startsWith(prefix);
-    if (aHas && !bHas) {
-      if (stripA.substring(prefix.length) === stripB) return true;
+  if (!phoneA || !phoneB) return false;
+  const digitsA = (phoneA || '').replace(/\D/g, '');
+  const digitsB = (phoneB || '').replace(/\D/g, '');
+  if (!digitsA || !digitsB) return false;
+  if (digitsA === digitsB) return true;
+
+  const getCoreNumber = (numStr: string) => {
+    let s = numStr.replace(/^0+/, '');
+    const countryPrefixes = ['251', '254', '234', '1', '44'];
+    for (const p of countryPrefixes) {
+      if (s.startsWith(p)) {
+        s = s.substring(p.length).replace(/^0+/, '');
+        break;
+      }
     }
-    if (!aHas && bHas) {
-      if (stripB.substring(prefix.length) === stripA) return true;
-    }
+    return s.replace(/^0+/, '');
+  };
+
+  const coreA = getCoreNumber(digitsA);
+  const coreB = getCoreNumber(digitsB);
+
+  if (coreA && coreB && coreA === coreB) return true;
+
+  if (coreA.length >= 7 && coreB.length >= 7) {
+    if (coreA.endsWith(coreB) || coreB.endsWith(coreA)) return true;
   }
+
   return false;
 };
 
@@ -251,13 +259,15 @@ const getOrCreateDeviceId = (): string => {
 export const getSimulatedCostAndBalanceForUser = (
   userId: string,
   productCosts: { id: number; baseCost: number; rewardMultiplier: number }[],
-  userLockedCosts?: { [key: number]: { materialCost: number; reward: number } }
+  userLockedCosts?: { [key: number]: LockedOrderData }
 ) => {
   const r2 = (n: number) => Math.round(n * 100) / 100;
 
   const simulatedCosts: { [key: number]: number } = {};
   const simulatedRewards: { [key: number]: number } = {};
   const simulatedBalances: { [key: number]: number } = {};
+  const simulatedRequiredRecharges: { [key: number]: number } = {};
+  const simulatedWalletsBefore: { [key: number]: number } = {};
 
   const recharges: { [key: number]: number } = {
     1: 50,
@@ -289,31 +299,46 @@ export const getSimulatedCostAndBalanceForUser = (
 
   for (let k = 1; k <= 15; k++) {
     const isRechargeOrder = recharges[k] !== undefined;
+    const existingLock = userLockedCosts ? userLockedCosts[k] : undefined;
 
     let materialCost = 0;
-    if (isRechargeOrder) {
-      materialCost = r2(currentWallet + recharges[k]);
-    } else {
-      // Normal Orders (2, 3, 5, 6, 7, 9, 10, 11, 13, 14):
-      // Material cost is 1–5 ETB lower than current wallet balance
-      const offset = 3.50;
-      materialCost = r2(Math.max(10, currentWallet - offset));
-    }
+    let reward = 0;
+    let requiredRecharge = 0;
+    let walletBefore = currentWallet;
 
-    const prevReward = k > 1 ? simulatedRewards[k - 1] : 0;
-    let reward = baseTargetRewards[k] || r2(materialCost * 0.35);
-    if (reward <= prevReward) {
-      reward = r2(prevReward + 50);
+    if (existingLock && existingLock.materialCost !== undefined && existingLock.materialCost > 0) {
+      materialCost = existingLock.materialCost;
+      reward = existingLock.reward;
+      requiredRecharge = existingLock.requiredRecharge ?? (isRechargeOrder ? recharges[k] : 0);
+      walletBefore = existingLock.walletBefore ?? currentWallet;
+    } else {
+      walletBefore = currentWallet;
+      if (isRechargeOrder) {
+        requiredRecharge = recharges[k];
+        materialCost = r2(walletBefore + requiredRecharge);
+      } else {
+        requiredRecharge = 0;
+        const offset = 3.50;
+        materialCost = r2(Math.max(10, walletBefore - offset));
+      }
+
+      const prevReward = k > 1 ? simulatedRewards[k - 1] : 0;
+      reward = baseTargetRewards[k] || r2(materialCost * 0.35);
+      if (reward <= prevReward) {
+        reward = r2(prevReward + 50);
+      }
     }
 
     simulatedCosts[k] = materialCost;
     simulatedRewards[k] = reward;
+    simulatedRequiredRecharges[k] = requiredRecharge;
+    simulatedWalletsBefore[k] = walletBefore;
 
     currentWallet = r2(currentWallet + reward);
     simulatedBalances[k] = currentWallet;
   }
 
-  return { simulatedCosts, simulatedRewards, simulatedBalances };
+  return { simulatedCosts, simulatedRewards, simulatedBalances, simulatedRequiredRecharges, simulatedWalletsBefore };
 };
 
 enum OperationType {
@@ -1206,18 +1231,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
     userSeed = Math.abs(userSeed);
 
-    const { simulatedCosts, simulatedRewards } = getSimulatedCostAndBalanceForUser(
+    const { simulatedCosts, simulatedRewards, simulatedRequiredRecharges, simulatedWalletsBefore } = getSimulatedCostAndBalanceForUser(
       currentUser.id,
       productCosts,
       currentUser.lockedOrderCosts
     );
 
     const completedIds = currentUser.completedOrderIds || [];
+    const firstUncompletedIdx = productCosts.findIndex(p => !completedIds.includes(p.id));
+
+    const existingLockedCosts = currentUser.lockedOrderCosts || {};
+    let newlyLockedCosts: { [key: number]: LockedOrderData } | null = null;
+
     const calculated: Order[] = productCosts.map((rawProd, idx) => {
       const isCompleted = completedIds.includes(rawProd.id);
-      
-      // Find the index of the first uncompleted order
-      const firstUncompletedIdx = productCosts.findIndex(p => !completedIds.includes(p.id));
+      const orderId = rawProd.id;
       
       let status: OrderStatus = 'locked';
       if (isCompleted) {
@@ -1232,28 +1260,52 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
 
       const r2 = (n: number) => Math.round(n * 100) / 100;
-      const orderId = rawProd.id;
+      const rechargesMap: { [key: number]: number } = { 1: 50, 4: 399, 8: 2497, 12: 10832, 15: 26600 };
+      const isRechargeOrder = rechargesMap[orderId] !== undefined;
 
-      let cost = simulatedCosts[orderId] || rawProd.baseCost;
-      let reward = (simulatedRewards as any)?.[orderId] || r2(cost * 0.35);
+      // Use locked cost if order was already generated, or generate ONCE when it becomes active
+      let lockedObj = (newlyLockedCosts && newlyLockedCosts[orderId]) || existingLockedCosts[orderId];
 
-      // Dynamically adapt active order (available or in_cart) to current wallet balance
-      if (status === 'available' || status === 'in_cart') {
-        const rechargesMap: { [key: number]: number } = { 1: 50, 4: 399, 8: 2497, 12: 10832, 15: 26600 };
-        if (rechargesMap[orderId] !== undefined) {
-          const targetCost = simulatedCosts[orderId] || (750 + rechargesMap[orderId]);
-          if (currentUser.walletBalance <= targetCost) {
-            cost = targetCost;
-          } else {
-            cost = r2(currentUser.walletBalance + rechargesMap[orderId]);
-          }
+      if (!lockedObj && (status === 'available' || status === 'in_cart')) {
+        // Order generated for the FIRST time! Calculate material cost & reward once and lock them.
+        const walletBefore = currentUser.walletBalance;
+        const requiredRecharge = isRechargeOrder ? rechargesMap[orderId] : 0;
+        let cost = 0;
+        if (isRechargeOrder) {
+          cost = r2(walletBefore + requiredRecharge);
         } else {
-          // Normal Orders: 1-5 ETB lower than current wallet balance
-          cost = r2(Math.max(10, currentUser.walletBalance - 3.50));
+          cost = r2(Math.max(10, walletBefore - 3.50));
         }
+
+        const baseTargetRewards: { [key: number]: number } = {
+          1: 280, 2: 320, 3: 405, 4: 520, 5: 1150, 6: 2100, 7: 6478,
+          8: 8200, 9: 9500, 10: 11000, 11: 13465, 12: 22000, 13: 30000,
+          14: 38865, 15: 50000
+        };
+        const prevReward = orderId > 1 ? (simulatedRewards as any)?.[orderId - 1] || 0 : 0;
+        let reward = baseTargetRewards[orderId] || r2(cost * 0.35);
+        if (reward <= prevReward) {
+          reward = r2(prevReward + 50);
+        }
+
+        lockedObj = {
+          materialCost: cost,
+          reward,
+          requiredRecharge,
+          walletBefore,
+          orderStatus: status,
+        };
+
+        if (!newlyLockedCosts) {
+          newlyLockedCosts = { ...existingLockedCosts };
+        }
+        newlyLockedCosts[orderId] = lockedObj;
       }
 
-      // Minimum Recharge calculation: (Material Cost - wallet balance)
+      const cost = lockedObj ? lockedObj.materialCost : (simulatedCosts[orderId] || rawProd.baseCost);
+      const reward = lockedObj ? lockedObj.reward : ((simulatedRewards as any)?.[orderId] || r2(cost * 0.35));
+
+      // Minimum Recharge calculation based on fixed material cost vs current wallet balance
       const minRechargeRequired = r2(Math.max(0, cost - currentUser.walletBalance));
 
       const override = currentUser.cycleProductOverrides?.find(o => o.id === rawProd.id);
@@ -1281,6 +1333,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         status
       };
     });
+
+    if (newlyLockedCosts) {
+      const updatedUser: User = {
+        ...currentUser,
+        lockedOrderCosts: newlyLockedCosts
+      };
+      setCurrentUser(updatedUser);
+      setUsers(prev => {
+        const next = prev.map(u => u.id === currentUser.id ? updatedUser : u);
+        localStorage.setItem('gom_users', JSON.stringify(next));
+        return next;
+      });
+      localStorage.setItem('gom_current_user', JSON.stringify(updatedUser));
+      fetch('/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedUser)
+      }).catch(err => console.error("Failed to sync locked order costs:", err));
+    }
 
     setOrders(calculated);
   }, [currentUser, productCosts, scalingMultiplier, cartTrigger]);
@@ -2190,8 +2261,32 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       ? customCode.trim().toUpperCase() 
       : `GIFT-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
 
+    const normalizeCodeStr = (str: string) => {
+      return (str || '')
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, '')
+        .replace(/O/g, '0')
+        .replace(/I/g, '1')
+        .replace(/L/g, '1');
+    };
+
+    // Find matched target user account across system
+    const matchedTargetUser = users.find(u => isSamePhone(u.phoneNumber, cleanTargetPhone));
+
+    // Refresh existing gift codes from backend first to ensure we merge into latest server list
+    let currentGiftList = [...adminGiftCodes];
+    try {
+      const res = await fetch('/api/gift-codes');
+      if (res.ok) {
+        const data = await res.json();
+        if (data && Array.isArray(data.giftCodes)) {
+          currentGiftList = data.giftCodes;
+        }
+      }
+    } catch (e) {}
+
     // Check if code already exists and is active
-    const existing = adminGiftCodes.find(g => g.code.toUpperCase() === code);
+    const existing = currentGiftList.find(g => normalizeCodeStr(g.code) === normalizeCodeStr(code));
     if (existing && existing.status === 'active') {
       return { success: false, message: `Gift code "${code}" already exists and is active.` };
     }
@@ -2199,16 +2294,55 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const newGift: AdminGiftCode = {
       id: generateId('GFT'),
       code,
-      targetPhone: cleanTargetPhone,
+      targetPhone: matchedTargetUser ? matchedTargetUser.phoneNumber : cleanTargetPhone,
+      targetUserId: matchedTargetUser ? matchedTargetUser.id : undefined,
       amount,
       createdAt: new Date().toISOString(),
       createdBy: currentUser?.phoneNumber || 'Admin',
       status: 'active',
     };
 
-    const updatedList = [newGift, ...adminGiftCodes.filter(g => g.code.toUpperCase() !== code)];
+    const updatedList = [newGift, ...currentGiftList.filter(g => normalizeCodeStr(g.code) !== normalizeCodeStr(code))];
     setAdminGiftCodes(updatedList);
     localStorage.setItem('gom_admin_gift_codes', JSON.stringify(updatedList));
+
+    // Also attach to target user account directly for cross-device & offline persistence
+    if (matchedTargetUser) {
+      const existingPending = matchedTargetUser.pendingGiftCodes || [];
+      const updatedPending = [
+        {
+          id: newGift.id,
+          code: newGift.code,
+          amount: newGift.amount,
+          createdAt: newGift.createdAt,
+          targetPhone: newGift.targetPhone,
+        },
+        ...existingPending.filter(p => normalizeCodeStr(p.code) !== normalizeCodeStr(code))
+      ];
+      const updatedUser: User = {
+        ...matchedTargetUser,
+        pendingGiftCodes: updatedPending,
+      };
+
+      setUsers(prev => {
+        const next = prev.map(u => u.id === matchedTargetUser.id ? updatedUser : u);
+        localStorage.setItem('gom_users', JSON.stringify(next));
+        return next;
+      });
+
+      if (currentUser && currentUser.id === matchedTargetUser.id) {
+        setCurrentUser(updatedUser);
+        localStorage.setItem('gom_current_user', JSON.stringify(updatedUser));
+      }
+
+      try {
+        await fetch('/api/users', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updatedUser),
+        });
+      } catch (e) {}
+    }
 
     try {
       await fetch('/api/gift-codes', {
@@ -2263,7 +2397,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const normInput = normalizeCodeStr(code);
 
-    // Refresh gift codes from backend to ensure state is latest
+    // Refresh gift codes from backend to ensure state is latest if online
     let currentGiftList = [...adminGiftCodes];
     try {
       const res = await fetch('/api/gift-codes');
@@ -2279,6 +2413,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       console.warn('Failed to refresh gift codes from server:', e);
     }
 
+    // Include any pending gift codes associated directly with currentUser account (for offline/cross-device support)
+    const userPendingGifts: AdminGiftCode[] = (currentUser.pendingGiftCodes || []).map(p => ({
+      id: p.id,
+      code: p.code,
+      targetPhone: p.targetPhone || currentUser.phoneNumber,
+      targetUserId: currentUser.id,
+      amount: p.amount,
+      createdAt: p.createdAt,
+      status: 'active' as const,
+    }));
+
+    for (const pg of userPendingGifts) {
+      if (!currentGiftList.some(g => g.id === pg.id || normalizeCodeStr(g.code) === normalizeCodeStr(pg.code))) {
+        currentGiftList.unshift(pg);
+      }
+    }
+
     const claimed = currentUser.claimedGiftCodes || [];
     if (claimed.some(c => normalizeCodeStr(c) === normInput)) {
       return { success: false, message: `You have already redeemed gift code "${code}".` };
@@ -2291,12 +2442,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
              (normStored.length > 3 && normInput.length > 3 && (normStored.endsWith(normInput) || normInput.endsWith(normStored)));
     });
 
-    // Fallback: Check if there's an active gift code assigned to this user's phone number
+    // Fallback: Check if there's an active gift code assigned to this user's account ID or phone number
     if (!matchedGift) {
       matchedGift = currentGiftList.find(g => 
         g.status === 'active' && 
-        isSamePhone(g.targetPhone, currentUser.phoneNumber) &&
-        (normInput.length >= 4 || normInput.includes('GIFT'))
+        ((g.targetUserId && g.targetUserId === currentUser.id) || isSamePhone(g.targetPhone, currentUser.phoneNumber))
       );
     }
 
@@ -2314,7 +2464,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             matchedGift = {
               id: generateId('GFT'),
               code: foundCard.code,
-              targetPhone: currentUser.phoneNumber, // custom legacy cards match current user
+              targetPhone: currentUser.phoneNumber,
+              targetUserId: currentUser.id,
               amount: foundCard.amount,
               createdAt: new Date().toISOString(),
               status: 'active',
@@ -2335,11 +2486,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return { success: false, message: `Gift code "${matchedGift.code}" has already been redeemed.` };
     }
 
-    // STRICT PHONE NUMBER CHECK USING isSamePhone
-    if (!isSamePhone(matchedGift.targetPhone, currentUser.phoneNumber)) {
+    // Account & Phone verification (user ID or targetPhone match)
+    const isUserMatched = (matchedGift.targetUserId && matchedGift.targetUserId === currentUser.id) ||
+                          isSamePhone(matchedGift.targetPhone, currentUser.phoneNumber) ||
+                          matchedGift.targetPhone === 'ALL';
+
+    if (!isUserMatched) {
       return {
         success: false,
-        message: `This gift code was generated for another phone number. It cannot be redeemed by your account (${currentUser.phoneNumber}).`
+        message: `This gift code was generated for another user account (${matchedGift.targetPhone}). It cannot be redeemed by your account (${currentUser.phoneNumber}).`
       };
     }
 
@@ -2355,9 +2510,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       } catch (e) {}
     }
 
-    // Mark matched gift as redeemed
-    let updatedGiftCodes = adminGiftCodes.map(g => {
-      if (g.code.toUpperCase() === code) {
+    // Mark matched gift as redeemed in currentGiftList
+    let updatedGiftCodes = currentGiftList.map(g => {
+      const isMatch = g.id === matchedGift.id ||
+                      normalizeCodeStr(g.code) === normalizeCodeStr(matchedGift.code) ||
+                      normalizeCodeStr(g.code) === normInput;
+      if (isMatch) {
         return {
           ...g,
           status: 'redeemed' as const,
@@ -2368,7 +2526,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return g;
     });
 
-    if (!adminGiftCodes.some(g => g.code.toUpperCase() === code)) {
+    if (!updatedGiftCodes.some(g => g.id === matchedGift.id || normalizeCodeStr(g.code) === normalizeCodeStr(matchedGift.code))) {
       updatedGiftCodes.unshift({
         ...matchedGift,
         status: 'redeemed' as const,
@@ -2380,12 +2538,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setAdminGiftCodes(updatedGiftCodes);
     localStorage.setItem('gom_admin_gift_codes', JSON.stringify(updatedGiftCodes));
 
-    const updatedClaimed = [...claimed, code];
+    const updatedClaimed = Array.from(new Set([...claimed, code, matchedGift.code, normInput]));
+    const updatedPending = (currentUser.pendingGiftCodes || []).filter(
+      p => p.id !== matchedGift.id &&
+           normalizeCodeStr(p.code) !== normalizeCodeStr(matchedGift.code) &&
+           normalizeCodeStr(p.code) !== normInput
+    );
+
     const updatedUser: User = {
       ...currentUser,
       walletBalance: currentUser.walletBalance + rewardAmount,
       totalEarnings: (currentUser.totalEarnings || 0) + rewardAmount,
       claimedGiftCodes: updatedClaimed,
+      pendingGiftCodes: updatedPending,
     };
 
     const giftTx: Transaction = {
@@ -2396,7 +2561,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       amount: rewardAmount,
       status: 'completed',
       createdAt: new Date().toISOString(),
-      description: `Gift Code (${code}) redeemed: +${rewardAmount} ETB credited to wallet.`,
+      description: `Gift Code (${matchedGift.code}) redeemed: +${rewardAmount} ETB credited to wallet.`,
     };
 
     setCurrentUser(updatedUser);
@@ -2419,25 +2584,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ giftCodes: updatedGiftCodes }),
       });
+    } catch (e) {}
+
+    try {
       await fetch('/api/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updatedUser)
       });
+    } catch (e) {}
+
+    try {
       await fetch('/api/transactions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(giftTx)
       });
-    } catch (e) {
-      console.error('Failed to sync gift redemption to backend:', e);
-    }
+    } catch (e) {}
 
-    await logAudit(currentUser.id, currentUser.phoneNumber, 'REDEEM_GIFT_CODE', `Redeemed gift code ${code} for +${rewardAmount} ETB.`);
+    await logAudit(currentUser.id, currentUser.phoneNumber, 'REDEEM_GIFT_CODE', `Redeemed gift code ${matchedGift.code} for +${rewardAmount} ETB.`);
 
     return {
       success: true,
-      message: `Gift Code ${code} redeemed successfully! +${formatPrice(rewardAmount)} credited to your wallet balance.`,
+      message: `Gift Code ${matchedGift.code} redeemed successfully! +${formatPrice(rewardAmount)} credited to your wallet balance.`,
       amount: rewardAmount,
     };
   };
@@ -2734,7 +2903,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       ...currentUser,
       currentOrderIndex: 0,
       completedOrderIds: [],
-      cycleProductOverrides: overrides
+      cycleProductOverrides: overrides,
+      lockedOrderCosts: {}
     };
     delete updatedUser.lastOrderCompletedAt;
     

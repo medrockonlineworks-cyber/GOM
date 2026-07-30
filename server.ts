@@ -670,7 +670,7 @@ app.post('/api/users/update-stage', async (req, res) => {
     const configRow = await db.select().from(systemConfig).where(eq(systemConfig.key, 'global'));
     const productCosts = (configRow[0]?.productCosts as any[]) || [];
 
-    const existingLockedCosts = (userToUpdate.lockedOrderCosts as Record<string, { materialCost: number; reward: number }>) || {};
+    const existingLockedCosts = (userToUpdate.lockedOrderCosts as Record<string, { materialCost: number; reward: number; requiredRecharge?: number; walletBefore?: number; orderStatus?: string }>) || {};
 
     // Calculate simulated cost and balance for the user
     let userSeed = 0;
@@ -747,7 +747,16 @@ app.post('/api/users/update-stage', async (req, res) => {
     for (let k = 1; k <= newStage; k++) {
       const cost = simulatedCosts[k] || 0;
       const reward = simulatedRewards[k] || 0;
-      updatedLockedCosts[k] = { materialCost: cost, reward };
+      const isRechargeOrder = recharges[k] !== undefined;
+      const requiredRecharge = isRechargeOrder ? recharges[k] : 0;
+      const walletBefore = k === 1 ? 750 : (simulatedBalances[k - 1] || 750);
+      updatedLockedCosts[k] = { 
+        materialCost: cost, 
+        reward, 
+        requiredRecharge, 
+        walletBefore, 
+        orderStatus: k < newStage ? 'completed' : 'available' 
+      };
     }
 
     // Sum of rewards for completed orders (1 to newStage - 1)
@@ -1024,14 +1033,15 @@ app.post('/api/gift-codes', async (req, res) => {
 
     const mergedMap = new Map<string, any>();
     for (const item of existingList) {
-      if (item && item.code) {
-        mergedMap.set(item.code.toUpperCase(), item);
+      if (item && (item.code || item.id)) {
+        const key = (item.id || item.code).toString().toUpperCase();
+        mergedMap.set(key, item);
       }
     }
     for (const item of giftCodes) {
-      if (item && item.code) {
-        const key = item.code.toUpperCase();
-        const prev = mergedMap.get(key);
+      if (item && (item.code || item.id)) {
+        const key = (item.id || item.code).toString().toUpperCase();
+        const prev = mergedMap.get(key) || {};
         mergedMap.set(key, { ...prev, ...item });
       }
     }

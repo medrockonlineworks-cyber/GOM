@@ -29,13 +29,23 @@ export interface User {
   withdrawalAccNo?: string; // Registered withdrawal account number
   withdrawalAccName?: string; // Registered withdrawal account holder name
   claimedGiftCodes?: string[]; // Array of redeemed gift codes
-  lockedOrderCosts?: { [orderId: number]: { materialCost: number; reward: number } }; // Locked costs once order is unlocked
+  pendingGiftCodes?: { id: string; code: string; amount: number; createdAt: string; targetPhone: string }[];
+  lockedOrderCosts?: { [orderId: number]: LockedOrderData }; // Locked costs once order is generated
+}
+
+export interface LockedOrderData {
+  materialCost: number;
+  reward: number;
+  requiredRecharge: number;
+  walletBefore: number;
+  orderStatus?: string;
 }
 
 export interface AdminGiftCode {
   id: string;
   code: string;
   targetPhone: string; // The user's phone number this gift is issued for
+  targetUserId?: string; // Optional unique user ID for account-level association
   amount: number; // Gift balance in ETB
   createdAt: string;
   createdBy?: string;
