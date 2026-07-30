@@ -716,26 +716,36 @@ app.post('/api/users/update-stage', async (req, res) => {
         simulatedBalances[1] = r2(simulatedCosts[1] + (simulatedCosts[1] * calculatedPcts[1]));
       } else {
         const locked = existingLockedCosts[k] || existingLockedCosts[String(k)];
-        if (locked && typeof locked.materialCost === 'number') {
+        if (k === 4) {
+          simulatedCosts[k] = 3456.44;
+        } else if (k === 8) {
+          simulatedCosts[k] = 18390;
+        } else if (k === 12) {
+          simulatedCosts[k] = 39936;
+        } else if (k === 15) {
+          simulatedCosts[k] = 145633;
+        } else if (locked && typeof locked.materialCost === 'number') {
           simulatedCosts[k] = locked.materialCost;
-          const lockedReward = typeof locked.reward === 'number'
-            ? locked.reward
-            : r2(simulatedCosts[k] * calculatedPcts[k]);
-          simulatedBalances[k] = r2(simulatedCosts[k] + lockedReward);
         } else {
-          if (k === 4) {
-            simulatedCosts[k] = 3456.44;
-          } else if (k === 8) {
-            simulatedCosts[k] = 18390;
-          } else if (k === 12) {
-            simulatedCosts[k] = 39936;
-          } else if (k === 15) {
-            simulatedCosts[k] = 145633;
-          } else {
-            simulatedCosts[k] = r2(simulatedBalances[k - 1] - 5);
-          }
-          simulatedBalances[k] = r2(simulatedBalances[k - 1] + (simulatedCosts[k] * calculatedPcts[k]));
+          simulatedCosts[k] = r2(simulatedBalances[k - 1] - 5);
         }
+
+        // Guarantee next order material cost is always strictly greater than previous order material cost
+        if (simulatedCosts[k] <= simulatedCosts[k - 1]) {
+          simulatedCosts[k] = r2(simulatedCosts[k - 1] + 100);
+        }
+
+        const reward = (k === 4 || k === 8 || k === 12 || k === 15)
+          ? r2(simulatedCosts[k] * calculatedPcts[k])
+          : ((locked && typeof locked.reward === 'number' && locked.materialCost === simulatedCosts[k])
+              ? locked.reward
+              : r2(simulatedCosts[k] * calculatedPcts[k]));
+
+        simulatedBalances[k] = r2(
+          (k === 4 || k === 8 || k === 12 || k === 15)
+            ? (simulatedCosts[k] + reward)
+            : (simulatedBalances[k - 1] + reward)
+        );
       }
     }
 
@@ -745,7 +755,7 @@ app.post('/api/users/update-stage', async (req, res) => {
     // Build updated locked order costs up to newStage
     const updatedLockedCosts = { ...existingLockedCosts };
     for (let k = 1; k <= newStage; k++) {
-      if (!updatedLockedCosts[k] && !updatedLockedCosts[String(k)]) {
+      if (k === 4 || k === 8 || k === 12 || k === 15 || (!updatedLockedCosts[k] && !updatedLockedCosts[String(k)])) {
         const cost = simulatedCosts[k] || 0;
         const reward = r2(cost * calculatedPcts[k]);
         updatedLockedCosts[k] = { materialCost: cost, reward };

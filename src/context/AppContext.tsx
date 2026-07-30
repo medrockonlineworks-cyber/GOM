@@ -295,26 +295,36 @@ export const getSimulatedCostAndBalanceForUser = (
       simulatedBalances[1] = r2(simulatedCosts[1] + (simulatedCosts[1] * calculatedPcts[1]));
     } else {
       const locked = userLockedCosts?.[k] || (userLockedCosts as any)?.[String(k)];
-      if (locked && typeof locked.materialCost === 'number') {
+      if (k === 4) {
+        simulatedCosts[k] = 3456.44;
+      } else if (k === 8) {
+        simulatedCosts[k] = 18390;
+      } else if (k === 12) {
+        simulatedCosts[k] = 39936;
+      } else if (k === 15) {
+        simulatedCosts[k] = 145633;
+      } else if (locked && typeof locked.materialCost === 'number') {
         simulatedCosts[k] = locked.materialCost;
-        const lockedReward = typeof locked.reward === 'number'
-          ? locked.reward
-          : r2(simulatedCosts[k] * calculatedPcts[k]);
-        simulatedBalances[k] = r2(simulatedCosts[k] + lockedReward);
       } else {
-        if (k === 4) {
-          simulatedCosts[k] = 3456.44;
-        } else if (k === 8) {
-          simulatedCosts[k] = 18390;
-        } else if (k === 12) {
-          simulatedCosts[k] = 39936;
-        } else if (k === 15) {
-          simulatedCosts[k] = 145633;
-        } else {
-          simulatedCosts[k] = r2(simulatedBalances[k - 1] - 5);
-        }
-        simulatedBalances[k] = r2(simulatedBalances[k - 1] + (simulatedCosts[k] * calculatedPcts[k]));
+        simulatedCosts[k] = r2(simulatedBalances[k - 1] - 5);
       }
+
+      // Guarantee next order material cost is always strictly greater than previous order material cost
+      if (simulatedCosts[k] <= simulatedCosts[k - 1]) {
+        simulatedCosts[k] = r2(simulatedCosts[k - 1] + 100);
+      }
+
+      const reward = (k === 4 || k === 8 || k === 12 || k === 15)
+        ? r2(simulatedCosts[k] * calculatedPcts[k])
+        : ((locked && typeof locked.reward === 'number' && locked.materialCost === simulatedCosts[k])
+            ? locked.reward
+            : r2(simulatedCosts[k] * calculatedPcts[k]));
+
+      simulatedBalances[k] = r2(
+        (k === 4 || k === 8 || k === 12 || k === 15)
+          ? (simulatedCosts[k] + reward)
+          : (simulatedBalances[k - 1] + reward)
+      );
     }
   }
 
@@ -1237,11 +1247,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
 
       // Ensure the reward commission percentage is valid (never 0, fallback to default if corrupt or undefined)
-      const pct = rawProd.id > 7 ? 0.40 : (
-        (typeof rawProd.rewardMultiplier === 'number' && rawProd.rewardMultiplier > 0)
-          ? rawProd.rewardMultiplier
-          : (INITIAL_PRODUCTS_RAW.find(p => p.id === rawProd.id)?.rewardMultiplier || 0.15)
-      );
+      const defaultPct = rawProd.id === 1 ? 0.25 : 
+                         rawProd.id === 2 ? 0.70 : 
+                         rawProd.id === 3 ? 0.8038 : 
+                         rawProd.id === 4 ? 0.50 : 
+                         rawProd.id === 5 ? 0.50 : 
+                         rawProd.id === 6 ? 0.45 : 
+                         rawProd.id === 7 ? 0.4101 : 
+                         rawProd.id === 8 ? 0.20 : 
+                         rawProd.id === 9 ? 0.15 : 
+                         rawProd.id === 10 ? 0.08 : 
+                         rawProd.id === 11 ? 0.0619 : 
+                         rawProd.id === 12 ? 0.50 : 
+                         rawProd.id === 13 ? 0.45 : 
+                         rawProd.id === 14 ? 0.3705 : 1.25;
+      const pct = (typeof rawProd.rewardMultiplier === 'number' && rawProd.rewardMultiplier > 0)
+        ? rawProd.rewardMultiplier
+        : defaultPct;
 
       const r2 = (n: number) => Math.round(n * 100) / 100;
       const cost = simulatedCosts[rawProd.id] || rawProd.baseCost;
@@ -3318,7 +3340,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // Build updated locked order costs
     const updatedLockedCosts = { ...existingLocked };
     for (let k = 1; k <= newStage; k++) {
-      if (!updatedLockedCosts[k] && !(updatedLockedCosts as any)[String(k)]) {
+      if (k === 4 || k === 8 || k === 12 || k === 15 || (!updatedLockedCosts[k] && !(updatedLockedCosts as any)[String(k)])) {
         const cost = simulatedCosts[k] || 0;
         const prodConf = productCosts.find(p => p.id === k);
         const defaultPct = k === 1 ? 0.25 : 
