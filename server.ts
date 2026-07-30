@@ -52,7 +52,7 @@ async function seedDatabaseIfEmpty() {
     if (existingConfig.length === 0) {
       console.log('[Seeder] Seeding default system configuration...');
       const initialProducts = [
-        { id: 1, baseCost: 50, rewardMultiplier: 0.25 },
+        { id: 1, baseCost: 800, rewardMultiplier: 0.25 },
         { id: 2, baseCost: 995, rewardMultiplier: 0.27 },
         { id: 3, baseCost: 1264, rewardMultiplier: 0.30 },
         { id: 4, baseCost: 2098, rewardMultiplier: 0.32 },
@@ -707,7 +707,7 @@ app.post('/api/users/update-stage', async (req, res) => {
 
     for (let k = 1; k <= 15; k++) {
       if (k === 1) {
-        simulatedCosts[1] = 50;
+        simulatedCosts[1] = 800;
         simulatedBalances[1] = r2(simulatedCosts[1] + (simulatedCosts[1] * calculatedPcts[1]));
       } else {
         const locked = existingLockedCosts[k] || existingLockedCosts[String(k)];

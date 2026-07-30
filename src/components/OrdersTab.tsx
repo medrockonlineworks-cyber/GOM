@@ -114,9 +114,9 @@ export const OrdersTab: React.FC<OrdersTabProps> = ({ onOpenRechargeModal }) => 
         {/* Reset button to clear cycle for continuous testing */}
         <button
           onClick={async () => {
-            const isCycleCompleted = currentUser && currentUser.completedOrderIds.length >= 15;
+            const isCycleCompleted = currentUser && (currentUser.completedOrderIds || []).length >= 15;
             if (!isCycleCompleted) {
-              alert(t('completeAllTasksAlert', { completedCount: currentUser?.completedOrderIds.length || 0 }));
+              alert(t('completeAllTasksAlert', { completedCount: currentUser?.completedOrderIds?.length || 0 }));
               return;
             }
             const res = await resetOrderCycle();
@@ -125,13 +125,13 @@ export const OrdersTab: React.FC<OrdersTabProps> = ({ onOpenRechargeModal }) => 
             }
           }}
           className={`font-bold text-[9px] uppercase tracking-wider px-2.5 py-1.5 rounded-xl border flex items-center gap-1 transition-all cursor-pointer shadow-2xs ${
-            currentUser && currentUser.completedOrderIds.length >= 15
+            currentUser && (currentUser.completedOrderIds || []).length >= 15
               ? 'bg-bronze hover:bg-bronze-hover text-white border-bronze animate-pulse' 
               : 'bg-slate-100 text-slate-400 border-slate-200 opacity-60 cursor-not-allowed'
           }`}
-          title={currentUser && currentUser.completedOrderIds.length >= 15 ? "Reset task cycle to start over with brand new materials" : "Complete all 15 tasks to reset cycle"}
+          title={currentUser && (currentUser.completedOrderIds || []).length >= 15 ? "Reset task cycle to start over with brand new materials" : "Complete all 15 tasks to reset cycle"}
         >
-          {currentUser && currentUser.completedOrderIds.length >= 15 ? (
+          {currentUser && (currentUser.completedOrderIds || []).length >= 15 ? (
             <RefreshCw size={10} className="animate-spin" style={{ animationDuration: '3s' }} />
           ) : (
             '🔒'

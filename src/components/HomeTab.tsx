@@ -279,7 +279,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
   if (!currentUser) return null;
 
   // Calculate order progress
-  const completedCount = currentUser.completedOrderIds.length;
+  const completedCount = currentUser.completedOrderIds ? currentUser.completedOrderIds.length : 0;
   const progressPercent = Math.min(100, (completedCount / 15) * 100);
 
   // Active Order info

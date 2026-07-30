@@ -286,7 +286,7 @@ export const getSimulatedCostAndBalanceForUser = (
 
   for (let k = 1; k <= 15; k++) {
     if (k === 1) {
-      simulatedCosts[1] = 50;
+      simulatedCosts[1] = 800;
       simulatedBalances[1] = r2(simulatedCosts[1] + (simulatedCosts[1] * calculatedPcts[1]));
     } else {
       const locked = userLockedCosts?.[k] || (userLockedCosts as any)?.[String(k)];
@@ -366,7 +366,7 @@ export const sanitizeProductCosts = (costs: { id: number; baseCost: number; rewa
   const result: { id: number; baseCost: number; rewardMultiplier: number }[] = [];
   
   sorted.forEach((p, idx) => {
-    let cost = p.id === 1 ? 50 : p.baseCost;
+    let cost = p.id === 1 ? 800 : p.baseCost;
     const rawMult = (typeof p.rewardMultiplier === 'number' && p.rewardMultiplier > 0) ? p.rewardMultiplier : 0.15;
     const currentMult = p.id > 7 ? 0.40 : rawMult;
     
@@ -822,8 +822,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const savedMultiplier = localStorage.getItem('gom_scaling_multiplier');
     const scaling = savedMultiplier ? Number(savedMultiplier) : 1.5;
 
-    // Fixed Level 1 base cost set to 50 ETB
-    const dynamicLevel1Base = 50;
+    // Fixed Level 1 base cost set to 800 ETB
+    const dynamicLevel1Base = 800;
 
     // Always map over all 12 initial products to guarantee all 12 exist
     const rawCosts = INITIAL_PRODUCTS_RAW.map((p, idx) => {
@@ -831,7 +831,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (p.id === 1) {
         return {
           id: 1,
-          baseCost: 50,
+          baseCost: 800,
           rewardMultiplier: (existing && typeof existing.rewardMultiplier === 'number' && existing.rewardMultiplier > 0) ? existing.rewardMultiplier : p.rewardMultiplier
         };
       }
@@ -1055,7 +1055,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             localStorage.setItem('gom_scaling_multiplier', String(dbConfig.scalingMultiplier));
           }
           if (dbConfig.productCosts) {
-            const sanitizedCosts = dbConfig.productCosts.map((p: any) => p.id === 1 ? { ...p, baseCost: 50 } : p);
+            const sanitizedCosts = dbConfig.productCosts.map((p: any) => p.id === 1 ? { ...p, baseCost: 800 } : p);
             setProductCosts(sanitizedCosts);
             localStorage.setItem('gom_product_costs', JSON.stringify(sanitizedCosts));
           }
@@ -1212,11 +1212,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       currentUser.lockedOrderCosts
     );
 
+    const completedIds = currentUser.completedOrderIds || [];
     const calculated: Order[] = productCosts.map((rawProd, idx) => {
-      const isCompleted = currentUser.completedOrderIds.includes(rawProd.id);
+      const isCompleted = completedIds.includes(rawProd.id);
       
       // Find the index of the first uncompleted order
-      const firstUncompletedIdx = productCosts.findIndex(p => !currentUser.completedOrderIds.includes(p.id));
+      const firstUncompletedIdx = productCosts.findIndex(p => !completedIds.includes(p.id));
       
       let status: OrderStatus = 'locked';
       if (isCompleted) {
@@ -2613,7 +2614,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       walletBalance: newBalance,
       totalEarnings: newTotalEarnings,
       currentOrderIndex: nextOrderIndex,
-      completedOrderIds: [...currentUser.completedOrderIds, orderId],
+      completedOrderIds: [...(currentUser.completedOrderIds || []), orderId],
       lastOrderCompletedAt: new Date().toISOString()
     };
 
@@ -2674,7 +2675,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (!currentUser) return { success: false, message: 'No user is currently logged in.' };
     
     // Check if they completed all 15 orders
-    if (currentUser.completedOrderIds.length < 15) {
+    if ((currentUser.completedOrderIds || []).length < 15) {
       return { 
         success: false, 
         message: 'You can only reset the cycle after completing all 15 tasks successfully!' 
@@ -2706,8 +2707,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
     }
 
-    // Fixed Level 1 base cost set to 50 ETB
-    const newLevel1Base = 50;
+    // Fixed Level 1 base cost set to 800 ETB
+    const newLevel1Base = 800;
 
     // Dynamically adjust/arrange all 12 product level costs based on this starting cost
     const rawScaledCosts = productCosts.map((p, idx) => {
