@@ -273,12 +273,17 @@ export const getSimulatedCostAndBalanceForUser = (
                        i === 4 ? 0.32 : 
                        i === 5 ? 0.35 : 
                        i === 6 ? 0.38 : 
-                       i === 7 ? 0.40 : 0.40;
-    calculatedPcts[i] = i > 7 ? 0.40 : (
-      (typeof prodConf?.rewardMultiplier === 'number' && prodConf.rewardMultiplier > 0)
-        ? prodConf.rewardMultiplier
-        : defaultPct
-    );
+                       i === 7 ? 0.40 : 
+                       i === 8 ? 0.45 : 
+                       i === 9 ? 0.48 : 
+                       i === 10 ? 0.52 : 
+                       i === 11 ? 0.55 : 
+                       i === 12 ? 0.60 : 
+                       i === 13 ? 0.65 : 
+                       i === 14 ? 0.70 : 0.75;
+    calculatedPcts[i] = (typeof prodConf?.rewardMultiplier === 'number' && prodConf.rewardMultiplier > 0)
+      ? prodConf.rewardMultiplier
+      : defaultPct;
   }
 
   const r2 = (n: number) => Math.round(n * 100) / 100;
@@ -368,7 +373,7 @@ export const sanitizeProductCosts = (costs: { id: number; baseCost: number; rewa
   sorted.forEach((p, idx) => {
     let cost = p.id === 1 ? 800 : p.baseCost;
     const rawMult = (typeof p.rewardMultiplier === 'number' && p.rewardMultiplier > 0) ? p.rewardMultiplier : 0.15;
-    const currentMult = p.id > 7 ? 0.40 : rawMult;
+    const currentMult = rawMult;
     
     if (idx > 0) {
       const prev = result[idx - 1];
@@ -3322,12 +3327,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                            k === 4 ? 0.32 : 
                            k === 5 ? 0.35 : 
                            k === 6 ? 0.38 : 
-                           k === 7 ? 0.40 : 0.40;
-        const pct = k > 7 ? 0.40 : (
-          (typeof prodConf?.rewardMultiplier === 'number' && prodConf.rewardMultiplier > 0)
-            ? prodConf.rewardMultiplier
-            : defaultPct
-        );
+                           k === 7 ? 0.40 : 
+                           k === 8 ? 0.45 : 
+                           k === 9 ? 0.48 : 
+                           k === 10 ? 0.52 : 
+                           k === 11 ? 0.55 : 
+                           k === 12 ? 0.60 : 
+                           k === 13 ? 0.65 : 
+                           k === 14 ? 0.70 : 0.75;
+        const pct = (typeof prodConf?.rewardMultiplier === 'number' && prodConf.rewardMultiplier > 0)
+          ? prodConf.rewardMultiplier
+          : defaultPct;
         updatedLockedCosts[k] = { materialCost: cost, reward: r2(cost * pct) };
       }
     }
@@ -3340,12 +3350,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                          i === 4 ? 0.32 : 
                          i === 5 ? 0.35 : 
                          i === 6 ? 0.38 : 
-                         i === 7 ? 0.40 : 0.40;
-      const pct = i > 7 ? 0.40 : (
-        (typeof prodConf?.rewardMultiplier === 'number' && prodConf.rewardMultiplier > 0)
-          ? prodConf.rewardMultiplier
-          : defaultPct
-      );
+                         i === 7 ? 0.40 : 
+                         i === 8 ? 0.45 : 
+                         i === 9 ? 0.48 : 
+                         i === 10 ? 0.52 : 
+                         i === 11 ? 0.55 : 
+                         i === 12 ? 0.60 : 
+                         i === 13 ? 0.65 : 
+                         i === 14 ? 0.70 : 0.75;
+      const pct = (typeof prodConf?.rewardMultiplier === 'number' && prodConf.rewardMultiplier > 0)
+        ? prodConf.rewardMultiplier
+        : defaultPct;
       const cost = simulatedCosts[i] || 0;
       const reward = r2(cost * pct);
       totalEarnings = r2(totalEarnings + reward);

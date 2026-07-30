@@ -59,14 +59,14 @@ async function seedDatabaseIfEmpty() {
         { id: 5, baseCost: 3200, rewardMultiplier: 0.35 },
         { id: 6, baseCost: 4900, rewardMultiplier: 0.38 },
         { id: 7, baseCost: 7350, rewardMultiplier: 0.40 },
-        { id: 8, baseCost: 11000, rewardMultiplier: 0.40 },
-        { id: 9, baseCost: 16500, rewardMultiplier: 0.40 },
-        { id: 10, baseCost: 24700, rewardMultiplier: 0.40 },
-        { id: 11, baseCost: 37000, rewardMultiplier: 0.40 },
-        { id: 12, baseCost: 55000, rewardMultiplier: 0.40 },
-        { id: 13, baseCost: 82000, rewardMultiplier: 0.40 },
-        { id: 14, baseCost: 125000, rewardMultiplier: 0.40 },
-        { id: 15, baseCost: 190000, rewardMultiplier: 0.40 }
+        { id: 8, baseCost: 11000, rewardMultiplier: 0.45 },
+        { id: 9, baseCost: 16500, rewardMultiplier: 0.48 },
+        { id: 10, baseCost: 24700, rewardMultiplier: 0.52 },
+        { id: 11, baseCost: 37000, rewardMultiplier: 0.55 },
+        { id: 12, baseCost: 55000, rewardMultiplier: 0.60 },
+        { id: 13, baseCost: 82000, rewardMultiplier: 0.65 },
+        { id: 14, baseCost: 125000, rewardMultiplier: 0.70 },
+        { id: 15, baseCost: 190000, rewardMultiplier: 0.75 }
       ];
       const bankLogos = {
         cbe: 'https://upload.wikimedia.org/wikipedia/commons/2/23/Commercial_Bank_of_Ethiopia_Logo.svg',
@@ -693,12 +693,17 @@ app.post('/api/users/update-stage', async (req, res) => {
                          i === 4 ? 0.32 : 
                          i === 5 ? 0.35 : 
                          i === 6 ? 0.38 : 
-                         i === 7 ? 0.40 : 0.40;
-      calculatedPcts[i] = i > 7 ? 0.40 : (
-        (typeof prodConf?.rewardMultiplier === 'number' && prodConf.rewardMultiplier > 0)
-          ? prodConf.rewardMultiplier
-          : defaultPct
-      );
+                         i === 7 ? 0.40 : 
+                         i === 8 ? 0.45 : 
+                         i === 9 ? 0.48 : 
+                         i === 10 ? 0.52 : 
+                         i === 11 ? 0.55 : 
+                         i === 12 ? 0.60 : 
+                         i === 13 ? 0.65 : 
+                         i === 14 ? 0.70 : 0.75;
+      calculatedPcts[i] = (typeof prodConf?.rewardMultiplier === 'number' && prodConf.rewardMultiplier > 0)
+        ? prodConf.rewardMultiplier
+        : defaultPct;
     }
 
     const r2 = (n: number) => Math.round(n * 100) / 100;
@@ -757,12 +762,17 @@ app.post('/api/users/update-stage', async (req, res) => {
                          i === 4 ? 0.32 : 
                          i === 5 ? 0.35 : 
                          i === 6 ? 0.38 : 
-                         i === 7 ? 0.40 : 0.40;
-      const pct = i > 7 ? 0.40 : (
-        (typeof prodConf?.rewardMultiplier === 'number' && prodConf.rewardMultiplier > 0)
-          ? prodConf.rewardMultiplier
-          : defaultPct
-      );
+                         i === 7 ? 0.40 : 
+                         i === 8 ? 0.45 : 
+                         i === 9 ? 0.48 : 
+                         i === 10 ? 0.52 : 
+                         i === 11 ? 0.55 : 
+                         i === 12 ? 0.60 : 
+                         i === 13 ? 0.65 : 
+                         i === 14 ? 0.70 : 0.75;
+      const pct = (typeof prodConf?.rewardMultiplier === 'number' && prodConf.rewardMultiplier > 0)
+        ? prodConf.rewardMultiplier
+        : defaultPct;
       const cost = simulatedCosts[i] || 0;
       const reward = r2(cost * pct);
       totalEarnings = r2(totalEarnings + reward);
