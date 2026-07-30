@@ -2345,11 +2345,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     try {
-      await fetch('/api/gift-codes', {
+      const res = await fetch('/api/gift-codes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ giftCodes: updatedList }),
       });
+      if (res.ok) {
+        const data = await res.json();
+        if (data && Array.isArray(data.giftCodes)) {
+          setAdminGiftCodes(data.giftCodes);
+          localStorage.setItem('gom_admin_gift_codes', JSON.stringify(data.giftCodes));
+        }
+      }
     } catch (e) {
       console.error('Failed to sync gift code to server:', e);
     }
@@ -2396,6 +2403,54 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
 
     const normInput = normalizeCodeStr(code);
+
+    // First: Attempt atomic server-side redemption if online
+    try {
+      const serverRes = await fetch('/api/gift-codes/redeem', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          code: code,
+          userPhone: currentUser.phoneNumber,
+          userId: currentUser.id,
+        })
+      });
+
+      const data = await serverRes.json();
+
+      if (serverRes.ok && data && data.success) {
+        if (data.user) {
+          setCurrentUser(data.user);
+          localStorage.setItem('gom_current_user', JSON.stringify(data.user));
+          setUsers(prev => {
+            const next = prev.map(u => u.id === currentUser.id ? data.user : u);
+            localStorage.setItem('gom_users', JSON.stringify(next));
+            return next;
+          });
+        }
+        if (data.giftCodes && Array.isArray(data.giftCodes)) {
+          setAdminGiftCodes(data.giftCodes);
+          localStorage.setItem('gom_admin_gift_codes', JSON.stringify(data.giftCodes));
+        }
+
+        // Trigger polling refresh to sync transactions
+        fetchAllData();
+
+        return {
+          success: true,
+          message: data.message || `Gift code "${code}" redeemed successfully!`,
+          amount: data.amount,
+        };
+      } else if (data && data.error) {
+        // If server explicitly returned an error (e.g. Invalid code, Already redeemed, Wrong user)
+        return {
+          success: false,
+          message: data.error,
+        };
+      }
+    } catch (e) {
+      console.warn('[redeemGiftCode] Server endpoint unavailable or offline, proceeding with offline fallback:', e);
+    }
 
     // Refresh gift codes from backend to ensure state is latest if online
     let currentGiftList = [...adminGiftCodes];

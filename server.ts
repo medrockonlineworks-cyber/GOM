@@ -981,6 +981,56 @@ app.post('/api/recharge-codes/generated', async (req, res) => {
   }
 });
 
+// Phone & Gift Code Helpers
+function isSamePhone(phoneA: string, phoneB: string): boolean {
+  if (!phoneA || !phoneB) return false;
+  const digitsA = (phoneA || '').replace(/\D/g, '');
+  const digitsB = (phoneB || '').replace(/\D/g, '');
+  if (!digitsA || !digitsB) return false;
+  if (digitsA === digitsB) return true;
+
+  const getCoreNumber = (numStr: string) => {
+    let s = numStr.replace(/^0+/, '');
+    const countryPrefixes = ['251', '254', '234', '1', '44'];
+    for (const p of countryPrefixes) {
+      if (s.startsWith(p)) {
+        s = s.substring(p.length).replace(/^0+/, '');
+        break;
+      }
+    }
+    return s.replace(/^0+/, '');
+  };
+
+  const coreA = getCoreNumber(digitsA);
+  const coreB = getCoreNumber(digitsB);
+
+  if (coreA && coreB && coreA === coreB) return true;
+
+  if (coreA.length >= 7 && coreB.length >= 7) {
+    if (coreA.endsWith(coreB) || coreB.endsWith(coreA)) return true;
+  }
+
+  return false;
+}
+
+function normalizeGiftCode(code: string): string {
+  if (!code) return '';
+  let s = code.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+  s = s.replace(/O/g, '0').replace(/I/g, '1').replace(/L/g, '1');
+  return s;
+}
+
+function isCodeMatch(storedCode: string, inputCode: string): boolean {
+  const normStored = normalizeGiftCode(storedCode);
+  const normInput = normalizeGiftCode(inputCode);
+  if (!normStored || !normInput) return false;
+  if (normStored === normInput) return true;
+  if (normStored.length >= 4 && normInput.length >= 4) {
+    if (normStored.endsWith(normInput) || normInput.endsWith(normStored)) return true;
+  }
+  return false;
+}
+
 // GET admin gift codes
 app.get('/api/gift-codes', async (req, res) => {
   try {
@@ -1029,23 +1079,18 @@ app.post('/api/gift-codes', async (req, res) => {
     }
     
     const existing = await db.select().from(systemConfig).where(eq(systemConfig.key, 'admin_gift_codes'));
-    const existingList = existing.length > 0 ? (existing[0].productCosts as any[]) : [];
-
-    const mergedMap = new Map<string, any>();
-    for (const item of existingList) {
-      if (item && (item.code || item.id)) {
-        const key = (item.id || item.code).toString().toUpperCase();
-        mergedMap.set(key, item);
-      }
-    }
+    
+    // Clean and preserve codes using normalized gift code keys
+    const seenMap = new Map<string, any>();
     for (const item of giftCodes) {
       if (item && (item.code || item.id)) {
-        const key = (item.id || item.code).toString().toUpperCase();
-        const prev = mergedMap.get(key) || {};
-        mergedMap.set(key, { ...prev, ...item });
+        const key = normalizeGiftCode(item.code || item.id);
+        if (key) {
+          seenMap.set(key, item);
+        }
       }
     }
-    const finalCodes = Array.from(mergedMap.values());
+    const finalCodes = Array.from(seenMap.values());
 
     if (existing.length > 0) {
       await db.update(systemConfig)
@@ -1059,9 +1104,202 @@ app.post('/api/gift-codes', async (req, res) => {
         marketplaceLogos: {},
       });
     }
+
+    // Attach pending gift codes to matching target users in the DB
+    const allUsersList = await db.select().from(users);
+    for (const codeObj of finalCodes) {
+      if (codeObj && codeObj.targetPhone && codeObj.status === 'active') {
+        const matchingUser = allUsersList.find((u: any) => isSamePhone(u.phoneNumber, codeObj.targetPhone));
+        if (matchingUser) {
+          const currentPending = Array.isArray(matchingUser.pendingGiftCodes) ? matchingUser.pendingGiftCodes : [];
+          const existsInPending = currentPending.some((p: any) => isCodeMatch(p.code, codeObj.code));
+          if (!existsInPending) {
+            const updatedPending = [
+              {
+                id: codeObj.id || `GFT-${Date.now()}`,
+                code: codeObj.code,
+                amount: codeObj.amount,
+                createdAt: codeObj.createdAt || new Date().toISOString(),
+                targetPhone: codeObj.targetPhone,
+              },
+              ...currentPending,
+            ];
+            await db.update(users)
+              .set({ pendingGiftCodes: updatedPending })
+              .where(eq(users.id, matchingUser.id));
+          }
+        }
+      }
+    }
     
     res.json({ success: true, giftCodes: finalCodes });
   } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST redeem gift code endpoint (atomic server-side redemption)
+app.post('/api/gift-codes/redeem', async (req, res) => {
+  try {
+    const { code, userPhone, userId } = req.body;
+    if (!code || (!userPhone && !userId)) {
+      return res.status(400).json({ error: 'Code and user phone or ID are required.' });
+    }
+
+    const cleanCode = code.toString().trim();
+    
+    // 1. Fetch current gift codes list from systemConfig
+    const giftList = await db.select().from(systemConfig).where(eq(systemConfig.key, 'admin_gift_codes'));
+    let giftCodes = giftList.length > 0 ? (giftList[0].productCosts as any[]) : [];
+
+    // 2. Locate target user record from DB
+    let targetUserRecord: any = null;
+    if (userId) {
+      const uRows = await db.select().from(users).where(eq(users.id, userId));
+      if (uRows.length > 0) targetUserRecord = uRows[0];
+    }
+    if (!targetUserRecord && userPhone) {
+      const allUsersList = await db.select().from(users);
+      targetUserRecord = allUsersList.find((u: any) => isSamePhone(u.phoneNumber, userPhone));
+    }
+
+    const effectivePhone = targetUserRecord?.phoneNumber || userPhone || '';
+    const effectiveUserId = targetUserRecord?.id || userId || '';
+
+    // 3. Search for matching gift code in system list or user pending list
+    let matchedGift = giftCodes.find((g: any) => g && g.code && isCodeMatch(g.code, cleanCode));
+
+    if (!matchedGift && targetUserRecord && Array.isArray(targetUserRecord.pendingGiftCodes)) {
+      const pendingMatch = targetUserRecord.pendingGiftCodes.find((p: any) => p && p.code && isCodeMatch(p.code, cleanCode));
+      if (pendingMatch) {
+        matchedGift = {
+          id: pendingMatch.id,
+          code: pendingMatch.code,
+          targetPhone: pendingMatch.targetPhone || effectivePhone,
+          targetUserId: effectiveUserId,
+          amount: pendingMatch.amount,
+          createdAt: pendingMatch.createdAt,
+          status: 'active',
+        };
+      }
+    }
+
+    if (!matchedGift) {
+      return res.status(404).json({
+        error: `Invalid gift code "${cleanCode}". Please ask the administrator to generate a gift code for your phone number (${effectivePhone}).`
+      });
+    }
+
+    if (matchedGift.status === 'redeemed') {
+      return res.status(400).json({ error: `Gift code "${matchedGift.code}" has already been redeemed.` });
+    }
+
+    // 4. Phone number & Account verification
+    const isMatched = (matchedGift.targetPhone && matchedGift.targetPhone === 'ALL') ||
+                      (matchedGift.targetUserId && matchedGift.targetUserId === effectiveUserId) ||
+                      (matchedGift.targetPhone && isSamePhone(matchedGift.targetPhone, effectivePhone));
+
+    if (!isMatched) {
+      return res.status(403).json({
+        error: `This gift code was generated for another phone number (${matchedGift.targetPhone}). It cannot be redeemed by your account (${effectivePhone}).`
+      });
+    }
+
+    // 5. Calculate reward amount & update user
+    const rewardAmount = Math.max(0, Number(matchedGift.amount) || 0);
+    let updatedUserObj: any = null;
+
+    if (targetUserRecord) {
+      const currentWallet = Number(targetUserRecord.walletBalance || 0);
+      const currentEarnings = Number(targetUserRecord.totalEarnings || 0);
+      const newWallet = Math.round((currentWallet + rewardAmount) * 100) / 100;
+      const newEarnings = Math.round((currentEarnings + rewardAmount) * 100) / 100;
+      
+      const claimedList = Array.isArray(targetUserRecord.claimedGiftCodes) ? [...targetUserRecord.claimedGiftCodes] : [];
+      if (!claimedList.includes(matchedGift.code)) {
+        claimedList.push(matchedGift.code);
+      }
+      const pendingList = Array.isArray(targetUserRecord.pendingGiftCodes) 
+        ? targetUserRecord.pendingGiftCodes.filter((p: any) => !isCodeMatch(p.code, cleanCode)) 
+        : [];
+
+      updatedUserObj = {
+        ...targetUserRecord,
+        walletBalance: newWallet,
+        totalEarnings: newEarnings,
+        claimedGiftCodes: claimedList,
+        pendingGiftCodes: pendingList,
+      };
+
+      await db.update(users)
+        .set({
+          walletBalance: newWallet,
+          totalEarnings: newEarnings,
+          claimedGiftCodes: claimedList,
+          pendingGiftCodes: pendingList,
+        })
+        .where(eq(users.id, targetUserRecord.id));
+    }
+
+    // 6. Update gift code status to 'redeemed' in systemConfig
+    const nowIso = new Date().toISOString();
+    let updatedGiftCodes = giftCodes.map((g: any) => {
+      if (g && g.code && isCodeMatch(g.code, cleanCode)) {
+        return {
+          ...g,
+          status: 'redeemed',
+          redeemedBy: effectivePhone,
+          redeemedAt: nowIso,
+        };
+      }
+      return g;
+    });
+
+    if (!updatedGiftCodes.some((g: any) => isCodeMatch(g.code, cleanCode))) {
+      updatedGiftCodes.unshift({
+        ...matchedGift,
+        status: 'redeemed',
+        redeemedBy: effectivePhone,
+        redeemedAt: nowIso,
+      });
+    }
+
+    if (giftList.length > 0) {
+      await db.update(systemConfig)
+        .set({ productCosts: updatedGiftCodes })
+        .where(eq(systemConfig.key, 'admin_gift_codes'));
+    }
+
+    // 7. Record transaction entry
+    const txId = `TX-GIFT-${Date.now()}-${Math.floor(Math.random()*1000)}`;
+    const txRecord = {
+      id: txId,
+      userId: effectiveUserId,
+      userPhone: effectivePhone,
+      userName: targetUserRecord?.fullName || targetUserRecord?.username || 'User',
+      type: 'recharge',
+      amount: rewardAmount,
+      bankName: 'Official Gift Code',
+      accountNumberOrRef: matchedGift.code,
+      transactionId: matchedGift.code,
+      createdAt: nowIso,
+      status: 'approved',
+      description: `Official Gift Code Reward: ${matchedGift.code} (+${rewardAmount} ETB)`,
+    };
+    await db.insert(transactions).values(txRecord);
+
+    // 8. Log audit entry
+    await dbLogAudit(effectiveUserId, effectivePhone, 'REDEEM_GIFT_CODE', `Redeemed gift code ${matchedGift.code} for ${rewardAmount} ETB.`);
+
+    res.json({
+      success: true,
+      message: `Gift code "${matchedGift.code}" redeemed successfully! Added ${rewardAmount} ETB to your balance.`,
+      amount: rewardAmount,
+      user: updatedUserObj,
+      giftCodes: updatedGiftCodes,
+    });
+  } catch (err: any) {
+    console.error('Error redeeming gift code:', err);
     res.status(500).json({ error: err.message });
   }
 });

@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { Component, useState } from 'react';
 import { AppProvider, useApp, EXCHANGE_RATES } from './context/AppContext';
 import { useTranslation } from './utils/translations';
 import LanguageSelector from './components/LanguageSelector';
@@ -2718,12 +2718,71 @@ function AppContent() {
   );
 }
 
+interface ErrorBoundaryProps {
+  children: React.ReactNode;
+}
+
+interface ErrorBoundaryState {
+  hasError: boolean;
+  error: Error | null;
+}
+
+class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  props: ErrorBoundaryProps;
+  state: ErrorBoundaryState = {
+    hasError: false,
+    error: null,
+  };
+
+  constructor(props: ErrorBoundaryProps) {
+    super(props);
+  }
+
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('App Uncaught Error:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen bg-[#0D1B2A] text-white flex flex-col items-center justify-center p-6 text-center">
+          <div className="w-16 h-16 bg-red-500/10 text-red-400 rounded-full flex items-center justify-center mb-4 border border-red-500/20">
+            <AlertCircle size={32} />
+          </div>
+          <h2 className="text-xl font-bold mb-2">Application Notice</h2>
+          <p className="text-xs text-slate-400 max-w-sm mb-6">
+            The app encountered a temporal state mismatch. Please refresh to reload GOM smoothly.
+          </p>
+          <button
+            onClick={() => {
+              try {
+                localStorage.clear();
+              } catch (e) {}
+              window.location.reload();
+            }}
+            className="px-6 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl text-xs shadow-lg transition-all cursor-pointer"
+          >
+            Reload Application
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 export default function App() {
   return (
-    <AppProvider>
-      <MobileFrame>
-        <AppContent />
-      </MobileFrame>
-    </AppProvider>
+    <ErrorBoundary>
+      <AppProvider>
+        <MobileFrame>
+          <AppContent />
+        </MobileFrame>
+      </AppProvider>
+    </ErrorBoundary>
   );
 }
