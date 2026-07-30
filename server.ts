@@ -52,7 +52,7 @@ async function seedDatabaseIfEmpty() {
     if (existingConfig.length === 0) {
       console.log('[Seeder] Seeding default system configuration...');
       const initialProducts = [
-        { id: 1, baseCost: 800, rewardMultiplier: 0.25 },
+        { id: 1, baseCost: 50, rewardMultiplier: 0.25 },
         { id: 2, baseCost: 995, rewardMultiplier: 0.27 },
         { id: 3, baseCost: 1264, rewardMultiplier: 0.30 },
         { id: 4, baseCost: 2098, rewardMultiplier: 0.32 },
@@ -707,7 +707,7 @@ app.post('/api/users/update-stage', async (req, res) => {
 
     for (let k = 1; k <= 15; k++) {
       if (k === 1) {
-        simulatedCosts[1] = 800;
+        simulatedCosts[1] = 50;
         simulatedBalances[1] = r2(simulatedCosts[1] + (simulatedCosts[1] * calculatedPcts[1]));
       } else {
         const locked = existingLockedCosts[k] || existingLockedCosts[String(k)];
@@ -718,17 +718,16 @@ app.post('/api/users/update-stage', async (req, res) => {
             : r2(simulatedCosts[k] * calculatedPcts[k]);
           simulatedBalances[k] = r2(simulatedCosts[k] + lockedReward);
         } else {
-          const decimalK = decimalsPool[(userSeed + k) % decimalsPool.length];
           if (k === 4) {
-            simulatedCosts[k] = r2(simulatedBalances[3] + (simulatedBalances[3] * 0.30) + decimalK);
+            simulatedCosts[k] = r2(simulatedBalances[3] + 399);
           } else if (k === 8) {
-            simulatedCosts[k] = r2(simulatedBalances[7] + (simulatedBalances[7] * 0.38) + decimalK);
-          } else if (k === 11) {
-            simulatedCosts[k] = r2(simulatedBalances[10] + (simulatedBalances[10] * 0.30) + decimalK);
+            simulatedCosts[k] = r2(simulatedBalances[7] + 2497);
+          } else if (k === 12) {
+            simulatedCosts[k] = r2(simulatedBalances[11] + 10832);
           } else if (k === 15) {
-            simulatedCosts[k] = r2(simulatedBalances[14] + (simulatedBalances[14] * 0.13) + decimalK);
+            simulatedCosts[k] = r2(simulatedBalances[14] + 26600);
           } else {
-            simulatedCosts[k] = r2(simulatedBalances[k - 1] - 5 + (decimalK - 0.5));
+            simulatedCosts[k] = r2(simulatedBalances[k - 1] - 5);
           }
           simulatedBalances[k] = r2(simulatedBalances[k - 1] + (simulatedCosts[k] * calculatedPcts[k]));
         }

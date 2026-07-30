@@ -286,7 +286,7 @@ export const getSimulatedCostAndBalanceForUser = (
 
   for (let k = 1; k <= 15; k++) {
     if (k === 1) {
-      simulatedCosts[1] = 800;
+      simulatedCosts[1] = 50;
       simulatedBalances[1] = r2(simulatedCosts[1] + (simulatedCosts[1] * calculatedPcts[1]));
     } else {
       const locked = userLockedCosts?.[k] || (userLockedCosts as any)?.[String(k)];
@@ -297,17 +297,16 @@ export const getSimulatedCostAndBalanceForUser = (
           : r2(simulatedCosts[k] * calculatedPcts[k]);
         simulatedBalances[k] = r2(simulatedCosts[k] + lockedReward);
       } else {
-        const decimalK = decimalsPool[(userSeed + k) % decimalsPool.length];
         if (k === 4) {
-          simulatedCosts[k] = r2(simulatedBalances[3] + (simulatedBalances[3] * 0.30) + decimalK);
+          simulatedCosts[k] = r2(simulatedBalances[3] + 399);
         } else if (k === 8) {
-          simulatedCosts[k] = r2(simulatedBalances[7] + (simulatedBalances[7] * 0.38) + decimalK);
-        } else if (k === 11) {
-          simulatedCosts[k] = r2(simulatedBalances[10] + (simulatedBalances[10] * 0.30) + decimalK);
+          simulatedCosts[k] = r2(simulatedBalances[7] + 2497);
+        } else if (k === 12) {
+          simulatedCosts[k] = r2(simulatedBalances[11] + 10832);
         } else if (k === 15) {
-          simulatedCosts[k] = r2(simulatedBalances[14] + (simulatedBalances[14] * 0.13) + decimalK);
+          simulatedCosts[k] = r2(simulatedBalances[14] + 26600);
         } else {
-          simulatedCosts[k] = r2(simulatedBalances[k - 1] - 5 + (decimalK - 0.5));
+          simulatedCosts[k] = r2(simulatedBalances[k - 1] - 5);
         }
         simulatedBalances[k] = r2(simulatedBalances[k - 1] + (simulatedCosts[k] * calculatedPcts[k]));
       }
@@ -367,7 +366,7 @@ export const sanitizeProductCosts = (costs: { id: number; baseCost: number; rewa
   const result: { id: number; baseCost: number; rewardMultiplier: number }[] = [];
   
   sorted.forEach((p, idx) => {
-    let cost = p.id === 1 ? 800 : p.baseCost;
+    let cost = p.id === 1 ? 50 : p.baseCost;
     const rawMult = (typeof p.rewardMultiplier === 'number' && p.rewardMultiplier > 0) ? p.rewardMultiplier : 0.15;
     const currentMult = p.id > 7 ? 0.40 : rawMult;
     
@@ -823,8 +822,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const savedMultiplier = localStorage.getItem('gom_scaling_multiplier');
     const scaling = savedMultiplier ? Number(savedMultiplier) : 1.5;
 
-    // Fixed Level 1 base cost set to 800 ETB
-    const dynamicLevel1Base = 800;
+    // Fixed Level 1 base cost set to 50 ETB
+    const dynamicLevel1Base = 50;
 
     // Always map over all 12 initial products to guarantee all 12 exist
     const rawCosts = INITIAL_PRODUCTS_RAW.map((p, idx) => {
@@ -832,7 +831,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (p.id === 1) {
         return {
           id: 1,
-          baseCost: 800,
+          baseCost: 50,
           rewardMultiplier: (existing && typeof existing.rewardMultiplier === 'number' && existing.rewardMultiplier > 0) ? existing.rewardMultiplier : p.rewardMultiplier
         };
       }
@@ -1056,7 +1055,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             localStorage.setItem('gom_scaling_multiplier', String(dbConfig.scalingMultiplier));
           }
           if (dbConfig.productCosts) {
-            const sanitizedCosts = dbConfig.productCosts.map((p: any) => p.id === 1 ? { ...p, baseCost: 800 } : p);
+            const sanitizedCosts = dbConfig.productCosts.map((p: any) => p.id === 1 ? { ...p, baseCost: 50 } : p);
             setProductCosts(sanitizedCosts);
             localStorage.setItem('gom_product_costs', JSON.stringify(sanitizedCosts));
           }
@@ -2707,8 +2706,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
     }
 
-    // Fixed Level 1 base cost set to 800 ETB
-    const newLevel1Base = 800;
+    // Fixed Level 1 base cost set to 50 ETB
+    const newLevel1Base = 50;
 
     // Dynamically adjust/arrange all 12 product level costs based on this starting cost
     const rawScaledCosts = productCosts.map((p, idx) => {
