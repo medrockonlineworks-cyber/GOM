@@ -253,62 +253,67 @@ export const getSimulatedCostAndBalanceForUser = (
   productCosts: { id: number; baseCost: number; rewardMultiplier: number }[],
   userLockedCosts?: { [key: number]: { materialCost: number; reward: number } }
 ) => {
-  let userSeed = 0;
-  const userIdStr = userId || '';
-  for (let i = 0; i < userIdStr.length; i++) {
-    userSeed = (userSeed << 5) - userSeed + userIdStr.charCodeAt(i);
-    userSeed |= 0;
-  }
-  userSeed = Math.abs(userSeed);
+  const r2 = (n: number) => Math.round(n * 100) / 100;
 
   const simulatedCosts: { [key: number]: number } = {};
+  const simulatedRewards: { [key: number]: number } = {};
   const simulatedBalances: { [key: number]: number } = {};
-  const calculatedPcts: { [key: number]: number } = {};
 
-  for (let i = 1; i <= 15; i++) {
-    const prodConf = productCosts.find(p => p.id === i);
-    const defaultPct = i === 1 ? 0.35 : 
-                       i === 2 ? 0.85 : 
-                       i === 3 ? 0.95 : 
-                       i === 4 ? 0.70 : 
-                       i === 5 ? 0.70 : 
-                       i === 6 ? 0.65 : 
-                       i === 7 ? 0.60 : 
-                       i === 8 ? 0.50 : 
-                       i === 9 ? 0.45 : 
-                       i === 10 ? 0.40 : 
-                       i === 11 ? 0.35 : 
-                       i === 12 ? 0.70 : 
-                       i === 13 ? 0.65 : 
-                       i === 14 ? 0.60 : 1.50;
-    calculatedPcts[i] = (typeof prodConf?.rewardMultiplier === 'number' && prodConf.rewardMultiplier > 0)
-      ? prodConf.rewardMultiplier
-      : defaultPct;
-  }
+  const recharges: { [key: number]: number } = {
+    1: 50,
+    4: 399,
+    8: 2497,
+    12: 10832,
+    15: 26600
+  };
 
-  const r2 = (n: number) => Math.round(n * 100) / 100;
-  const decimalsPool = [0.78, 0.45, 0.12, 0.89, 0.56, 0.23, 0.67, 0.34];
+  const baseTargetRewards: { [key: number]: number } = {
+    1: 280,
+    2: 320,
+    3: 405,
+    4: 520,
+    5: 1150,
+    6: 2100,
+    7: 6478,
+    8: 8200,
+    9: 9500,
+    10: 11000,
+    11: 13465,
+    12: 22000,
+    13: 30000,
+    14: 38865,
+    15: 50000
+  };
+
+  let currentWallet = 750;
 
   for (let k = 1; k <= 15; k++) {
-    if (k === 1) {
-      simulatedCosts[1] = 800;
-      simulatedBalances[1] = r2(simulatedCosts[1] + (simulatedCosts[1] * calculatedPcts[1]));
-    } else if (k === 4 || k === 8 || k === 12 || k === 15) {
-      const baseRecharge = k === 4 ? 3456.44 : k === 8 ? 18390 : k === 12 ? 39936 : 145633;
-      const minAdd = k === 4 ? 399 : k === 8 ? 1500 : k === 12 ? 5000 : 15000;
-      simulatedCosts[k] = Math.max(baseRecharge, r2(simulatedBalances[k - 1] + minAdd));
-      const reward = r2(simulatedCosts[k] * calculatedPcts[k]);
-      simulatedBalances[k] = r2(simulatedCosts[k] + reward);
+    const isRechargeOrder = recharges[k] !== undefined;
+
+    let materialCost = 0;
+    if (isRechargeOrder) {
+      materialCost = r2(currentWallet + recharges[k]);
     } else {
-      // Non-recharge orders: 2, 3, 5, 6, 7, 9, 10, 11, 13, 14
-      // Material cost is slightly lower than current wallet balance (by 3.50 ETB) so it can be completed without recharge
-      simulatedCosts[k] = r2(simulatedBalances[k - 1] - 3.50);
-      const reward = r2(simulatedCosts[k] * calculatedPcts[k]);
-      simulatedBalances[k] = r2(simulatedBalances[k - 1] + reward);
+      // Normal Orders (2, 3, 5, 6, 7, 9, 10, 11, 13, 14):
+      // Material cost is 1–5 ETB lower than current wallet balance
+      const offset = 3.50;
+      materialCost = r2(Math.max(10, currentWallet - offset));
     }
+
+    const prevReward = k > 1 ? simulatedRewards[k - 1] : 0;
+    let reward = baseTargetRewards[k] || r2(materialCost * 0.35);
+    if (reward <= prevReward) {
+      reward = r2(prevReward + 50);
+    }
+
+    simulatedCosts[k] = materialCost;
+    simulatedRewards[k] = reward;
+
+    currentWallet = r2(currentWallet + reward);
+    simulatedBalances[k] = currentWallet;
   }
 
-  return { simulatedCosts, simulatedBalances };
+  return { simulatedCosts, simulatedRewards, simulatedBalances };
 };
 
 enum OperationType {
@@ -1201,7 +1206,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
     userSeed = Math.abs(userSeed);
 
-    const { simulatedCosts } = getSimulatedCostAndBalanceForUser(
+    const { simulatedCosts, simulatedRewards } = getSimulatedCostAndBalanceForUser(
       currentUser.id,
       productCosts,
       currentUser.lockedOrderCosts
@@ -1226,31 +1231,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         status = 'locked';
       }
 
-      // Ensure the reward commission percentage is valid (never 0, fallback to default if corrupt or undefined)
-      const defaultPct = rawProd.id === 1 ? 0.35 : 
-                         rawProd.id === 2 ? 0.85 : 
-                         rawProd.id === 3 ? 0.95 : 
-                         rawProd.id === 4 ? 0.70 : 
-                         rawProd.id === 5 ? 0.70 : 
-                         rawProd.id === 6 ? 0.65 : 
-                         rawProd.id === 7 ? 0.60 : 
-                         rawProd.id === 8 ? 0.50 : 
-                         rawProd.id === 9 ? 0.45 : 
-                         rawProd.id === 10 ? 0.40 : 
-                         rawProd.id === 11 ? 0.35 : 
-                         rawProd.id === 12 ? 0.70 : 
-                         rawProd.id === 13 ? 0.65 : 
-                         rawProd.id === 14 ? 0.60 : 1.50;
-      const pct = (typeof rawProd.rewardMultiplier === 'number' && rawProd.rewardMultiplier > 0)
-        ? rawProd.rewardMultiplier
-        : defaultPct;
-
       const r2 = (n: number) => Math.round(n * 100) / 100;
-      const cost = simulatedCosts[rawProd.id] || rawProd.baseCost;
-      const reward = r2(cost * pct);
+      const orderId = rawProd.id;
+
+      let cost = simulatedCosts[orderId] || rawProd.baseCost;
+      let reward = (simulatedRewards as any)?.[orderId] || r2(cost * 0.35);
+
+      // Dynamically adapt active order (available or in_cart) to current wallet balance
+      if (status === 'available' || status === 'in_cart') {
+        const rechargesMap: { [key: number]: number } = { 1: 50, 4: 399, 8: 2497, 12: 10832, 15: 26600 };
+        if (rechargesMap[orderId] !== undefined) {
+          cost = r2(currentUser.walletBalance + rechargesMap[orderId]);
+        } else {
+          // Normal Orders: 1-5 ETB lower than current wallet balance
+          cost = r2(Math.max(10, currentUser.walletBalance - 3.50));
+        }
+      }
 
       // Minimum Recharge calculation: (Material Cost - wallet balance)
-      // Display 0 if they have enough balance
       const minRechargeRequired = r2(Math.max(0, cost - currentUser.walletBalance));
 
       const override = currentUser.cycleProductOverrides?.find(o => o.id === rawProd.id);
@@ -3307,10 +3305,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     // Calculate simulated costs and balances for the user using existing locked costs
     const existingLocked = userToUpdate.lockedOrderCosts || {};
-    const { simulatedCosts } = getSimulatedCostAndBalanceForUser(userId, productCosts, existingLocked);
+    const { simulatedCosts, simulatedRewards } = getSimulatedCostAndBalanceForUser(userId, productCosts, existingLocked);
     const orderCost = simulatedCosts[newStage] || 0;
 
-    // Use orderCost as the new wallet balance: "the amount of that order should show in balance"
+    // Use orderCost as the new wallet balance
     const newBalance = orderCost;
 
     // Sum of rewards for completed orders (1 to newStage - 1)
@@ -3321,48 +3319,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const updatedLockedCosts = { ...existingLocked };
     for (let k = 1; k <= newStage; k++) {
       const cost = simulatedCosts[k] || 0;
-      const prodConf = productCosts.find(p => p.id === k);
-      const defaultPct = k === 1 ? 0.35 : 
-                         k === 2 ? 0.85 : 
-                         k === 3 ? 0.95 : 
-                         k === 4 ? 0.70 : 
-                         k === 5 ? 0.70 : 
-                         k === 6 ? 0.65 : 
-                         k === 7 ? 0.60 : 
-                         k === 8 ? 0.50 : 
-                         k === 9 ? 0.45 : 
-                         k === 10 ? 0.40 : 
-                         k === 11 ? 0.35 : 
-                         k === 12 ? 0.70 : 
-                         k === 13 ? 0.65 : 
-                         k === 14 ? 0.60 : 1.50;
-      const pct = (typeof prodConf?.rewardMultiplier === 'number' && prodConf.rewardMultiplier > 0)
-        ? prodConf.rewardMultiplier
-        : defaultPct;
-      updatedLockedCosts[k] = { materialCost: cost, reward: r2(cost * pct) };
+      const reward = (simulatedRewards as any)?.[k] || 0;
+      updatedLockedCosts[k] = { materialCost: cost, reward };
     }
 
     for (let i = 1; i <= newIndex; i++) {
-      const prodConf = productCosts.find(p => p.id === i);
-      const defaultPct = i === 1 ? 0.35 : 
-                         i === 2 ? 0.85 : 
-                         i === 3 ? 0.95 : 
-                         i === 4 ? 0.70 : 
-                         i === 5 ? 0.70 : 
-                         i === 6 ? 0.65 : 
-                         i === 7 ? 0.60 : 
-                         i === 8 ? 0.50 : 
-                         i === 9 ? 0.45 : 
-                         i === 10 ? 0.40 : 
-                         i === 11 ? 0.35 : 
-                         i === 12 ? 0.70 : 
-                         i === 13 ? 0.65 : 
-                         i === 14 ? 0.60 : 1.50;
-      const pct = (typeof prodConf?.rewardMultiplier === 'number' && prodConf.rewardMultiplier > 0)
-        ? prodConf.rewardMultiplier
-        : defaultPct;
-      const cost = simulatedCosts[i] || 0;
-      const reward = r2(cost * pct);
+      const reward = (simulatedRewards as any)?.[i] || 0;
       totalEarnings = r2(totalEarnings + reward);
     }
 

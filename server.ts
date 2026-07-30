@@ -681,51 +681,62 @@ app.post('/api/users/update-stage', async (req, res) => {
     }
     userSeed = Math.abs(userSeed);
 
-    const simulatedCosts: { [key: number]: number } = {};
-    const simulatedBalances: { [key: number]: number } = {};
-    const calculatedPcts: { [key: number]: number } = {};
-
-    for (let i = 1; i <= 15; i++) {
-      const prodConf = productCosts.find((p: any) => p.id === i);
-      const defaultPct = i === 1 ? 0.35 : 
-                         i === 2 ? 0.85 : 
-                         i === 3 ? 0.95 : 
-                         i === 4 ? 0.70 : 
-                         i === 5 ? 0.70 : 
-                         i === 6 ? 0.65 : 
-                         i === 7 ? 0.60 : 
-                         i === 8 ? 0.50 : 
-                         i === 9 ? 0.45 : 
-                         i === 10 ? 0.40 : 
-                         i === 11 ? 0.35 : 
-                         i === 12 ? 0.70 : 
-                         i === 13 ? 0.65 : 
-                         i === 14 ? 0.60 : 1.50;
-      calculatedPcts[i] = (typeof prodConf?.rewardMultiplier === 'number' && prodConf.rewardMultiplier > 0)
-        ? prodConf.rewardMultiplier
-        : defaultPct;
-    }
-
     const r2 = (n: number) => Math.round(n * 100) / 100;
 
-    const decimalsPool = [0.78, 0.45, 0.12, 0.89, 0.56, 0.23, 0.67, 0.34];
+    const simulatedCosts: { [key: number]: number } = {};
+    const simulatedRewards: { [key: number]: number } = {};
+    const simulatedBalances: { [key: number]: number } = {};
+
+    const recharges: { [key: number]: number } = {
+      1: 50,
+      4: 399,
+      8: 2497,
+      12: 10832,
+      15: 26600
+    };
+
+    const baseTargetRewards: { [key: number]: number } = {
+      1: 280,
+      2: 320,
+      3: 405,
+      4: 520,
+      5: 1150,
+      6: 2100,
+      7: 6478,
+      8: 8200,
+      9: 9500,
+      10: 11000,
+      11: 13465,
+      12: 22000,
+      13: 30000,
+      14: 38865,
+      15: 50000
+    };
+
+    let currentWallet = 750;
 
     for (let k = 1; k <= 15; k++) {
-      if (k === 1) {
-        simulatedCosts[1] = 800;
-        simulatedBalances[1] = r2(simulatedCosts[1] + (simulatedCosts[1] * calculatedPcts[1]));
-      } else if (k === 4 || k === 8 || k === 12 || k === 15) {
-        const baseRecharge = k === 4 ? 3456.44 : k === 8 ? 18390 : k === 12 ? 39936 : 145633;
-        const minAdd = k === 4 ? 399 : k === 8 ? 1500 : k === 12 ? 5000 : 15000;
-        simulatedCosts[k] = Math.max(baseRecharge, r2(simulatedBalances[k - 1] + minAdd));
-        const reward = r2(simulatedCosts[k] * calculatedPcts[k]);
-        simulatedBalances[k] = r2(simulatedCosts[k] + reward);
+      const isRechargeOrder = recharges[k] !== undefined;
+
+      let materialCost = 0;
+      if (isRechargeOrder) {
+        materialCost = r2(currentWallet + recharges[k]);
       } else {
-        // Non-recharge orders: 2, 3, 5, 6, 7, 9, 10, 11, 13, 14
-        simulatedCosts[k] = r2(simulatedBalances[k - 1] - 3.50);
-        const reward = r2(simulatedCosts[k] * calculatedPcts[k]);
-        simulatedBalances[k] = r2(simulatedBalances[k - 1] + reward);
+        const offset = 3.50;
+        materialCost = r2(Math.max(10, currentWallet - offset));
       }
+
+      const prevReward = k > 1 ? simulatedRewards[k - 1] : 0;
+      let reward = baseTargetRewards[k] || r2(materialCost * 0.35);
+      if (reward <= prevReward) {
+        reward = r2(prevReward + 50);
+      }
+
+      simulatedCosts[k] = materialCost;
+      simulatedRewards[k] = reward;
+
+      currentWallet = r2(currentWallet + reward);
+      simulatedBalances[k] = currentWallet;
     }
 
     const orderCost = simulatedCosts[newStage] || 0;
@@ -735,33 +746,14 @@ app.post('/api/users/update-stage', async (req, res) => {
     const updatedLockedCosts = { ...existingLockedCosts };
     for (let k = 1; k <= newStage; k++) {
       const cost = simulatedCosts[k] || 0;
-      const reward = r2(cost * calculatedPcts[k]);
+      const reward = simulatedRewards[k] || 0;
       updatedLockedCosts[k] = { materialCost: cost, reward };
     }
 
     // Sum of rewards for completed orders (1 to newStage - 1)
     let totalEarnings = 0;
     for (let i = 1; i <= newIndex; i++) {
-      const prodConf = productCosts.find((p: any) => p.id === i);
-      const defaultPct = i === 1 ? 0.35 : 
-                         i === 2 ? 0.85 : 
-                         i === 3 ? 0.95 : 
-                         i === 4 ? 0.70 : 
-                         i === 5 ? 0.70 : 
-                         i === 6 ? 0.65 : 
-                         i === 7 ? 0.60 : 
-                         i === 8 ? 0.50 : 
-                         i === 9 ? 0.45 : 
-                         i === 10 ? 0.40 : 
-                         i === 11 ? 0.35 : 
-                         i === 12 ? 0.70 : 
-                         i === 13 ? 0.65 : 
-                         i === 14 ? 0.60 : 1.50;
-      const pct = (typeof prodConf?.rewardMultiplier === 'number' && prodConf.rewardMultiplier > 0)
-        ? prodConf.rewardMultiplier
-        : defaultPct;
-      const cost = simulatedCosts[i] || 0;
-      const reward = r2(cost * pct);
+      const reward = simulatedRewards[i] || 0;
       totalEarnings = r2(totalEarnings + reward);
     }
 
