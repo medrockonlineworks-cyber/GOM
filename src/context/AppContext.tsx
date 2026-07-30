@@ -268,19 +268,19 @@ export const getSimulatedCostAndBalanceForUser = (
   for (let i = 1; i <= 15; i++) {
     const prodConf = productCosts.find(p => p.id === i);
     const defaultPct = i === 1 ? 0.25 : 
-                       i === 2 ? 0.27 : 
-                       i === 3 ? 0.30 : 
-                       i === 4 ? 0.32 : 
-                       i === 5 ? 0.35 : 
-                       i === 6 ? 0.38 : 
-                       i === 7 ? 0.40 : 
-                       i === 8 ? 0.45 : 
-                       i === 9 ? 0.48 : 
-                       i === 10 ? 0.52 : 
-                       i === 11 ? 0.55 : 
-                       i === 12 ? 0.60 : 
-                       i === 13 ? 0.65 : 
-                       i === 14 ? 0.70 : 0.75;
+                       i === 2 ? 0.70 : 
+                       i === 3 ? 0.8038 : 
+                       i === 4 ? 0.50 : 
+                       i === 5 ? 0.50 : 
+                       i === 6 ? 0.45 : 
+                       i === 7 ? 0.4101 : 
+                       i === 8 ? 0.20 : 
+                       i === 9 ? 0.15 : 
+                       i === 10 ? 0.08 : 
+                       i === 11 ? 0.0619 : 
+                       i === 12 ? 0.50 : 
+                       i === 13 ? 0.45 : 
+                       i === 14 ? 0.3705 : 1.25;
     calculatedPcts[i] = (typeof prodConf?.rewardMultiplier === 'number' && prodConf.rewardMultiplier > 0)
       ? prodConf.rewardMultiplier
       : defaultPct;
@@ -303,13 +303,13 @@ export const getSimulatedCostAndBalanceForUser = (
         simulatedBalances[k] = r2(simulatedCosts[k] + lockedReward);
       } else {
         if (k === 4) {
-          simulatedCosts[k] = r2(simulatedBalances[3] + 399);
+          simulatedCosts[k] = 3456.44;
         } else if (k === 8) {
-          simulatedCosts[k] = r2(simulatedBalances[7] + 2497);
+          simulatedCosts[k] = 18390;
         } else if (k === 12) {
-          simulatedCosts[k] = r2(simulatedBalances[11] + 10832);
+          simulatedCosts[k] = 39936;
         } else if (k === 15) {
-          simulatedCosts[k] = r2(simulatedBalances[14] + 26600);
+          simulatedCosts[k] = 145633;
         } else {
           simulatedCosts[k] = r2(simulatedBalances[k - 1] - 5);
         }
@@ -3322,19 +3322,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         const cost = simulatedCosts[k] || 0;
         const prodConf = productCosts.find(p => p.id === k);
         const defaultPct = k === 1 ? 0.25 : 
-                           k === 2 ? 0.27 : 
-                           k === 3 ? 0.30 : 
-                           k === 4 ? 0.32 : 
-                           k === 5 ? 0.35 : 
-                           k === 6 ? 0.38 : 
-                           k === 7 ? 0.40 : 
-                           k === 8 ? 0.45 : 
-                           k === 9 ? 0.48 : 
-                           k === 10 ? 0.52 : 
-                           k === 11 ? 0.55 : 
-                           k === 12 ? 0.60 : 
-                           k === 13 ? 0.65 : 
-                           k === 14 ? 0.70 : 0.75;
+                           k === 2 ? 0.70 : 
+                           k === 3 ? 0.8038 : 
+                           k === 4 ? 0.50 : 
+                           k === 5 ? 0.50 : 
+                           k === 6 ? 0.45 : 
+                           k === 7 ? 0.4101 : 
+                           k === 8 ? 0.20 : 
+                           k === 9 ? 0.15 : 
+                           k === 10 ? 0.08 : 
+                           k === 11 ? 0.0619 : 
+                           k === 12 ? 0.50 : 
+                           k === 13 ? 0.45 : 
+                           k === 14 ? 0.3705 : 1.25;
         const pct = (typeof prodConf?.rewardMultiplier === 'number' && prodConf.rewardMultiplier > 0)
           ? prodConf.rewardMultiplier
           : defaultPct;
@@ -3345,19 +3345,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     for (let i = 1; i <= newIndex; i++) {
       const prodConf = productCosts.find(p => p.id === i);
       const defaultPct = i === 1 ? 0.25 : 
-                         i === 2 ? 0.27 : 
-                         i === 3 ? 0.30 : 
-                         i === 4 ? 0.32 : 
-                         i === 5 ? 0.35 : 
-                         i === 6 ? 0.38 : 
-                         i === 7 ? 0.40 : 
-                         i === 8 ? 0.45 : 
-                         i === 9 ? 0.48 : 
-                         i === 10 ? 0.52 : 
-                         i === 11 ? 0.55 : 
-                         i === 12 ? 0.60 : 
-                         i === 13 ? 0.65 : 
-                         i === 14 ? 0.70 : 0.75;
+                         i === 2 ? 0.70 : 
+                         i === 3 ? 0.8038 : 
+                         i === 4 ? 0.50 : 
+                         i === 5 ? 0.50 : 
+                         i === 6 ? 0.45 : 
+                         i === 7 ? 0.4101 : 
+                         i === 8 ? 0.20 : 
+                         i === 9 ? 0.15 : 
+                         i === 10 ? 0.08 : 
+                         i === 11 ? 0.0619 : 
+                         i === 12 ? 0.50 : 
+                         i === 13 ? 0.45 : 
+                         i === 14 ? 0.3705 : 1.25;
       const pct = (typeof prodConf?.rewardMultiplier === 'number' && prodConf.rewardMultiplier > 0)
         ? prodConf.rewardMultiplier
         : defaultPct;
