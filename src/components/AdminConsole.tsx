@@ -1476,9 +1476,16 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
                               {tx.status === 'rejected' && (
                                 <span className="text-[9px] font-black bg-rose-100 text-rose-800 px-2 py-0.5 rounded-full uppercase">Rejected</span>
                               )}
-                              {tx.status === 'pending' && (
-                                <span className="text-[9px] font-black bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full uppercase">Pending Tax</span>
-                              )}
+                              {tx.status === 'pending' && (() => {
+                                const isExpired = (Date.now() - new Date(tx.createdAt).getTime()) > 30 * 60 * 1000;
+                                return (
+                                  <span className={`text-[9px] font-black px-2 py-0.5 rounded-full uppercase ${
+                                    isExpired ? 'bg-rose-100 text-rose-800 border border-rose-300 animate-pulse' : 'bg-amber-100 text-amber-800'
+                                  }`}>
+                                    {isExpired ? '⏰ Tax Expired (>30m App Access Deactivated)' : 'Pending Tax'}
+                                  </span>
+                                );
+                              })()}
                               {tx.status === 'tax_submitted' && (
                                 <span className="text-[9px] font-black bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full uppercase animate-pulse">Tax Submitted</span>
                               )}

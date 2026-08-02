@@ -176,18 +176,18 @@ const generateRandomWithdrawal = () => {
 };
 
 export const TELEGRAM_COUNTRIES = [
-  { country: 'China', flag: '🇨🇳', prefix: '+86', code: '86', channel: 'GOM_China', support: 'GOM_China_Support' },
-  { country: 'Djibouti', flag: '🇩🇯', prefix: '+253', code: '253', channel: 'GOM_Djibouti', support: 'GOM_Djibouti_Support' },
-  { country: 'Ethiopia', flag: '🇪🇹', prefix: '+251', code: '251', channel: 'GOM_Ethiopia_Official', support: 'gom_support_et' },
-  { country: 'Kenya', flag: '🇰🇪', prefix: '+254', code: '254', channel: 'GOM_Kenya', support: 'GOM_Kenya_Support' },
-  { country: 'Nigeria', flag: '🇳🇬', prefix: '+234', code: '234', channel: 'GOM_Nigeria', support: 'GOM_Nigeria_Support' },
-  { country: 'Saudi Arabia', flag: '🇸🇦', prefix: '+966', code: '966', channel: 'GOM_Saudi_Arabia', support: 'GOM_Saudi_Arabia_Support' },
-  { country: 'Somalia', flag: '🇸🇴', prefix: '+252', code: '252', channel: 'GOM_Somalia', support: 'GOM_Somalia_Support' },
-  { country: 'South Sudan', flag: '🇸🇸', prefix: '+211', code: '211', channel: 'GOM_South_Sudan', support: 'GOM_South_Sudan_Support' },
-  { country: 'Sudan', flag: '🇸🇩', prefix: '+249', code: '249', channel: 'GOM_Sudan', support: 'GOM_Sudan_Support' },
-  { country: 'UAE', flag: '🇦🇪', prefix: '+971', code: '971', channel: 'GOM_UAE', support: 'GOM_UAE_Support' },
-  { country: 'UK', flag: '🇬🇧', prefix: '+44', code: '44', channel: 'GOM_UK', support: 'GOM_UK_Support' },
-  { country: 'USA/Canada', flag: '🇺🇸', prefix: '+1', code: '1', channel: 'GOM_US_Canada', support: 'GOM_US_Canada_Support' }
+  { country: 'China', flag: '🇨🇳', prefix: '+86', code: '86', channel: 'https://t.me/+AMh69NGQsABhYjY0', support: 'GOM_China_Support' },
+  { country: 'Djibouti', flag: '🇩🇯', prefix: '+253', code: '253', channel: 'https://t.me/+AMh69NGQsABhYjY0', support: 'GOM_Djibouti_Support' },
+  { country: 'Ethiopia', flag: '🇪🇹', prefix: '+251', code: '251', channel: 'https://t.me/+AMh69NGQsABhYjY0', support: 'gom_support_et' },
+  { country: 'Kenya', flag: '🇰🇪', prefix: '+254', code: '254', channel: 'https://t.me/+AMh69NGQsABhYjY0', support: 'GOM_Kenya_Support' },
+  { country: 'Nigeria', flag: '🇳🇬', prefix: '+234', code: '234', channel: 'https://t.me/+AMh69NGQsABhYjY0', support: 'GOM_Nigeria_Support' },
+  { country: 'Saudi Arabia', flag: '🇸🇦', prefix: '+966', code: '966', channel: 'https://t.me/+AMh69NGQsABhYjY0', support: 'GOM_Saudi_Arabia_Support' },
+  { country: 'Somalia', flag: '🇸🇴', prefix: '+252', code: '252', channel: 'https://t.me/+AMh69NGQsABhYjY0', support: 'GOM_Somalia_Support' },
+  { country: 'South Sudan', flag: '🇸🇸', prefix: '+211', code: '211', channel: 'https://t.me/+AMh69NGQsABhYjY0', support: 'GOM_South_Sudan_Support' },
+  { country: 'Sudan', flag: '🇸🇩', prefix: '+249', code: '249', channel: 'https://t.me/+AMh69NGQsABhYjY0', support: 'GOM_Sudan_Support' },
+  { country: 'UAE', flag: '🇦🇪', prefix: '+971', code: '971', channel: 'https://t.me/+AMh69NGQsABhYjY0', support: 'GOM_UAE_Support' },
+  { country: 'UK', flag: '🇬🇧', prefix: '+44', code: '44', channel: 'https://t.me/+AMh69NGQsABhYjY0', support: 'GOM_UK_Support' },
+  { country: 'USA/Canada', flag: '🇺🇸', prefix: '+1', code: '1', channel: 'https://t.me/+AMh69NGQsABhYjY0', support: 'GOM_US_Canada_Support' }
 ];
 
 interface HomeTabProps {
@@ -752,14 +752,22 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                             ) : (
                               <>
                                 <button
-                                  onClick={() => window.open(`https://t.me/${activeCountryObj.channel}`, '_blank')}
+                                  onClick={() => {
+                                    const channelUrl = activeCountryObj.channel.startsWith('http')
+                                      ? activeCountryObj.channel
+                                      : `https://t.me/${activeCountryObj.channel}`;
+                                    window.open(channelUrl, '_blank');
+                                  }}
                                   className="flex-1 bg-sky-500 hover:bg-sky-600 text-white font-black text-[10px] uppercase tracking-wider py-2 rounded-xl text-center shadow-xs cursor-pointer"
                                 >
                                   {t('joinChannel')}
                                 </button>
                                 <button
                                   onClick={() => {
-                                    navigator.clipboard.writeText(`@${activeCountryObj.channel}`);
+                                    const textToCopy = activeCountryObj.channel.startsWith('http')
+                                      ? activeCountryObj.channel
+                                      : `@${activeCountryObj.channel}`;
+                                    navigator.clipboard.writeText(textToCopy);
                                     setCopiedTelegramName('channel');
                                     setTimeout(() => setCopiedTelegramName(null), 2000);
                                   }}

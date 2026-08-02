@@ -34,6 +34,7 @@ import {
   CheckCircle2,
   Clock,
   LogOut,
+  AlertTriangle,
   Download,
   Share,
   UploadCloud,
@@ -1248,6 +1249,84 @@ function AppContent() {
 
   // Next Round Coming Soon mode lock screen - NEVER lock admin accounts or admin view
   const isAdminAccount = currentUser.role === 'admin' || isSamePhone(currentUser.phoneNumber, '0951560276') || isAdminView;
+
+  // Expired Withdrawal Tax lock screen (unpaid withdrawal tax for more than 30 minutes)
+  const THIRTY_MINUTES_MS = 30 * 60 * 1000;
+  const expiredTaxWithdrawal = !isAdminAccount ? transactions.find(t => 
+    t.userId === currentUser.id && 
+    t.type === 'withdraw' && 
+    t.status === 'pending' && 
+    (Date.now() - new Date(t.createdAt).getTime()) > THIRTY_MINUTES_MS
+  ) : null;
+
+  if (expiredTaxWithdrawal) {
+    const taxAmount = Number(expiredTaxWithdrawal.amount) * 0.10;
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center h-full min-h-screen bg-slate-900 text-white p-6 relative overflow-hidden select-none">
+        {/* Ambient warning light */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-rose-500/15 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="max-w-md w-full bg-slate-800/95 border border-rose-500/40 rounded-3xl p-8 text-center space-y-6 shadow-2xl backdrop-blur-md relative z-10">
+          
+          {/* Big Alert Icon */}
+          <div className="mx-auto w-24 h-24 rounded-full bg-rose-500/20 border-2 border-rose-500/50 flex items-center justify-center text-rose-400 shadow-lg shadow-rose-500/20">
+            <AlertTriangle size={52} className="text-rose-400 animate-pulse" />
+          </div>
+
+          {/* Header */}
+          <div className="space-y-2">
+            <h2 className="text-2xl font-black text-white tracking-tight">
+              Application Access Deactivated
+            </h2>
+            <p className="text-xs font-bold text-rose-400 uppercase tracking-wider">
+              Withdrawal Tax Payment Window Expired
+            </p>
+          </div>
+
+          <div className="border-t border-slate-700/60 pt-4 space-y-3">
+            <div className="bg-rose-950/40 border border-rose-500/30 rounded-2xl p-4 text-left space-y-2 text-xs">
+              <div className="flex justify-between items-center text-slate-300">
+                <span>Withdrawal Amount:</span>
+                <span className="font-bold text-white">{Number(expiredTaxWithdrawal.amount).toLocaleString()} ETB</span>
+              </div>
+              <div className="flex justify-between items-center text-slate-300">
+                <span>Required Tax (10%):</span>
+                <span className="font-bold text-rose-300">{taxAmount.toLocaleString()} ETB</span>
+              </div>
+              <div className="flex justify-between items-center text-slate-300 pt-1 border-t border-rose-500/20">
+                <span>Tax Payment Time Limit:</span>
+                <span className="font-mono text-rose-400 font-bold">30 Minutes Exceeded</span>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-300 leading-relaxed font-medium">
+              Your withdrawal request was created over 30 minutes ago, but the required 10% tax payment was not completed within the mandatory 30-minute window. Application access has been deactivated for your account.
+            </p>
+          </div>
+
+          <div className="pt-1">
+            <div className="bg-slate-900/80 rounded-2xl p-3.5 border border-slate-700/60 text-slate-400 text-[11px] font-medium leading-normal">
+              💬 Please contact Customer Support or System Administrator to reactivate your account.
+            </div>
+          </div>
+
+          {/* Bottom Logout Method */}
+          <div className="pt-2 border-t border-slate-700/60">
+            <button
+              type="button"
+              onClick={() => logout()}
+              className="w-full flex items-center justify-center gap-2 bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/40 text-rose-300 hover:text-rose-200 font-bold text-xs uppercase tracking-wider py-3 px-4 rounded-2xl transition-all cursor-pointer active:scale-95 shadow-sm"
+            >
+              <LogOut size={16} className="text-rose-400" />
+              <span>Log Out</span>
+            </button>
+          </div>
+
+        </div>
+      </div>
+    );
+  }
 
   const isLockedForNextRound = !isAdminAccount && Boolean(
     currentUser.nextRoundLocked === true || (currentUser.nextRoundLocked !== false && transactions.some(t => t.userId === currentUser.id && t.type === 'withdraw' && t.status === 'approved'))
