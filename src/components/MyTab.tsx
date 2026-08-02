@@ -113,7 +113,7 @@ const customVerifyT = {
     copyCbe: 'Copy CBE Account',
     copiedAlert: 'CBE account number copied to clipboard!',
     taxRefLabel: 'Tax Reference Number (FT Code)',
-    taxScreenshotLabel: 'Tax Payment Screenshot',
+    taxScreenshotLabel: 'Tax Payment Screenshot (Optional)',
     clickToUpload: 'Click to upload or drag & drop',
     supportedImages: 'Supported images (PNG, JPG)',
     submitTaxProof: 'Submit Tax Proof',

@@ -218,7 +218,7 @@ const paymentGuideTranslations: Record<string, {
     cbeSteps: [
       "Copy our official CBE Account Number shown above: 1000419524747.",
       "Open your CBE Mobile Banking app, or dial *889#.",
-      "Transfer your desired recharge amount to Ethiopia agent-Leykun jemaneh.",
+      "Transfer your desired recharge amount to Ethiopia agent.",
       "Copy the 12-digit transaction reference ID (usually starts with 'FT' or is purely numeric) from your confirmation SMS/receipt.",
       "Enter that exact 12-digit reference ID in the field below, and click 'Submit'."
     ],
@@ -227,7 +227,7 @@ const paymentGuideTranslations: Record<string, {
       "Copy our official Telebirr Number shown above: 0926193920.",
       "Open your Telebirr app or dial *127# on your phone.",
       "Select 'Send Money', choose 'To mobile number', and enter our agent number.",
-      "Send the desired recharge amount to Ethiopia agent-Leykun jemaneh.",
+      "Send the desired recharge amount to Ethiopia agent.",
       "Copy the 10-digit transaction ID from your confirmation SMS/receipt (usually starts with 'PP' or 'TX').",
       "Enter the exact 10-digit ID in the field below, and click 'Submit'."
     ],
@@ -259,7 +259,7 @@ const paymentGuideTranslations: Record<string, {
     cbeSteps: [
       "ከላይ የሚታየውን ይፋዊ የCBE አካውንት ቁጥራችንን ይቅዱ፡ 1000419524747።",
       "የCBE ሞባይል ባንኪንግ መተግበሪያን ይክፈቱ ወይም *889# ይደውሉ።",
-      "የሚፈልጉትን የማስቀመጫ መጠን ወደ Ethiopia agent-Leykun jemaneh ያስተላልፉ።",
+      "የሚፈልጉትን የማስቀመጫ መጠን ወደ Ethiopia agent ያስተላልፉ።",
       "ከተላከ በኋላ ከክፍያ ማረጋገጫ አጭር መልእክት (SMS) ወይም ደረሰኝ ላይ ባለ 12-ባህሪ የማጣቀሻ መለያውን (በ 'FT' የሚጀምር ወይም ሙሉ ቁጥር) ይቅዱ።",
       "ያንን ትክክለኛ ባለ 12-ባህሪ የማጣቀሻ መለያ ከታች ባለው ቦታ ላይ ያስገቡ እና 'Submit' የሚለውን በመጫን ይላኩ።"
     ],
@@ -268,7 +268,7 @@ const paymentGuideTranslations: Record<string, {
       "ከላይ የሚታየውን ይፋዊ የቴሌብር ቁጥራችንን ይቅዱ፡ 0926193920።",
       "የቴሌብር (telebirr) መተግበሪያዎን ይክፈቱ ወይም በስልክዎ ላይ *127# ይደውሉ።",
       "'Send Money' የሚለውን ይምረጡ፣ በመቀጠል 'To mobile number' መርጠው የኛን ወኪል ቁጥር ያስገቡ።",
-      "የሚፈልጉትን የገንዘብ መጠን ወደ Ethiopia agent-Leykun jemaneh ያስተላልፉ።",
+      "የሚፈልጉትን የገንዘብ መጠን ወደ Ethiopia agent ያስተላልፉ።",
       "ከክፍያ ማረጋገጫ አጭር መልእክት (SMS) ወይም ከደረሰኙ ላይ ባለ 10-ባህሪ የግብይት መለያውን (በ 'PP' ወይም 'TX' የሚጀምር) ይቅዱ።",
       "ያንን ትክክለኛ ባለ 10-ባህሪ የግብይት መለያ ከታች ያስገቡ እና 'Submit' የሚለውን በመጫን ይላኩ።"
     ],
@@ -300,7 +300,7 @@ const paymentGuideTranslations: Record<string, {
     cbeSteps: [
       "انسخ رقم حساب CBE الرسمي الموضح أعلاه: 1000419524747.",
       "افتح تطبيق الخدمات المصرفية عبر الهاتف المحمول من CBE، أو اتصل بالرمز *889#.",
-      "قم بتحويل مبلغ الشحن المطلوب إلى وكيل إثيوبيا Ethiopia agent-Leykun jemaneh.",
+      "قم بتحويل مبلغ الشحن المطلوب إلى وكيل إثيوبيا Ethiopia agent.",
       "انسخ معرف مرجع المعاملة المكون من 12 رقمًا (يبدأ عادةً بـ 'FT' أو أرقام فقط) من رسالة التأكيد النصية/الإيصال.",
       "أدخل معرف المرجع المكون من 12 رقمًا بالضبط في الحقل أدناه، وانقر فوق 'إرسال'."
     ],
@@ -309,7 +309,7 @@ const paymentGuideTranslations: Record<string, {
       "انسخ رقم تيلبير الرسمي الموضح أعلاه: 0926193920.",
       "افتح تطبيق تيلبير الخاص بك أو اتصل بالرمز *127# على هاتفك.",
       "اختر 'إرسال الأموال'، واختر 'إلى رقم الهاتف المحمول'، وأدخل رقم وكيلنا.",
-      "أرسل مبلغ الشحن المطلوب إلى وكيل إثيوبيا Ethiopia agent-Leykun jemaneh.",
+      "أرسل مبلغ الشحن المطلوب إلى وكيل إثيوبيا Ethiopia agent.",
       "انسخ معرف المعاملة المكون من 10 أرقام من رسالة التأكيد النصية/الإيصال (يبدأ عادةً بـ 'PP' أو 'TX').",
       "أدخل المعرف المكون من 10 أرقام بالضبط في الحقل أدناه، وانقر فوق 'إرسال'."
     ],
@@ -341,7 +341,7 @@ const paymentGuideTranslations: Record<string, {
     cbeSteps: [
       "复制我们上面显示的官方 CBE 账号：1000419524747。",
       "打开您的 CBE 手机银行应用，或拨打 *889#。",
-      "将您想要充值的金额转账给埃塞俄比亚代理 Ethiopia agent-Leykun jemaneh。",
+      "将您想要充值的金额转账给埃塞俄比亚代理 Ethiopia agent。",
       "从您的确认短信/收据中复制 12 位交易参考 ID（通常以 'FT' 开头或纯数字）。",
       "在下方字段中输入准确的 12 位参考 ID，然后点击'提交'。",
     ],
@@ -350,7 +350,7 @@ const paymentGuideTranslations: Record<string, {
       "复制我们上面显示的官方 Telebirr 号码：0926193920。",
       "在手机上打开您的 Telebirr 应用或拨打 *127#。",
       "选择'发送资金'，选择'发送至手机号'，然后输入我们的代理号码。",
-      "将您想要充值的金额发送给埃塞俄比亚代理 Ethiopia agent-Leykun jemaneh。",
+      "将您想要充值的金额发送给埃塞俄比亚代理 Ethiopia agent。",
       "从您的确认短信/收据中复制 10 位交易 ID（通常以 'PP' 或 'TX' 开头）。",
       "在下方字段中输入准确的 10 位 ID，然后点击'提交'。"
     ],
@@ -382,7 +382,7 @@ const paymentGuideTranslations: Record<string, {
     cbeSteps: [
       "Copie nuestro número de cuenta oficial de CBE que se muestra arriba: 1000419524747.",
       "Abra su aplicación de banca móvil de CBE, o marque *889#.",
-      "Transfiera el monto de recarga deseado al agente de Etiopía Ethiopia agent-Leykun jemaneh.",
+      "Transfiera el monto de recarga deseado al agente de Etiopía Ethiopia agent.",
       "Copie el ID de referencia de transacción de 12 dígitos (generalmente comienza con 'FT' o es puramente numérico) de su SMS o recibo de confirmación.",
       "Ingrese ese ID de referencia exacto de 12 dígitos en el campo a continuación y haga clic en 'Enviar'."
     ],
@@ -391,7 +391,7 @@ const paymentGuideTranslations: Record<string, {
       "Copie nuestro número oficial de Telebirr que se muestra arriba: 0926193920.",
       "Abra su aplicación Telebirr o marque *127# en su teléfono.",
       "Seleccione 'Enviar dinero', elija 'A número móvil' e ingrese nuestro número de agente.",
-      "Envíe el monto de recarga deseado al agente de Etiopía Ethiopia agent-Leykun jemaneh.",
+      "Envíe el monto de recarga deseado al agente de Etiopía Ethiopia agent.",
       "Copie el ID de transacción de 10 dígitos de su SMS o recibo de confirmación (generalmente comienza con 'PP' o 'TX').",
       "Ingrese el ID exacto de 10 dígitos en el campo a continuación y haga clic en 'Enviar'."
     ],
@@ -423,7 +423,7 @@ const paymentGuideTranslations: Record<string, {
     cbeSteps: [
       "Copiez notre numéro de compte CBE officiel affiché ci-dessus : 1000419524747.",
       "Ouvrez votre application de banque mobile CBE, ou composez le *889#.",
-      "Transférez le montant de recharge souhaité à l'agent d'Éthiopie Ethiopia agent-Leykun jemaneh.",
+      "Transférez le montant de recharge souhaité à l'agent d'Éthiopie Ethiopia agent.",
       "Copiez l'ID de référence de transaction à 12 chiffres (commence généralement par 'FT' ou est purement numérique) à partir de votre SMS/reçu de confirmation.",
       "Saisissez cet ID de référence exact à 12 chiffres dans le champ ci-dessous, puis cliquez sur 'Soumettre'."
     ],
@@ -432,7 +432,7 @@ const paymentGuideTranslations: Record<string, {
       "Copiez notre numéro Telebirr officiel affiché ci-dessus : 0926193920.",
       "Ouvrez votre application Telebirr ou composez le *127# sur votre téléphone.",
       "Sélectionnez 'Envoyer de l'argent', choisissez 'Vers un numéro de mobile', puis saisissez notre numéro d'agent.",
-      "Envoyez le montant de recharge souhaité à l'agent d'Éthiopie Ethiopia agent-Leykun jemaneh.",
+      "Envoyez le montant de recharge souhaité à l'agent d'Éthiopie Ethiopia agent.",
       "Copiez l'ID de transaction à 10 chiffres de votre SMS/reçu de confirmation (commence généralement par 'PP' ou 'TX').",
       "Saisissez l'ID exact à 10 chiffres dans le champ ci-dessous, puis cliquez sur 'Soumettre'."
     ],
@@ -464,7 +464,7 @@ const paymentGuideTranslations: Record<string, {
     cbeSteps: [
       "Nakili Nambari yetu rasmi ya Akaunti ya CBE iliyoonyeshwa hapo juu: 1000419524747.",
       "Fungua programu yako ya CBE Mobile Banking, au piga *889#.",
-      "Tuma kiasi chako cha recharge unachotaka kwa msimamizi wa Ethiopia Ethiopia agent-Leykun jemaneh.",
+      "Tuma kiasi chako cha recharge unachotaka kwa msimamizi wa Ethiopia Ethiopia agent.",
       "Nakili msimbo wa marejeleo wa muamala wa tarakimu 12 (kawaida huanza na 'FT' au huwa nambari tupu) kutoka kwenye SMS au risiti ya uthibitisho.",
       "Weka msimbo huo sahihi wa marejeleo wa tarakimu 12 kwenye sehemu iliyo hapa chini, na bonyeza 'Wasilisha'."
     ],
@@ -473,7 +473,7 @@ const paymentGuideTranslations: Record<string, {
       "Nakili Nambari yetu rasmi ya Telebirr iliyoonyeshwa hapo juu: 0926193920.",
       "Fungua programu yako ya Telebirr au piga *127# kwenye simu yako.",
       "Chagua 'Tuma Pesa', chagua 'Kwa nambari ya simu', na uweke nambari ya msimamizi wetu.",
-      "Tuma kiasi chako cha recharge unachotaka kwa msimamizi wa Ethiopia Ethiopia agent-Leykun jemaneh.",
+      "Tuma kiasi chako cha recharge unachotaka kwa msimamizi wa Ethiopia Ethiopia agent.",
       "Nakili msimbo wa muamala wa tarakimu 10 kutoka kwenye SMS au risiti ya uthibitisho (kawaida huanza na 'PP' au 'TX').",
       "Weka msimbo huo sahihi wa tarakimu 10 kwenye sehemu iliyo hapa chini, na bonyeza 'Wasilisha'."
     ],
@@ -505,7 +505,7 @@ const paymentGuideTranslations: Record<string, {
     cbeSteps: [
       "Koobi garee Lambarka rasmiga ah ee CBE ee kor ku xusan: 1000419524747.",
       "Fur app-ka CBE Mobile Banking, ama wac *889#.",
-      "U wareeji lacagta aad rabto inaad ku shubato wakiilka Itoobiya Ethiopia agent-Leykun jemaneh.",
+      "U wareeji lacagta aad rabto inaad ku shubato wakiilka Itoobiya Ethiopia agent.",
       "Koobi garee 12-ka lambar ee tixraaca muamala-ka (badanaa wuxuu ku bilaabmaa 'FT' ama waa lambar kaliya) ee SMS-ka xaqiijinta ama rasiidhkaaga.",
       "Geli 12-kaas lambar ee saxda ah ee tixraaca garoonka hoose, dabadeedna guji 'Gudbi'."
     ],
@@ -514,7 +514,7 @@ const paymentGuideTranslations: Record<string, {
       "Koobi garee Lambarkayaga rasmiga ah ee Telebirr ee kor ku xusan: 0926193920.",
       "Fur app-kaaga Telebirr ama wac *127# taleefankaaga.",
       "Dooro 'Send Money', dooro 'To mobile number', kuna qor lambarka wakiilkayaga.",
-      "U dir lacagta aad rabto inaad ku shubato wakiilka Itoobiya Ethiopia agent-Leykun jemaneh.",
+      "U dir lacagta aad rabto inaad ku shubato wakiilka Itoobiya Ethiopia agent.",
       "Koobi garee 10-ka lambar ee tixraaca ee SMS-ka xaqiijinta ama rasiidhkaaga (badanaa wuxuu ku bilaabmaa 'PP' ama 'TX').",
       "Geli lambarkaas saxda ah ee 10-ka ah garoonka hoose, dabadeedna guji 'Gudbi'."
     ],
@@ -546,7 +546,7 @@ const paymentGuideTranslations: Record<string, {
     cbeSteps: [
       "Copie nosso número de conta CBE oficial exibido acima: 1000419524747.",
       "Abra seu aplicativo de mobile banking do CBE ou disque *889#.",
-      "Transfira o valor de recarga desejado para o agente da Etiópia Ethiopia agent-Leykun jemaneh.",
+      "Transfira o valor de recarga desejado para o agente da Etiópia Ethiopia agent.",
       "Copie o ID de referência da transação de 12 dígitos (geralmente começa com 'FT' ou é puramente numérico) do seu SMS ou recibo de confirmação.",
       "Insira o ID de referência exato de 12 dígitos no campo abaixo e clique em 'Enviar'."
     ],
@@ -555,7 +555,7 @@ const paymentGuideTranslations: Record<string, {
       "Copie nosso número oficial do Telebirr exibido acima: 0926193920.",
       "Abra seu aplicativo Telebirr ou disque *127# no seu telefone.",
       "Selecione 'Enviar Dinheiro', escolha 'Para número de celular' e insira o número do nosso agente.",
-      "Envie o valor de recarga desejado para o agente da Etiópia Ethiopia agent-Leykun jemaneh.",
+      "Envie o valor de recarga desejado para o agente da Etiópia Ethiopia agent.",
       "Copie o ID de transação de 10 dígitos do seu SMS ou recibo de confirmação (geralmente começa com 'PP' ou 'TX').",
       "Insira o ID exato de 10 dígitos no campo abaixo e clique em 'Enviar'."
     ],
@@ -583,39 +583,6 @@ const paymentGuideTranslations: Record<string, {
     ]
   }
 };
-
-/*
-      "የቴሌብር (telebirr) መተግበሪያዎን ይክፈቱ ወይም በስልክዎ ላይ *127# ይደውሉ።",
-      "'Send Money' የሚለውን ይምረጡ፣ በመቀጠል 'To mobile number' መርጠው የኛን ወኪል ቁጥር ያስገቡ።",
-      "የሚፈልጉትን የገንዘብ መጠን ወደ Ethiopia agent-Leykun jemaneh ያስተላልፉ።",
-      "ከክፍያ ማረጋገጫ አጭር መልእክት (SMS) ወይም ከደረሰኙ ላይ ባለ 10-ባህሪ የግብይት መለያውን (በ 'PP' ወይም 'TX' የሚጀምር) ይቅዱ።",
-      "ያንን ትክክለኛ ባለ 10-ባህሪ የግብይት መለያ ከታች ያስገቡ እና 'Submit' የሚለውን በመጫን ይላኩ።"
-    ],
-    binanceTitle: "Binance Pay (USDT) - የክሪፕቶ ማስተላለፊያ መመሪያ",
-    binanceSteps: [
-      "ከላይ የሚታየውን ይፋዊ የUSDT-TRC20 የክሪፕቶ አድራሻችንን ይቅዱ።",
-      "የቢናንስ (Binance) መተግበሪያን ወይም የክሪፕቶ ቦርሳዎን ይክፈቱ እና 'Withdraw' eller 'Pay' የሚለውን ይምረጡ።",
-      "በ Tron (TRC-20) ኔትወርክ ላይ የሚፈልጉትን የUSDT መጠን ያስተላልፉ።",
-      "የማስተላለፍ ሂደቱ ሲጠናቀቅ የግብይት ሃሽ (TxID) ኮዱን ከግብይት ዝርዝሮችዎ ላይ ይቅዱ።",
-      "ያንን የTxID ኮድ ከታች በማጣቀሻ ቦታው ላይ ይለጥፉ፣ ከዚያ 'Submit' የሚለውን ይጫኑ።"
-    ],
-    intTitle: "አለም አቀፍ የክፍያ አማራጮች - የደረጃ በደረጃ መመሪያ",
-    intSteps: [
-      "ለገለጹት መጠን አስተማማኝ የክፍያ መጠየቂያ ደረሰኝ ወይም ሊንክ እንሰጥዎታለን።",
-      "ቪዛ (Visa)፣ ማስተርካርድ (Mastercard) ወይም ፔይፓል (PayPal) አካውንት በመጠቀም ክፍያውን ይፈጽሙ።",
-      "የደረሰኝ ቁጥሩን፣ የከፈሉበትን ኢሜል ወይም የማጣቀሻ ኮዱን ይያዙ።",
-      "የማጣቀሻ መረጃውን ከታች ያስገቡ እና 'Submit' የሚለውን ይጫኑ።"
-    ],
-    otherTitle: "የሀገር ውስጥ ሞባይል ገንዘብ እና ባንኮች - የደረጃ በደረጃ መመሪያ",
-    otherSteps: [
-      "ከላይ የሚታየውን የሀገር ውስጥ ወኪላችንን ሂሳብ ወይም የማስተላለፊያ መረጃ ይቅዱ።",
-      "የአካባቢዎን የሞባይል ገንዘብ (ለምሳሌ M-Pesa, EVC) ወይም ባንክ መተግበሪያ በመጠቀም ገንዘቡን ያስተላልፉ።",
-      "ከአቅራቢዎ የክፍያ ማረጋገጫ አጭር መልእክት (SMS) ወይም ደረሰኝ ላይ የማጣቀሻ ቁጥሩን ወይም የግብይት መለያውን ይቅዱ።",
-      "የማጣቀሻ ቁጥሩን ከታች ያስገቡ እና በእጅ እንዲረጋገጥ 'Submit' የሚለውን ይጫኑ።"
-    ]
-  }
-};
-*/
 
 const COUNTRIES = [
   { code: '+86', name: 'China (+86)', flag: '🇨🇳' },
@@ -1109,13 +1076,7 @@ function AppContent() {
       return;
     }
 
-    // Require screenshot to make verification fast and secure, as requested
-    if (!rechargeScreenshot) {
-      setRechargeError('Please upload an image/screenshot of your payment proof.');
-      return;
-    }
-
-    const result = await deposit(baseAmt, rechargeBank, rechargeRef, rechargeScreenshot);
+    const result = await deposit(baseAmt, rechargeBank, rechargeRef, rechargeScreenshot || undefined);
     if (!result.success) {
       setRechargeError(result.message);
       return;
@@ -1671,7 +1632,7 @@ function AppContent() {
                               {/* Ethiopia Local Accounts */}
                               {(() => {
                                 const fallbackEthAccounts = [
-                                  { id: 'acc-1', bank: 'Commercial Bank of Ethiopia (CBE)', accName: 'Ethiopia agent-Leykun jemaneh', accNo: '1000419524747' }
+                                  { id: 'acc-1', bank: 'Commercial Bank of Ethiopia (CBE)', accName: 'Ethiopia agent', accNo: '1000419524747' }
                                 ];
                                 const ethAccs = (!rechargeAccounts || rechargeAccounts.length === 0)
                                   ? fallbackEthAccounts
@@ -1852,7 +1813,7 @@ function AppContent() {
                     }
 
                     const fallbackEthAccounts = [
-                      { id: 'acc-1', bank: 'Commercial Bank of Ethiopia (CBE)', accName: 'Ethiopia agent-Leykun jemaneh', accNo: '1000419524747' }
+                      { id: 'acc-1', bank: 'Commercial Bank of Ethiopia (CBE)', accName: 'Ethiopia agent', accNo: '1000419524747' }
                     ];
                     const allEthAccounts = (rechargeAccounts && rechargeAccounts.length > 0)
                       ? rechargeAccounts.filter(a => !a.bank.toLowerCase().includes('telebirr'))
@@ -1914,31 +1875,6 @@ function AppContent() {
                               <span>Copy Account</span>
                             </button>
                           </div>
-
-                          {/* Beneficiary Name Row */}
-                          {selectedAccount.accName && (
-                            <div className="flex justify-between items-center bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs">
-                              <div className="space-y-0.5">
-                                <span className="block text-[8px] uppercase tracking-wider text-slate-400 font-extrabold">
-                                  Account Name / Beneficiary
-                                </span>
-                                <span className="block font-bold text-slate-200 select-all">
-                                  {selectedAccount.accName}
-                                </span>
-                              </div>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  navigator.clipboard.writeText(selectedAccount.accName);
-                                  alert(`Beneficiary name copied: ${selectedAccount.accName}`);
-                                }}
-                                className="bg-white/10 hover:bg-white/20 text-slate-200 border border-white/10 px-2.5 py-1 rounded-lg font-bold cursor-pointer transition-all text-[10px] flex items-center gap-1 shrink-0"
-                              >
-                                <Copy size={10} />
-                                <span>Copy Name</span>
-                              </button>
-                            </div>
-                          )}
                         </div>
                       </motion.div>
                     );
@@ -2271,7 +2207,7 @@ function AppContent() {
                     {/* Payment Proof Screenshot Upload */}
                     <div className="space-y-1.5">
                       <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-widest">
-                        Upload Payment Proof / Screenshot
+                        Upload Payment Proof / Screenshot (Optional)
                       </label>
                       
                       {!rechargeScreenshot ? (
@@ -2333,7 +2269,7 @@ function AppContent() {
                               Click to upload or drag & drop
                             </p>
                             <p className="text-[9px] text-slate-400 font-semibold">
-                              PNG, JPG, JPEG (Receipt image / screenshot)
+                              PNG, JPG, JPEG (Receipt image / screenshot - Optional)
                             </p>
                           </div>
                         </div>

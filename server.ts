@@ -165,7 +165,7 @@ async function seedDatabaseIfEmpty() {
     if (existingAccounts.length === 0) {
       console.log('[Seeder] Seeding default recharge accounts...');
       await db.insert(rechargeAccounts).values([
-        { id: 'acc-1', bank: 'Commercial Bank of Ethiopia (CBE)', accName: 'Ethiopia agent-Leykun jemaneh', accNo: '1000419524747' }
+        { id: 'acc-1', bank: 'Commercial Bank of Ethiopia (CBE)', accName: 'Ethiopia agent', accNo: '1000419524747' }
       ]);
     }
 

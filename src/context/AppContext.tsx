@@ -51,7 +51,7 @@ const DEFAULT_MARKETPLACE_LOGOS: { [key: string]: string } = {
 };
 
 export const DEFAULT_ETH_RECHARGE_ACCOUNTS: RechargeAccount[] = [
-  { id: 'acc-1', bank: 'Commercial Bank of Ethiopia (CBE)', accName: 'Ethiopia agent-Leykun jemaneh', accNo: '1000419524747' }
+  { id: 'acc-1', bank: 'Commercial Bank of Ethiopia (CBE)', accName: 'Ethiopia agent', accNo: '1000419524747' }
 ];
 
 export function ensureDefaultRechargeAccounts(list: RechargeAccount[]): RechargeAccount[] {
