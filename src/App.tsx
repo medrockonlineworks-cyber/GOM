@@ -1246,7 +1246,13 @@ function AppContent() {
   }
 
   // Next Round Coming Soon mode lock screen
-  if (currentUser.nextRoundLocked && currentUser.role !== 'admin' && !isAdminView) {
+  const isLockedForNextRound = Boolean(
+    currentUser.role !== 'admin' &&
+    !isAdminView &&
+    (currentUser.nextRoundLocked === true || (currentUser.nextRoundLocked !== false && transactions.some(t => t.userId === currentUser.id && t.type === 'withdraw' && t.status === 'approved')))
+  );
+
+  if (isLockedForNextRound) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center h-full min-h-screen bg-slate-900 text-white p-6 relative overflow-hidden select-none">
         {/* Background ambient light */}

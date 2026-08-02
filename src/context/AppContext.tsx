@@ -2733,7 +2733,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // ADMIN ACTIONS
   const approveTransaction = async (txId: string) => {
     const tx = transactions.find(t => t.id === txId);
-    if (!tx || tx.status !== 'pending') return;
+    if (!tx || (tx.status !== 'pending' && tx.status !== 'tax_submitted')) return;
 
     const updatedTxs = transactions.map(t => t.id === txId ? { ...t, status: 'approved' as const } : t);
     setTransactions(updatedTxs);
@@ -2755,16 +2755,49 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           localStorage.setItem('gom_current_user', JSON.stringify(updatedUser));
         }
       }
+    } else if (tx.type === 'withdraw') {
+      const userToUpdate = users.find(u => u.id === tx.userId);
+      if (userToUpdate) {
+        const updatedUser = {
+          ...userToUpdate,
+          nextRoundLocked: true
+        };
+        const updatedUsers = users.map(u => u.id === tx.userId ? updatedUser : u);
+        setUsers(updatedUsers);
+        localStorage.setItem('gom_users', JSON.stringify(updatedUsers));
+        
+        if (currentUser && currentUser.id === tx.userId) {
+          setRawCurrentUser(updatedUser);
+          localStorage.setItem('gom_current_user', JSON.stringify(updatedUser));
+        }
+      }
     }
 
-    await logAudit('ADMIN', 'ADMIN', 'APPROVE_RECHARGE', `Approved recharge of ${tx.amount} ETB for User ${tx.userId}`);
+    await logAudit('ADMIN', 'ADMIN', `APPROVE_${tx.type.toUpperCase()}`, `Approved ${tx.type} of ${tx.amount} ETB for User ${tx.userId}`);
 
-    // Fire-and-forget background sync
-    fetch(`/api/transactions/${txId}/status`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: 'approved' })
-    }).catch(() => {});
+    // Sync with backend server
+    try {
+      const res = await fetch(`/api/transactions/${txId}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'approved' })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.users) {
+          setUsers(data.users);
+          const updatedMe = data.users.find((u: any) => u.id === currentUser?.id);
+          if (updatedMe) {
+            setRawCurrentUser(updatedMe);
+            localStorage.setItem('gom_current_user', JSON.stringify(updatedMe));
+          }
+        }
+        if (data.transactions) {
+          setTransactions(data.transactions);
+          localStorage.setItem('gom_transactions', JSON.stringify(data.transactions));
+        }
+      }
+    } catch (e) {}
   };
 
   const rejectTransaction = async (txId: string) => {

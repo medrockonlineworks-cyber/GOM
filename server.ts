@@ -480,9 +480,13 @@ app.put('/api/transactions/:id/status', async (req, res) => {
           newBalance = Number(userToUpdate.walletBalance) + Number(tx.amount);
         }
 
-        // Update user wallet balance inside transaction block
+        const isWithdrawalApproval = status === 'approved' && tx.type === 'withdraw';
+        // Update user wallet balance & nextRoundLocked status inside transaction block
         await txDb.update(users)
-          .set({ walletBalance: newBalance })
+          .set({
+            walletBalance: newBalance,
+            ...(isWithdrawalApproval ? { nextRoundLocked: true } : {})
+          })
           .where(eq(users.id, tx.userId));
       } else {
         // If the user record was missing remotely (e.g. registered offline), create them on the fly
