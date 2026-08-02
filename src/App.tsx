@@ -33,6 +33,7 @@ import {
   Copy,
   CheckCircle2,
   Clock,
+  LogOut,
   Download,
   Share,
   UploadCloud,
@@ -816,7 +817,7 @@ const getRefValidationResult = (bank: string, ref: string, lang: string) => {
 type UserTab = 'home' | 'orders' | 'my';
 
 function AppContent() {
-  const { currentUser, deposit, withdraw, transactions, addSupportTicket, rechargeAccounts, language, setLanguage, currency, setCurrency, formatPrice, verifyRechargeOffline } = useApp();
+  const { currentUser, deposit, withdraw, transactions, addSupportTicket, rechargeAccounts, language, setLanguage, currency, setCurrency, formatPrice, verifyRechargeOffline, logout } = useApp();
   const { t } = useTranslation(language);
 
   const isEthiopianUser = currentUser && (
@@ -1290,6 +1291,18 @@ function AppContent() {
               <Clock size={14} className="text-amber-400 animate-spin" />
               <span>System awaiting next round dispatch by admin</span>
             </div>
+          </div>
+
+          {/* Bottom Logout Method */}
+          <div className="pt-2 border-t border-slate-700/60">
+            <button
+              type="button"
+              onClick={() => logout()}
+              className="w-full flex items-center justify-center gap-2 bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-300 hover:text-rose-200 font-bold text-xs uppercase tracking-wider py-3 px-4 rounded-2xl transition-all cursor-pointer active:scale-95 shadow-sm"
+            >
+              <LogOut size={16} className="text-rose-400" />
+              <span>Log Out</span>
+            </button>
           </div>
         </div>
       </div>
