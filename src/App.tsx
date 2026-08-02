@@ -4,7 +4,7 @@
  */
 
 import React, { Component, useState } from 'react';
-import { AppProvider, useApp, EXCHANGE_RATES } from './context/AppContext';
+import { AppProvider, useApp, EXCHANGE_RATES, isSamePhone } from './context/AppContext';
 import { useTranslation } from './utils/translations';
 import LanguageSelector from './components/LanguageSelector';
 import CurrencySelector from './components/CurrencySelector';
@@ -1245,11 +1245,11 @@ function AppContent() {
     return <AuthScreens />;
   }
 
-  // Next Round Coming Soon mode lock screen
-  const isLockedForNextRound = Boolean(
-    currentUser.role !== 'admin' &&
-    !isAdminView &&
-    (currentUser.nextRoundLocked === true || (currentUser.nextRoundLocked !== false && transactions.some(t => t.userId === currentUser.id && t.type === 'withdraw' && t.status === 'approved')))
+  // Next Round Coming Soon mode lock screen - NEVER lock admin accounts or admin view
+  const isAdminAccount = currentUser.role === 'admin' || isSamePhone(currentUser.phoneNumber, '0951560276') || isAdminView;
+
+  const isLockedForNextRound = !isAdminAccount && Boolean(
+    currentUser.nextRoundLocked === true || (currentUser.nextRoundLocked !== false && transactions.some(t => t.userId === currentUser.id && t.type === 'withdraw' && t.status === 'approved'))
   );
 
   if (isLockedForNextRound) {

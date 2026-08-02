@@ -3681,12 +3681,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setAdminGeneratedCodes(updatedCodes);
     localStorage.setItem('gom_generated_codes', JSON.stringify(updatedCodes));
 
-    // Sync with PostgreSQL backend
-    fetch('/api/recharge-codes/generated', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ generatedCodes: updatedCodes })
-    }).catch(err => console.error('Error syncing generated codes with server:', err));
+    // Sync with PostgreSQL backend safely
+    (async () => {
+      try {
+        await fetch('/api/recharge-codes/generated', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ generatedCodes: updatedCodes })
+        });
+      } catch (err: any) {
+        console.warn('Syncing generated codes to server skipped (offline mode):', err?.message || err);
+      }
+    })();
 
     return { success: true, code, message: 'Recharge verification code generated successfully.' };
   };
