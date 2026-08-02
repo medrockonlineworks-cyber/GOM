@@ -31,6 +31,7 @@ export interface User {
   claimedGiftCodes?: string[]; // Array of redeemed gift codes
   pendingGiftCodes?: { id: string; code: string; amount: number; createdAt: string; targetPhone: string }[];
   lockedOrderCosts?: { [orderId: number]: LockedOrderData }; // Locked costs once order is generated
+  nextRoundLocked?: boolean; // Whether user is locked in Next Round Coming Soon mode
 }
 
 export interface LockedOrderData {

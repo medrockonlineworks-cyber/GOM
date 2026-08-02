@@ -32,6 +32,7 @@ import {
   Headphones,
   Copy,
   CheckCircle2,
+  Clock,
   Download,
   Share,
   UploadCloud,
@@ -1242,6 +1243,51 @@ function AppContent() {
 
   if (!currentUser) {
     return <AuthScreens />;
+  }
+
+  // Next Round Coming Soon mode lock screen
+  if (currentUser.nextRoundLocked && currentUser.role !== 'admin' && !isAdminView) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center h-full min-h-screen bg-slate-900 text-white p-6 relative overflow-hidden select-none">
+        {/* Background ambient light */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-bronze/10 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="max-w-md w-full bg-slate-800/90 border border-slate-700/80 rounded-3xl p-8 text-center space-y-6 shadow-2xl backdrop-blur-md relative z-10">
+          
+          {/* Big Green Success Checkmark */}
+          <div className="mx-auto w-24 h-24 rounded-full bg-emerald-500/20 border-2 border-emerald-500/40 flex items-center justify-center text-emerald-400 shadow-lg shadow-emerald-500/10">
+            <CheckCircle2 size={56} className="text-emerald-400 animate-pulse" />
+          </div>
+
+          {/* Title & Message */}
+          <div className="space-y-3">
+            <h2 className="text-2xl font-black text-white tracking-tight">
+              Withdrawal Successful
+            </h2>
+            <p className="text-sm font-semibold text-emerald-400">
+              Your withdrawal has been approved successfully.
+            </p>
+          </div>
+
+          <div className="border-t border-slate-700/60 pt-5 space-y-3">
+            <span className="inline-block px-4 py-1.5 rounded-full bg-bronze/20 border border-bronze/40 text-amber-300 text-xs font-black uppercase tracking-widest">
+              Next Round Coming Soon
+            </span>
+            <p className="text-xs text-slate-300 leading-relaxed font-medium">
+              Thank you for participating. The next round will be available soon.
+            </p>
+          </div>
+
+          <div className="pt-2">
+            <div className="bg-slate-900/60 rounded-2xl p-4 border border-slate-700/50 flex items-center justify-center gap-2 text-slate-400 text-xs font-bold">
+              <Clock size={14} className="text-amber-400 animate-spin" />
+              <span>System awaiting next round dispatch by admin</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (

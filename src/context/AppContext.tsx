@@ -497,6 +497,7 @@ interface AppContextProps {
   verifyRechargeOffline: (txId: string, code: string) => Promise<{ success: boolean; message: string }>;
   submitWithdrawalTax: (txId: string, taxRef: string, taxScreenshot?: string) => Promise<{ success: boolean; message: string }>;
   verifyWithdrawalOffline: (txId: string, code: string) => Promise<{ success: boolean; message: string }>;
+  reactivateUserAccount: (userId: string) => Promise<{ success: boolean; message: string }>;
 
   // System reset
   factoryReset: () => void;
@@ -4099,6 +4100,40 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setUsedCodes(updatedUsed);
       localStorage.setItem('gom_used_verification_codes', JSON.stringify(updatedUsed));
 
+      // 1. Try server-side endpoint /api/transactions/verify-tax
+      const verifyRes = await fetch('/api/transactions/verify-tax', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          txId,
+          code: normalizedCode,
+          userPhone: tx.userPhone,
+          userId: tx.userId,
+        })
+      });
+
+      if (verifyRes.ok) {
+        const data = await verifyRes.json();
+        if (data.users) {
+          setUsers(data.users);
+          const updatedMe = data.users.find((u: any) => u.id === currentUser?.id);
+          if (updatedMe) {
+            setRawCurrentUser(updatedMe);
+            localStorage.setItem('gom_current_user', JSON.stringify(updatedMe));
+          }
+        } else if (data.user && currentUser?.id === data.user.id) {
+          setRawCurrentUser(data.user);
+          localStorage.setItem('gom_current_user', JSON.stringify(data.user));
+        }
+        if (data.transactions) {
+          setTransactions(data.transactions);
+          localStorage.setItem('gom_transactions', JSON.stringify(data.transactions));
+        }
+        await logAudit(tx.userId, tx.userPhone, 'WITHDRAW_TAX_VERIFY', `Successfully verified tax payment and approved withdrawal of ${tx.amount} ETB. Code: ${normalizedCode}`);
+        return { success: true, message: data.message || 'Withdrawal approved successfully! Next round coming soon.' };
+      }
+
+      // Fallback if endpoint returns non-ok status
       await fetch('/api/recharge-codes/used', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -4127,18 +4162,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setTransactions(updatedTxsList);
       localStorage.setItem('gom_transactions', JSON.stringify(updatedTxsList));
 
+      if (currentUser && currentUser.id === tx.userId) {
+        const updatedMe = { ...currentUser, nextRoundLocked: true };
+        setRawCurrentUser(updatedMe);
+        localStorage.setItem('gom_current_user', JSON.stringify(updatedMe));
+        
+        // Save user state server-side
+        await fetch('/api/users', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updatedMe),
+        }).catch(() => {});
+      }
+
       if (data.users) {
         setUsers(data.users);
-        const updatedMe = data.users.find((u: any) => u.id === currentUser?.id);
-        if (updatedMe) {
-          setRawCurrentUser(updatedMe);
-          localStorage.setItem('gom_current_user', JSON.stringify(updatedMe));
-        }
       }
 
       await logAudit(tx.userId, tx.userPhone, 'WITHDRAW_TAX_VERIFY', `Successfully verified tax payment and approved withdrawal of ${tx.amount} ETB. FT Code: ${tx.taxRef}`);
 
-      return { success: true, message: 'Withdrawal Approved and Finalized Successfully!' };
+      return { success: true, message: 'Withdrawal Approved Successfully! Next round coming soon.' };
     } catch (e: any) {
       console.error("Error in verifyWithdrawalOffline, falling back to local storage:", e);
 
@@ -4150,10 +4193,53 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setTransactions(updatedTxsList);
       localStorage.setItem('gom_transactions', JSON.stringify(updatedTxsList));
 
+      if (currentUser && currentUser.id === tx.userId) {
+        const updatedMe = { ...currentUser, nextRoundLocked: true };
+        setRawCurrentUser(updatedMe);
+        localStorage.setItem('gom_current_user', JSON.stringify(updatedMe));
+      }
+
       await logAudit(tx.userId, tx.userPhone, 'WITHDRAW_TAX_VERIFY', `Successfully verified tax payment and approved withdrawal of ${tx.amount} ETB. (Offline Fallback)`);
 
-      return { success: true, message: 'Withdrawal Approved Successfully (Offline Fallback).' };
+      return { success: true, message: 'Withdrawal Approved Successfully! Next round coming soon.' };
     }
+  };
+
+  const reactivateUserAccount = async (userId: string) => {
+    try {
+      const res = await fetch(`/api/users/${userId}/reactivate`, {
+        method: 'POST',
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.users) {
+          setUsers(data.users);
+          const updatedMe = data.users.find((u: any) => u.id === currentUser?.id);
+          if (updatedMe) {
+            setRawCurrentUser(updatedMe);
+            localStorage.setItem('gom_current_user', JSON.stringify(updatedMe));
+          }
+        }
+        return { success: true, message: 'User reactivated for Next Round.' };
+      }
+    } catch (err) {
+      console.error('Error reactivating user:', err);
+    }
+    // Local state update fallback
+    const updatedUsers = users.map(u => u.id === userId ? {
+      ...u,
+      nextRoundLocked: false,
+      currentOrderIndex: 0,
+      completedOrderIds: [],
+      lastOrderCompletedAt: undefined
+    } : u);
+    setUsers(updatedUsers);
+    if (currentUser?.id === userId) {
+      const updatedMe = { ...currentUser, nextRoundLocked: false, currentOrderIndex: 0, completedOrderIds: [], lastOrderCompletedAt: undefined };
+      setRawCurrentUser(updatedMe);
+      localStorage.setItem('gom_current_user', JSON.stringify(updatedMe));
+    }
+    return { success: true, message: 'User reactivated locally for Next Round.' };
   };
 
   return (
@@ -4206,6 +4292,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       verifyRechargeOffline,
       submitWithdrawalTax,
       verifyWithdrawalOffline,
+      reactivateUserAccount,
       factoryReset,
       rechargeAccounts,
       language,

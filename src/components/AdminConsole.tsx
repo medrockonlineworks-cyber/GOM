@@ -209,7 +209,8 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
     generateOfflineRechargeCode,
     adminGiftCodes,
     generateAdminGiftCode,
-    deleteAdminGiftCode
+    deleteAdminGiftCode,
+    reactivateUserAccount
   } = useApp();
 
   const { t } = useTranslation(language);
@@ -1853,6 +1854,40 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
                       userFeedback[user.id].type === 'success' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-rose-50 text-rose-800 border border-rose-200'
                     }`}>
                       {userFeedback[user.id].message}
+                    </div>
+                  )}
+
+                  {/* Next Round Locked Status & Reactivate Action */}
+                  {user.nextRoundLocked && (
+                    <div className="bg-emerald-50 border border-emerald-200/80 rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div className="space-y-0.5">
+                        <span className="text-[10px] font-black text-emerald-800 uppercase tracking-wide block flex items-center gap-1">
+                          🔒 Locked: Next Round Coming Soon
+                        </span>
+                        <span className="text-[9px] text-emerald-700 font-medium block">
+                          User verified withdrawal tax & is currently waiting on next round.
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const res = await reactivateUserAccount(user.id);
+                          setUserFeedback(prev => ({
+                            ...prev,
+                            [user.id]: { type: res.success ? 'success' : 'error', message: res.message }
+                          }));
+                          setTimeout(() => {
+                            setUserFeedback(prev => {
+                              const copy = { ...prev };
+                              delete copy[user.id];
+                              return copy;
+                            });
+                          }, 3500);
+                        }}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[10px] uppercase tracking-wider px-3.5 py-2 rounded-xl shrink-0 cursor-pointer shadow-sm transition-all active:scale-95"
+                      >
+                        🚀 Start Next Round / Unlock
+                      </button>
                     </div>
                   )}
 

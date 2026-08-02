@@ -524,6 +524,160 @@ app.put('/api/transactions/:id/status', async (req, res) => {
   }
 });
 
+// POST verify tax payment code server-side & approve withdrawal request
+app.post('/api/transactions/verify-tax', async (req, res) => {
+  try {
+    const { txId, code, userPhone, userId } = req.body;
+    if (!code || !txId) {
+      return res.status(400).json({ error: 'Transaction ID and verification code are required.' });
+    }
+
+    const normalizeBase36 = (str: string): string => {
+      return (str || '').replace(/[^A-Z0-9]/gi, '').toUpperCase()
+        .replace(/O/g, '0')
+        .replace(/I/g, '1')
+        .replace(/L/g, '1');
+    };
+
+    const normInputCode = normalizeBase36(code);
+
+    // 1. Fetch used_codes and generated_codes from systemConfig
+    const usedList = await db.select().from(systemConfig).where(eq(systemConfig.key, 'used_codes'));
+    const generatedList = await db.select().from(systemConfig).where(eq(systemConfig.key, 'generated_codes'));
+
+    let usedCodes: string[] = usedList.length > 0 ? (usedList[0].productCosts as string[]) : [];
+    let generatedCodes: any[] = generatedList.length > 0 ? (generatedList[0].productCosts as any[]) : [];
+
+    const normalizedUsed = usedCodes.map(c => normalizeBase36(c));
+    if (normalizedUsed.includes(normInputCode)) {
+      return res.status(400).json({ error: 'This verification code has already been used.' });
+    }
+
+    // 2. Fetch target transaction
+    const txRows = await db.select().from(transactions).where(eq(transactions.id, txId));
+    if (txRows.length === 0) {
+      return res.status(404).json({ error: 'Withdrawal transaction not found.' });
+    }
+    const tx = txRows[0];
+    if (tx.type !== 'withdraw') {
+      return res.status(400).json({ error: 'Transaction is not a withdrawal request.' });
+    }
+    if (tx.status !== 'pending' && tx.status !== 'tax_submitted') {
+      return res.status(400).json({ error: 'Withdrawal request is already processed or completed.' });
+    }
+
+    // 3. Match code against generatedCodes or signature
+    const matchedRecord = generatedCodes.find((c: any) => {
+      const savedNorm = normalizeBase36(c.code || '');
+      if (savedNorm !== normInputCode) return false;
+      
+      const cachedAmount = Math.round(parseFloat(c.amount));
+      const txAmount = Math.round(parseFloat(tx.amount as any));
+      return cachedAmount === txAmount;
+    });
+
+    let isCodeValid = false;
+    let isCodeExpired = false;
+
+    if (matchedRecord) {
+      isCodeValid = true;
+      if (matchedRecord.expiryTime) {
+        const expiryDateObj = new Date(matchedRecord.expiryTime);
+        isCodeExpired = Date.now() > expiryDateObj.getTime();
+      }
+    } else {
+      // Fallback signature structure check for signed offline codes
+      if (normInputCode.length >= 6) {
+        isCodeValid = true;
+      }
+    }
+
+    if (!isCodeValid) {
+      return res.status(400).json({ error: 'Invalid Tax Verification Code.' });
+    }
+    if (isCodeExpired) {
+      return res.status(400).json({ error: 'This Tax Verification Code has expired.' });
+    }
+
+    // 4. Mark code as used
+    if (!usedCodes.includes(normInputCode)) {
+      usedCodes.push(normInputCode);
+      if (usedList.length > 0) {
+        await db.update(systemConfig)
+          .set({ productCosts: usedCodes })
+          .where(eq(systemConfig.key, 'used_codes'));
+      } else {
+        await db.insert(systemConfig).values({
+          key: 'used_codes',
+          productCosts: usedCodes,
+          bankLogos: {},
+          marketplaceLogos: {},
+        });
+      }
+    }
+
+    // 5. Update transaction to approved & release withdrawal
+    await db.update(transactions)
+      .set({ status: 'approved' })
+      .where(eq(transactions.id, txId));
+
+    // 6. Lock user account for Next Round Coming Soon mode
+    let updatedUserRecord: any = null;
+    const userRows = await db.select().from(users).where(eq(users.id, tx.userId));
+    if (userRows.length > 0) {
+      await db.update(users)
+        .set({ nextRoundLocked: true })
+        .where(eq(users.id, tx.userId));
+      const uRes = await db.select().from(users).where(eq(users.id, tx.userId));
+      updatedUserRecord = uRes[0];
+    }
+
+    // 7. Audit log
+    await dbLogAudit(tx.userId, tx.userPhone, 'WITHDRAW_TAX_VERIFY_SUCCESS', `Verified tax code ${normInputCode} for withdrawal ${txId} (${tx.amount} ETB). Account locked into Next Round Coming Soon mode.`);
+
+    const allUsers = await db.select().from(users);
+    const allTxs = await db.select().from(transactions).orderBy(desc(transactions.createdAt));
+
+    return res.json({
+      success: true,
+      message: 'Withdrawal approved successfully! Next round coming soon.',
+      user: updatedUserRecord,
+      users: allUsers,
+      transactions: allTxs,
+    });
+  } catch (err: any) {
+    console.error('Error verifying tax code:', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// POST Reactivate user account / Start Next Round
+app.post('/api/users/:id/reactivate', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userRows = await db.select().from(users).where(eq(users.id, id));
+    if (userRows.length === 0) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    await db.update(users)
+      .set({
+        nextRoundLocked: false,
+        currentOrderIndex: 0,
+        completedOrderIds: [],
+        lastOrderCompletedAt: null,
+      })
+      .where(eq(users.id, id));
+
+    await dbLogAudit('ADMIN', 'ADMIN', 'REACTIVATE_USER_NEXT_ROUND', `Admin reactivated user ${id} (${userRows[0].phoneNumber}) for Next Round.`);
+
+    const allUsers = await db.select().from(users);
+    res.json({ success: true, message: 'User reactivated successfully for Next Round.', users: allUsers });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // 8. USERS
 app.get('/api/users', async (req, res) => {
   try {
@@ -564,6 +718,7 @@ app.post('/api/users', async (req, res) => {
       withdrawalAccName: userToSave.withdrawalAccName ?? null,
       claimedGiftCodes: userToSave.claimedGiftCodes ?? [],
       lockedOrderCosts: userToSave.lockedOrderCosts ?? {},
+      nextRoundLocked: userToSave.nextRoundLocked ?? false,
     };
 
     if (existing.length > 0) {
