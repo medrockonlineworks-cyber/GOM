@@ -502,9 +502,9 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
   const approvedWithdrawals = transactions.filter(t => t.type === 'withdraw' && t.status === 'approved');
   const rejectedWithdrawals = transactions.filter(t => t.type === 'withdraw' && t.status === 'rejected');
   
-  const filteredUsers = users.filter(u => 
-    u.phoneNumber.includes(searchQuery) || 
-    u.id.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredUsers = (users || []).filter(u => 
+    (u?.phoneNumber && typeof u.phoneNumber === 'string' && u.phoneNumber.includes(searchQuery)) || 
+    (u?.id && typeof u.id === 'string' && u.id.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
   const handleCreateAnnouncement = (e: React.FormEvent) => {
@@ -947,7 +947,7 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
                   ) : (
                     adminGeneratedCodes.map((item, idx) => {
                       const normalizedCode = (item.code || '').replace(/[^A-Z0-9]/gi, '').toUpperCase();
-                      const isUsed = usedCodes.includes(normalizedCode);
+                      const isUsed = Array.isArray(usedCodes) && usedCodes.includes(normalizedCode);
                       const isExpired = !isUsed && new Date() > new Date(item.expiryTime);
                       
                       let statusBadge = (
@@ -2275,7 +2275,8 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
               <h4 className="text-xs font-black text-slate-400 uppercase tracking-wider">Marketplace Platforms Banners (Homepage)</h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {Object.keys(marketplaceLogos || {}).map((marketKey) => {
-                  const currentLogo = marketplaceLogos[marketKey];
+                  const currentLogo = (marketplaceLogos && marketplaceLogos[marketKey]) || '';
+                  const isDataUrl = typeof currentLogo === 'string' && currentLogo.startsWith('data:');
                   const marketLabel = marketKey.toUpperCase();
                   
                   return (
@@ -2309,8 +2310,8 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
                           <label className="text-[10px] font-bold text-slate-400 block">Image URL</label>
                           <input 
                             type="text" 
-                            defaultValue={currentLogo.startsWith('data:') ? '' : currentLogo}
-                            placeholder={currentLogo.startsWith('data:') ? 'Base64 Encoded (File Uploaded)' : 'Enter image HTTP/HTTPS URL...'}
+                            defaultValue={isDataUrl ? '' : currentLogo}
+                            placeholder={isDataUrl ? 'Base64 Encoded (File Uploaded)' : 'Enter image HTTP/HTTPS URL...'}
                             onChange={(e) => {
                               if (e.target.value.trim()) {
                                 updateMarketplaceLogo(marketKey, e.target.value.trim());
@@ -2365,7 +2366,8 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
                   { key: 'wegagen', label: 'Wegagen Bank' },
                   { key: 'oromia', label: 'Cooperative Bank of Oromia' }
                 ].map((bankInfo) => {
-                  const currentLogo = bankLogos[bankInfo.key] || '';
+                  const currentLogo = (bankLogos && bankLogos[bankInfo.key]) || '';
+                  const isDataUrl = typeof currentLogo === 'string' && currentLogo.startsWith('data:');
                   
                   return (
                     <div key={bankInfo.key} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-3 flex flex-col justify-between">
@@ -2402,8 +2404,8 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
                           <label className="text-[10px] font-bold text-slate-400 block">Image URL</label>
                           <input 
                             type="text" 
-                            defaultValue={currentLogo.startsWith('data:') ? '' : currentLogo}
-                            placeholder={currentLogo.startsWith('data:') ? 'Base64 Encoded (File Uploaded)' : 'Enter image HTTP/HTTPS URL...'}
+                            defaultValue={isDataUrl ? '' : currentLogo}
+                            placeholder={isDataUrl ? 'Base64 Encoded (File Uploaded)' : 'Enter image HTTP/HTTPS URL...'}
                             onChange={(e) => {
                               if (e.target.value.trim()) {
                                 updateBankLogo(bankInfo.key, e.target.value.trim());
@@ -2828,17 +2830,17 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
             <div className="bg-white border border-slate-200/80 rounded-2xl p-5 space-y-4 shadow-sm">
               <div className="flex justify-between items-center">
                 <h4 className="text-xs font-black uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
-                  <KeyRound size={15} className="text-amber-600" /> Issued Unlock Codes ({unlockCodes.length})
+                  <KeyRound size={15} className="text-amber-600" /> Issued Unlock Codes ({(unlockCodes || []).length})
                 </h4>
               </div>
 
-              {unlockCodes.length === 0 ? (
+              {(unlockCodes || []).length === 0 ? (
                 <div className="text-center py-8 text-slate-400 text-xs font-medium bg-slate-50 rounded-xl border border-dashed border-slate-200">
                   No unlock codes generated yet.
                 </div>
               ) : (
                 <div className="space-y-2.5">
-                  {unlockCodes.map((uc) => (
+                  {(unlockCodes || []).map((uc) => (
                     <div
                       key={uc.id}
                       className="bg-slate-50 border border-slate-200/80 hover:border-slate-300 rounded-xl p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 transition-all"

@@ -472,3 +472,106 @@ export function verifyVerificationCode(
     return { valid: false, expired: false, expiryDate: null, error: e.message || "Unknown verification error" };
   }
 }
+
+/**
+ * Generates a signed phone-bound unlock code (Tax / Next Round)
+ * Payload format: [phone]:[type]:[expiryMinutesSinceEpoch]:salt
+ * Output: 10-character Base36 code prefixed with prefix (e.g., TL-ABCDE12345 or NR-ABCDE12345)
+ */
+export function generateSignedUnlockCode(
+  phoneNumber: string,
+  type: 'tax_timelock' | 'next_round',
+  expiryMinutes: number = 4320 // default 3 days
+): string | null {
+  try {
+    const EPOCH = 1767225600; // Jan 1, 2026
+    const expiryTimeSec = Math.floor((Date.now() + expiryMinutes * 60 * 1000) / 1000);
+    const expiryMinutesSinceEpoch = Math.max(0, Math.floor((expiryTimeSec - EPOCH) / 60));
+
+    const normPhone = normalizePhoneForCrypto(phoneNumber || 'ALL');
+    const typeStr = type === 'tax_timelock' ? 'TL' : 'NR';
+
+    const payload = `${normPhone}:${typeStr}:${expiryMinutesSinceEpoch}:gom_unlock_code_salt_2026`;
+    const hashHex = sha256(payload);
+
+    const hashBigInt = BigInt('0x' + hashHex);
+    const sigVal = Number(hashBigInt % 60466176n); // 36^5
+
+    const expiryBase36 = expiryMinutesSinceEpoch.toString(36).toUpperCase().padStart(5, '0');
+    const sigBase36 = sigVal.toString(36).toUpperCase().padStart(5, '0');
+
+    return `${typeStr}-${expiryBase36}${sigBase36}`;
+  } catch (e) {
+    console.error("Failed to generate signed unlock code:", e);
+    return null;
+  }
+}
+
+/**
+ * Verifies a signed unlock code offline using user phone number
+ */
+export function verifySignedUnlockCode(
+  code: string,
+  phoneNumber: string,
+  expectedType: 'tax_timelock' | 'next_round'
+): { valid: boolean; expired: boolean; expiryDate: Date | null; error?: string } {
+  try {
+    const rawCleaned = (code || '').replace(/[^A-Z0-9]/gi, '').toUpperCase();
+    
+    // Check if code has prefix prefix TL or NR
+    let payloadType = expectedType === 'tax_timelock' ? 'TL' : 'NR';
+    let body = rawCleaned;
+
+    if (rawCleaned.startsWith('TL')) {
+      payloadType = 'TL';
+      body = rawCleaned.substring(2);
+    } else if (rawCleaned.startsWith('NR')) {
+      payloadType = 'NR';
+      body = rawCleaned.substring(2);
+    }
+
+    if (body.length !== 10) {
+      return { valid: false, expired: false, expiryDate: null, error: "Code must contain 10 payload characters." };
+    }
+
+    const expiryBase36 = body.substring(0, 5);
+    const sigBase36 = body.substring(5);
+
+    const expiryMinutesSinceEpoch = parseInt(expiryBase36, 36);
+    if (isNaN(expiryMinutesSinceEpoch)) {
+      return { valid: false, expired: false, expiryDate: null, error: "Invalid expiry timestamp format." };
+    }
+
+    const EPOCH = 1767225600; // Jan 1, 2026
+    const expiryTimeSec = EPOCH + expiryMinutesSinceEpoch * 60;
+    const expiryDate = new Date(expiryTimeSec * 1000);
+    const nowSec = Math.floor(Date.now() / 1000);
+    const isExpired = nowSec > expiryTimeSec;
+
+    const normPhone = normalizePhoneForCrypto(phoneNumber || 'ALL');
+    const phoneVars = [normPhone, 'ALL', normalizePhoneForCrypto(phoneNumber)];
+
+    let isValid = false;
+    for (const p of phoneVars) {
+      const payload = `${p}:${payloadType}:${expiryMinutesSinceEpoch}:gom_unlock_code_salt_2026`;
+      const hashHex = sha256(payload);
+      const hashBigInt = BigInt('0x' + hashHex);
+      const expectedSigVal = Number(hashBigInt % 60466176n);
+      const expectedSigBase36 = expectedSigVal.toString(36).toUpperCase().padStart(5, '0');
+
+      if (sigBase36 === expectedSigBase36) {
+        isValid = true;
+        break;
+      }
+    }
+
+    if (!isValid) {
+      return { valid: false, expired: false, expiryDate: null, error: "Cryptographic signature mismatch for phone number." };
+    }
+
+    return { valid: true, expired: isExpired, expiryDate };
+  } catch (e: any) {
+    return { valid: false, expired: false, expiryDate: null, error: e.message || "Unlock code verification failed." };
+  }
+}
+

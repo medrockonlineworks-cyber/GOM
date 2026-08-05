@@ -267,7 +267,14 @@ export const MyTab: React.FC<MyTabProps> = ({
       withdrawalAccName: 'Account Holder Name',
       saveAccount: 'Save Account',
       withdrawalAccountRegistered: 'Withdrawal account registered successfully!',
-      comingSoon: 'Coming Soon'
+      comingSoon: 'Coming Soon',
+      giftBoxTitle: 'Gift Box & Promo Rewards',
+      claimBadge: 'CLAIM',
+      giftBoxCenterTitle: 'Gift Box & Rewards Center',
+      giftBoxCenterSub: 'Redeem promo codes & claim daily gift box rewards',
+      giftCenter: 'Gift Center',
+      enterGiftCode: 'Enter Gift Code',
+      redeem: 'Redeem'
     },
     am: {
       accountSettings: 'የመለያ ቅንብሮች',
@@ -291,7 +298,14 @@ export const MyTab: React.FC<MyTabProps> = ({
       withdrawalAccName: 'የአካውንት ባለቤት ስም',
       saveAccount: 'ሂሳብ አስቀምጥ',
       withdrawalAccountRegistered: 'የመውጫ ሂሳብዎ በተሳካ ሁኔታ ተመዝግቧል!',
-      comingSoon: 'በቅርቡ የሚመጣ'
+      comingSoon: 'በቅርቡ የሚመጣ',
+      giftBoxTitle: 'የስጦታ ሣጥን እና ማስተዋወቂያ ሽልማቶች',
+      claimBadge: 'ተቀበል',
+      giftBoxCenterTitle: 'የስጦታ ሣጥን እና ሽልማት ማዕከል',
+      giftBoxCenterSub: 'የማስተዋወቂያ ኮዶችን ይጠቀሙ እና ዕለታዊ የስጦታ ሽልማቶችን ይቀበሉ',
+      giftCenter: 'የስጦታ ማዕከል',
+      enterGiftCode: 'የስጦታ ኮድ ያስገቡ',
+      redeem: 'ተቀበል'
     },
     ar: {
       accountSettings: 'إعدادات الحساب',
@@ -315,7 +329,14 @@ export const MyTab: React.FC<MyTabProps> = ({
       withdrawalAccName: 'اسم صاحب الحساب',
       saveAccount: 'حفظ الحساب',
       withdrawalAccountRegistered: 'تم تسجيل حساب السحب بنجاح!',
-      comingSoon: 'قريباً'
+      comingSoon: 'قريباً',
+      giftBoxTitle: 'صندوق الهدايا والمكافآت الترويجية',
+      claimBadge: 'مطالبة',
+      giftBoxCenterTitle: 'مركز الهدايا والمكافآت',
+      giftBoxCenterSub: 'استرداد الرموز الترويجية والمطالبة بمكافآت صندوق الهدايا اليومية',
+      giftCenter: 'مركز الهدايا',
+      enterGiftCode: 'أدخل رمز الهدية',
+      redeem: 'استرداد'
     },
     zh: {
       accountSettings: '账户设置',
@@ -339,7 +360,14 @@ export const MyTab: React.FC<MyTabProps> = ({
       withdrawalAccName: '账户持有人姓名',
       saveAccount: '保存账户',
       withdrawalAccountRegistered: '提现账户注册成功！',
-      comingSoon: '即将推出'
+      comingSoon: '即将推出',
+      giftBoxTitle: '礼品盒与促销奖励',
+      claimBadge: '领取',
+      giftBoxCenterTitle: '礼品盒与奖励中心',
+      giftBoxCenterSub: '兑换促销代码并领取每日礼品盒奖励',
+      giftCenter: '礼品中心',
+      enterGiftCode: '输入礼品代码',
+      redeem: '兑换'
     },
     es: {
       accountSettings: 'Configuración de la Cuenta',
@@ -363,7 +391,14 @@ export const MyTab: React.FC<MyTabProps> = ({
       withdrawalAccName: 'Nombre del titular de la cuenta',
       saveAccount: 'Guardar cuenta',
       withdrawalAccountRegistered: '¡Cuenta de retiro registrada con éxito!',
-      comingSoon: 'Próximamente'
+      comingSoon: 'Próximamente',
+      giftBoxTitle: 'Caja de Regalos y Recompensas',
+      claimBadge: 'RECLAMAR',
+      giftBoxCenterTitle: 'Centro de Regalos y Recompensas',
+      giftBoxCenterSub: 'Canjear códigos promocionales y reclamar recompensas diarias',
+      giftCenter: 'Centro de Regalos',
+      enterGiftCode: 'Ingresar Código de Regalo',
+      redeem: 'Canjear'
     },
     fr: {
       accountSettings: 'Paramètres du Compte',
@@ -387,7 +422,14 @@ export const MyTab: React.FC<MyTabProps> = ({
       withdrawalAccName: 'Nom du titulaire du compte',
       saveAccount: 'Enregistrer le compte',
       withdrawalAccountRegistered: 'Compte de retrait enregistré avec succès !',
-      comingSoon: 'Bientôt disponible'
+      comingSoon: 'Bientôt disponible',
+      giftBoxTitle: 'Boîte Cadeau & Récompenses',
+      claimBadge: 'RÉCLAMER',
+      giftBoxCenterTitle: 'Centre de Cadeaux et Récompenses',
+      giftBoxCenterSub: 'Utiliser des codes promo et réclamer des récompenses quotidiennes',
+      giftCenter: 'Centre de Cadeaux',
+      enterGiftCode: 'Saisir le Code Cadeau',
+      redeem: 'Utiliser'
     },
     sw: {
       accountSettings: 'Mipangilio ya Akaunti',
@@ -411,7 +453,14 @@ export const MyTab: React.FC<MyTabProps> = ({
       withdrawalAccName: 'Jina la Mmiliki wa Akaunti',
       saveAccount: 'Hifadhi Akaunti',
       withdrawalAccountRegistered: 'Akaunti ya kutoa pesa imesajiliwa kikamilifu!',
-      comingSoon: 'Inakuja Hivi Karibuni'
+      comingSoon: 'Inakuja Hivi Karibuni',
+      giftBoxTitle: 'Sanduku la Zawadi na Tuzo',
+      claimBadge: 'DAI',
+      giftBoxCenterTitle: 'Kituo cha Zawadi na Tuzo',
+      giftBoxCenterSub: 'Komboa misimbo ya kukuza na udai tuzo za kila siku',
+      giftCenter: 'Kituo cha Zawadi',
+      enterGiftCode: 'Weka Msimbo wa Zawadi',
+      redeem: 'Komboa'
     },
     so: {
       accountSettings: 'Habaynta Koontada',
@@ -435,7 +484,14 @@ export const MyTab: React.FC<MyTabProps> = ({
       withdrawalAccName: 'Magaca Lahaa Koontada',
       saveAccount: 'Keydi Koontada',
       withdrawalAccountRegistered: 'Koontada lacag bixinta si guul leh ayaa loo diiwaangeliyay!',
-      comingSoon: 'Dhawaan Filo'
+      comingSoon: 'Dhawaan Filo',
+      giftBoxTitle: 'Sanduuqa Hadiyadda & Abaalmarinta',
+      claimBadge: 'SHEEGO',
+      giftBoxCenterTitle: 'Xarunta Hadiyadaha & Abaalmarinta',
+      giftBoxCenterSub: 'Foorno koodhadhka xayeysiinta oo sheego abaalmarinta maalinlaha ah',
+      giftCenter: 'Xarunta Hadiyadaha',
+      enterGiftCode: 'Geli Koodhka Hadiyadda',
+      redeem: 'Foorno'
     },
     pt: {
       accountSettings: 'Configurações da Conta',
@@ -459,7 +515,14 @@ export const MyTab: React.FC<MyTabProps> = ({
       withdrawalAccName: 'Nome do Titular da Conta',
       saveAccount: 'Salvar Conta',
       withdrawalAccountRegistered: 'Conta de retirada registrada com sucesso!',
-      comingSoon: 'Em breve'
+      comingSoon: 'Em breve',
+      giftBoxTitle: 'Caixa de Presentes e Recompensas',
+      claimBadge: 'RESGATAR',
+      giftBoxCenterTitle: 'Centro de Presentes e Recompensas',
+      giftBoxCenterSub: 'Resgatar códigos promocionais e obter recompensas diárias',
+      giftCenter: 'Centro de Presentes',
+      enterGiftCode: 'Insira o Código de Presente',
+      redeem: 'Resgatar'
     }
   };
 
@@ -811,12 +874,14 @@ export const MyTab: React.FC<MyTabProps> = ({
                 <Gift size={15} />
               </div>
               <div>
-                <span className="text-xs font-black text-slate-800 block">Gift Box & Promo Rewards</span>
+                <span className="text-xs font-black text-slate-800 block">
+                  {localT[language]?.giftBoxTitle || 'Gift Box & Promo Rewards'}
+                </span>
               </div>
             </div>
             <div className="flex items-center gap-1.5">
               <span className="text-[10px] font-black bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full">
-                CLAIM
+                {localT[language]?.claimBadge || 'CLAIM'}
               </span>
               <ChevronRight size={14} className="text-slate-300 group-hover:text-slate-500 transition-colors" />
             </div>
@@ -994,10 +1059,10 @@ export const MyTab: React.FC<MyTabProps> = ({
                     {activeHistoryPanel === 'bonuses' && localT[language].bonusTransactions}
                     {activeHistoryPanel === 'transactions' && t('completeLedgerLog')}
                     {activeHistoryPanel === 'orders' && t('finishedMatchingTasks')}
-                    {activeHistoryPanel === 'referrals' && 'Gift Box & Rewards Center'}
+                    {activeHistoryPanel === 'referrals' && (localT[language]?.giftBoxCenterTitle || 'Gift Box & Rewards Center')}
                   </h3>
                   <p className="text-[10px] text-slate-400 font-bold mt-0.5">
-                    {activeHistoryPanel === 'referrals' ? 'Redeem promo codes & claim daily gift box rewards' : activeHistoryPanel === 'bonuses' ? localT[language].bonusSub : t('etbAssetsLedger')}
+                    {activeHistoryPanel === 'referrals' ? (localT[language]?.giftBoxCenterSub || 'Redeem promo codes & claim daily gift box rewards') : activeHistoryPanel === 'bonuses' ? localT[language].bonusSub : t('etbAssetsLedger')}
                   </p>
                 </div>
                 <button
@@ -1219,7 +1284,9 @@ export const MyTab: React.FC<MyTabProps> = ({
                           <Gift size={16} />
                         </div>
                         <div>
-                          <h3 className="text-xs font-black uppercase tracking-wider text-white">Gift Center</h3>
+                          <h3 className="text-xs font-black uppercase tracking-wider text-white">
+                            {localT[language]?.giftCenter || 'Gift Center'}
+                          </h3>
                         </div>
                       </div>
 
@@ -1232,13 +1299,15 @@ export const MyTab: React.FC<MyTabProps> = ({
                       )}
 
                       <div className="bg-black/20 border border-white/20 rounded-xl p-3 space-y-2">
-                        <span className="block text-[10px] uppercase font-extrabold tracking-wider text-amber-100">Enter Gift Code</span>
+                        <span className="block text-[10px] uppercase font-extrabold tracking-wider text-amber-100">
+                          {localT[language]?.enterGiftCode || 'Enter Gift Code'}
+                        </span>
                         <div className="flex gap-2">
                           <input
                             type="text"
                             value={myTabGiftCodeInput}
                             onChange={(e) => setMyTabGiftCodeInput(e.target.value)}
-                            placeholder="Enter Gift Code"
+                            placeholder={localT[language]?.enterGiftCode || 'Enter Gift Code'}
                             className="flex-1 bg-white/20 border border-white/30 text-white placeholder-amber-200/70 font-mono font-bold text-xs px-3 py-2 rounded-lg focus:outline-none uppercase"
                           />
                           <button
@@ -1247,7 +1316,7 @@ export const MyTab: React.FC<MyTabProps> = ({
                             onClick={handleMyTabRedeem}
                             className="bg-white hover:bg-amber-50 disabled:opacity-50 text-slate-900 font-black text-[10px] uppercase tracking-wider px-4 py-2 rounded-lg transition-all cursor-pointer shadow-xs"
                           >
-                            Redeem
+                            {localT[language]?.redeem || 'Redeem'}
                           </button>
                         </div>
                       </div>

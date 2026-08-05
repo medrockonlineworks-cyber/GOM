@@ -357,7 +357,17 @@ export const translations: Record<Language, any> = {
     rechargeVerificationInProgress: 'Recharge verification in progress...',
     rechargePending: 'RECHARGE PENDING',
     rechargePendingDesc: 'Your recharge is currently pending admin verification. Please wait.',
-    depositCreditedNotice: 'Important: Your deposit will be credited to your account balance within 5-10 minutes after submission.'
+    depositCreditedNotice: 'Important: Your deposit will be credited to your account balance within 5-10 minutes after submission.',
+    giftBox: 'Gift Box',
+    giftCenter: 'Gift Center',
+    giftHistory: 'History',
+    redeemCode: 'Redeem Code',
+    officialGiftRewards: '🎁 Official Gift Rewards',
+    enterOfficialGiftCode: 'Enter Your Official Gift Code',
+    enterGiftCode: 'Enter Gift Code',
+    redeemGiftCode: 'Redeem Gift Code',
+    processing: 'Processing...',
+    claimedGiftHistory: 'Claimed Gift History'
   },
   am: {
     welcomeBack: "እንኳን ደህና መጡ",
@@ -715,7 +725,17 @@ export const translations: Record<Language, any> = {
     rechargeVerificationInProgress: 'የሪቻርጅ ማረጋገጫ በመከናወን ላይ...',
     rechargePending: 'ሪቻርጅ በመጠባበቅ ላይ',
     rechargePendingDesc: 'የእርስዎ ሪቻርጅ በአስተዳዳሪው በመረጋገጥ ላይ ነው። እባክዎ ይጠብቁ።',
-    depositCreditedNotice: 'ጠቃሚ ማሳሰቢያ፡ አንዴ ክፍያውን ከጨረሱና ከታች ካስገቡ በኋላ በ5-10 ደቂቃዎች ውስጥ ሂሳብዎ ላይ ይጨመራል።'
+    depositCreditedNotice: 'ጠቃሚ ማሳሰቢያ፡ አንዴ ክፍያውን ከጨረሱና ከታች ካስገቡ በኋላ በ5-10 ደቂቃዎች ውስጥ ሂሳብዎ ላይ ይጨመራል።',
+    giftBox: 'የስጦታ ሣጥን',
+    giftCenter: 'የስጦታ ማዕከል',
+    giftHistory: 'ታሪክ',
+    redeemCode: 'ኮድ ይጠቀሙ',
+    officialGiftRewards: '🎁 ኦፊሴላዊ የስጦታ ሽልማቶች',
+    enterOfficialGiftCode: 'ኦፊሴላዊ የስጦታ ኮድዎን ያስገቡ',
+    enterGiftCode: 'የስጦታ ኮድ ያስገቡ',
+    redeemGiftCode: 'የስጦታ ኮድ ተቀበል',
+    processing: 'በማሰራት ላይ...',
+    claimedGiftHistory: 'የተወሰዱ የስጦታ ታሪክ'
   },
   ar: {
     welcomeBack: "مرحباً بعودتك",
@@ -1005,7 +1025,17 @@ export const translations: Record<Language, any> = {
     rechargeVerificationInProgress: 'التحقق من شحن الرصيد قيد التنفيذ...',
     rechargePending: 'شحن الرصيد قيد الانتظار',
     rechargePendingDesc: 'عملية شحن الرصيد الخاصة بك قيد التحقق من قبل المشرف حاليًا. يرجى الانتظار.',
-    depositCreditedNotice: 'تنبيه هام: سيتم إضافة مبلغ الإيداع إلى رصيد حسابك خلال 5-10 دقائق بعد الإرسال.'
+    depositCreditedNotice: 'تنبيه هام: سيتم إضافة مبلغ الإيداع إلى رصيد حسابك خلال 5-10 دقائق بعد الإرسال.',
+    giftBox: 'صندوق الهدايا',
+    giftCenter: 'مركز الهدايا',
+    giftHistory: 'السجل',
+    redeemCode: 'استرداد الرمز',
+    officialGiftRewards: '🎁 مكافآت الهدايا الرسمية',
+    enterOfficialGiftCode: 'أدخل رمز الهدية الرسمي الخاص بك',
+    enterGiftCode: 'أدخل رمز الهدية',
+    redeemGiftCode: 'استرداد رمز الهدية',
+    processing: 'قيد المعالجة...',
+    claimedGiftHistory: 'سجل الهدايا المستردة'
   },
   zh: {
     welcomeBack: "欢迎回来",
@@ -1295,7 +1325,17 @@ export const translations: Record<Language, any> = {
     rechargeVerificationInProgress: '充值核对中...',
     rechargePending: '充值待审核',
     rechargePendingDesc: '您的充值目前正在等待管理员核对。请稍候。',
-    depositCreditedNotice: '重要提示：您的充值将在提交后5-10分钟内计入您的账户余额。'
+    depositCreditedNotice: '重要提示：您的充值将在提交后5-10分钟内计入您的账户余额。',
+    giftBox: '礼品盒',
+    giftCenter: '礼品中心',
+    giftHistory: '历史记录',
+    redeemCode: '兑换代码',
+    officialGiftRewards: '🎁 官方礼品奖励',
+    enterOfficialGiftCode: '输入您的官方礼品代码',
+    enterGiftCode: '输入礼品代码',
+    redeemGiftCode: '兑换礼品代码',
+    processing: '处理中...',
+    claimedGiftHistory: '已领取的礼品历史'
   },
   es: {
     welcomeBack: "Bienvenido de nuevo",
@@ -1585,7 +1625,17 @@ export const translations: Record<Language, any> = {
     rechargeVerificationInProgress: 'Verificación de recarga en progreso...',
     rechargePending: 'RECARGA PENDIENTE',
     rechargePendingDesc: 'Su recarga está actualmente pendiente de verificación por parte del administrador. Por favor, espere.',
-    depositCreditedNotice: 'Importante: Su depósito se acreditará al saldo de su cuenta dentro de 5 a 10 minutos después de enviarlo.'
+    depositCreditedNotice: 'Importante: Su depósito se acreditará al saldo de su cuenta dentro de 5 a 10 minutos después de enviarlo.',
+    giftBox: 'Caja de Regalos',
+    giftCenter: 'Centro de Regalos',
+    giftHistory: 'Historial',
+    redeemCode: 'Canjear Código',
+    officialGiftRewards: '🎁 Recompensas Oficiales de Regalo',
+    enterOfficialGiftCode: 'Ingrese su Código Oficial de Regalo',
+    enterGiftCode: 'Ingresar Código de Regalo',
+    redeemGiftCode: 'Canjear Código de Regalo',
+    processing: 'Procesando...',
+    claimedGiftHistory: 'Historial de Regalos Reclamados'
   },
   fr: {
     welcomeBack: "Bon retour",
@@ -1875,7 +1925,17 @@ export const translations: Record<Language, any> = {
     rechargeVerificationInProgress: 'Vérification de la recharge en cours...',
     rechargePending: 'RECHARGE EN ATTENTE',
     rechargePendingDesc: 'Votre recharge est actuellement en attente de vérification par l\'administrateur. Veuillez patienter.',
-    depositCreditedNotice: 'Important : Votre dépôt sera crédité sur le solde de votre compte dans les 5 à 10 minutes suivant sa soumission.'
+    depositCreditedNotice: 'Important : Votre dépôt sera crédité sur le solde de votre compte dans les 5 à 10 minutes suivant sa soumission.',
+    giftBox: 'Boîte Cadeau',
+    giftCenter: 'Centre de Cadeaux',
+    giftHistory: 'Historique',
+    redeemCode: 'Utiliser un Code',
+    officialGiftRewards: '🎁 Récompenses Cadeaux Officielles',
+    enterOfficialGiftCode: 'Saisissez votre code cadeau officiel',
+    enterGiftCode: 'Saisir le Code Cadeau',
+    redeemGiftCode: 'Utiliser le Code Cadeau',
+    processing: 'Traitement en cours...',
+    claimedGiftHistory: 'Historique des Cadeaux Réclamés'
   },
   sw: {
     welcomeBack: "Karibu Tena",
@@ -2020,7 +2080,17 @@ export const translations: Record<Language, any> = {
     rechargeVerificationInProgress: 'Uthibitisho wa kuongeza salio unaendelea...',
     rechargePending: 'KUONGEZA SALIO KUNASUBIRI',
     rechargePendingDesc: 'Kuongeza salio kwako sasa kunasubiri uthibitisho wa msimamizi. Tafadhali subiri.',
-    depositCreditedNotice: 'Muhimu: Amana yako itaongezwa kwenye salio la akaunti yako ndani ya dakika 5-10 baada ya kuwasilisha.'
+    depositCreditedNotice: 'Muhimu: Amana yako itaongezwa kwenye salio la akaunti yako ndani ya dakika 5-10 baada ya kuwasilisha.',
+    giftBox: 'Sanduku la Zawadi',
+    giftCenter: 'Kituo cha Zawadi',
+    giftHistory: 'Historia',
+    redeemCode: 'Komboa Msimbo',
+    officialGiftRewards: '🎁 Tuzo Rasmi za Zawadi',
+    enterOfficialGiftCode: 'Weka Msimbo Wako Rasmi wa Zawadi',
+    enterGiftCode: 'Weka Msimbo wa Zawadi',
+    redeemGiftCode: 'Komboa Msimbo wa Zawadi',
+    processing: 'Inachakata...',
+    claimedGiftHistory: 'Historia ya Zawadi Zilizodaiwa'
   },
   so: {
     welcomeBack: "Ku soo dhawaada mar kale",
@@ -2165,7 +2235,17 @@ export const translations: Record<Language, any> = {
     rechargeVerificationInProgress: 'Xaqiijinta ku shubista lacagta ayaa socota...',
     rechargePending: 'KU SHUBISTA LACAGTA WAA INTA SUGIDDA',
     rechargePendingDesc: 'Lacag ku shubistaadu hadda waxay sugaysaa xaqiijinta maamulaha. Fadlan sug.',
-    depositCreditedNotice: 'Muhiim: Lacagta aad ku shubatay waxaa lagu shubi doonaa haddada koontadaada muddo 5-10 daqiiqo ah gudahood ka dib markaad soo gudbiso.'
+    depositCreditedNotice: 'Muhiim: Lacagta aad ku shubatay waxaa lagu shubi doonaa haddada koontadaada muddo 5-10 daqiiqo ah gudahood ka dib markaad soo gudbiso.',
+    giftBox: 'Sanduuqa Hadiyadda',
+    giftCenter: 'Xarunta Hadiyadaha',
+    giftHistory: 'Taariikhda',
+    redeemCode: 'Foorno Koodhka',
+    officialGiftRewards: '🎁 Abaalmarinta Hadiyadaha Rasmi ah',
+    enterOfficialGiftCode: 'Geli Koodhkaaga Hadiyadda ee Rasmi ah',
+    enterGiftCode: 'Geli Koodhka Hadiyadda',
+    redeemGiftCode: 'Foorno Koodhka Hadiyadda',
+    processing: 'Wuu shaqaynayaa...',
+    claimedGiftHistory: 'Taariikhda Hadiyadaha La Sheegtay'
   },
   pt: {
     welcomeBack: "Bem-vindo de volta",
@@ -2310,7 +2390,17 @@ export const translations: Record<Language, any> = {
     rechargeVerificationInProgress: 'Verificação de recarga em andamento...',
     rechargePending: 'RECARGA PENDENTE',
     rechargePendingDesc: 'A sua recarga está atualmente pendente de verificação pelo administrador. Por favor, aguarde.',
-    depositCreditedNotice: 'Importante: O seu depósito será creditado no saldo da sua conta no prazo de 5 a 10 minutos após o envio.'
+    depositCreditedNotice: 'Importante: O seu depósito será creditado no saldo da sua conta no prazo de 5 a 10 minutos após o envio.',
+    giftBox: 'Caixa de Presentes',
+    giftCenter: 'Centro de Presentes',
+    giftHistory: 'Histórico',
+    redeemCode: 'Resgatar Código',
+    officialGiftRewards: '🎁 Recompensas Oficiais de Presente',
+    enterOfficialGiftCode: 'Insira o seu Código Oficial de Presente',
+    enterGiftCode: 'Insira o Código de Presente',
+    redeemGiftCode: 'Resgatar Código de Presente',
+    processing: 'Processando...',
+    claimedGiftHistory: 'Histórico de Presentes Resgatados'
   }
 };
 

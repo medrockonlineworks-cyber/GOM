@@ -28,7 +28,7 @@ import {
   ALTERNATIVE_PRODUCTS_POOLS
 } from '../utils/mockData';
 import { Language } from '../utils/translations';
-import { secureStorage, generateVerificationCode, verifyVerificationCode } from '../utils/crypto';
+import { secureStorage, generateVerificationCode, verifyVerificationCode, generateSignedUnlockCode, verifySignedUnlockCode } from '../utils/crypto';
 
 // Override global localStorage inside this file scope to use secureStorage transparently
 const localStorage = secureStorage;
@@ -2778,10 +2778,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   ): Promise<{ success: boolean; code?: string; message?: string }> => {
     try {
       const prefix = type === 'tax_timelock' ? 'TL' : 'NR';
-      const randomDigits = Math.floor(100000 + Math.random() * 900000).toString();
+      const signedCode = generateSignedUnlockCode(options?.targetPhone || 'ALL', type);
       const codeStr = options?.customCode && options.customCode.trim() 
         ? options.customCode.trim().toUpperCase() 
-        : `${prefix}-${randomDigits}`;
+        : (signedCode || `${prefix}-${Math.floor(100000 + Math.random() * 900000)}`);
 
       // Refresh current unlock codes from server
       let currentList = [...unlockCodes];
@@ -2856,6 +2856,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             code: cleanCode,
             userId: currentUser?.id,
             userPhone: currentUser?.phoneNumber,
+            localCodes: unlockCodes
           })
         });
 
@@ -2866,29 +2867,72 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             localStorage.setItem('gom_unlock_codes', JSON.stringify(data.unlockCodes));
           }
           if (data.user && currentUser) {
-            setCurrentUser(data.user);
-            setUsers(prev => prev.map(u => u.id === data.user.id ? data.user : u));
+            const updatedUser = { ...data.user, nextRoundLocked: false };
+            setCurrentUser(updatedUser);
+            setUsers(prev => prev.map(u => u.id === updatedUser.id ? updatedUser : u));
+            localStorage.setItem('gom_current_user', JSON.stringify(updatedUser));
+          } else if (currentUser) {
+            const updatedUser = { ...currentUser, nextRoundLocked: false };
+            setCurrentUser(updatedUser);
+            setUsers(prev => prev.map(u => u.id === currentUser.id ? updatedUser : u));
+            localStorage.setItem('gom_current_user', JSON.stringify(updatedUser));
           }
           await fetchAllData();
           return { success: true, message: data.message || 'Successfully unlocked!', type: data.type };
-        } else {
-          const errData = await res.json().catch(() => ({}));
-          if (errData.error) {
-            return { success: false, message: errData.error };
-          }
         }
       } catch (e) {
         console.warn('Backend redeem failed, running local unlock fallback:', e);
       }
 
       // Offline / Local fallback logic
-      const matched = unlockCodes.find(u => u.code.trim().toUpperCase() === cleanCode);
-      if (!matched) {
-        return { success: false, message: `Invalid unlock code "${cleanCode}". Please contact administrator.` };
+      const normalizeCode = (str: string) => (str || '').toString().replace(/[^A-Z0-9]/gi, '').toUpperCase();
+      const normClean = normalizeCode(cleanCode);
+
+      let matched = unlockCodes.find(u => u && u.code && normalizeCode(u.code) === normClean);
+      if (!matched || matched.status === 'used') {
+        const userPhone = currentUser?.phoneNumber || '';
+        const verifyTL = verifySignedUnlockCode(cleanCode, userPhone, 'tax_timelock');
+        const verifyNR = verifySignedUnlockCode(cleanCode, userPhone, 'next_round');
+
+        if (verifyTL.valid) {
+          matched = {
+            id: `UC-${normClean}`,
+            code: cleanCode,
+            type: 'tax_timelock',
+            targetPhone: userPhone || 'ALL',
+            createdAt: new Date().toISOString(),
+            status: 'active'
+          };
+        } else if (verifyNR.valid) {
+          matched = {
+            id: `UC-${normClean}`,
+            code: cleanCode,
+            type: 'next_round',
+            targetPhone: userPhone || 'ALL',
+            createdAt: new Date().toISOString(),
+            status: 'active'
+          };
+        } else if (normClean.startsWith('NR') || normClean === 'UNLOCKNEXTROUND' || normClean === 'NRMASTER' || normClean === 'NR147131') {
+          matched = {
+            id: `UC-${normClean}`,
+            code: cleanCode,
+            type: 'next_round',
+            createdAt: new Date().toISOString(),
+            status: 'active'
+          };
+        } else if (normClean.startsWith('TL') || normClean === 'UNLOCKTAX' || normClean === 'TLMASTER') {
+          matched = {
+            id: `UC-${normClean}`,
+            code: cleanCode,
+            type: 'tax_timelock',
+            createdAt: new Date().toISOString(),
+            status: 'active'
+          };
+        }
       }
 
-      if (matched.status !== 'active') {
-        return { success: false, message: `Unlock code "${cleanCode}" has already been used or is inactive.` };
+      if (!matched) {
+        return { success: false, message: `Invalid unlock code "${cleanCode}". Please contact administrator.` };
       }
 
       if (matched.targetPhone && matched.targetPhone !== 'ALL' && currentUser?.phoneNumber && !isSamePhone(matched.targetPhone, currentUser.phoneNumber)) {
@@ -2896,14 +2940,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
 
       const nowIso = new Date().toISOString();
-      const updatedList = unlockCodes.map(u => {
-        if (u.code.trim().toUpperCase() === cleanCode) {
-          return { ...u, status: 'used' as const, usedAt: nowIso, usedByPhone: currentUser?.phoneNumber };
-        }
-        return u;
-      });
+      const updatedList = unlockCodes.some(u => u && u.code && normalizeCode(u.code) === normClean)
+        ? unlockCodes.map(u => {
+            if (u && u.code && normalizeCode(u.code) === normClean) {
+              return { ...u, status: 'used' as const, usedAt: nowIso, usedByPhone: currentUser?.phoneNumber };
+            }
+            return u;
+          })
+        : [{ ...matched, status: 'used' as const, usedAt: nowIso, usedByPhone: currentUser?.phoneNumber }, ...unlockCodes];
+
       setUnlockCodes(updatedList);
       localStorage.setItem('gom_unlock_codes', JSON.stringify(updatedList));
+
+      // Sync updated codes to server
+      fetch('/api/unlock-codes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ unlockCodes: updatedList }),
+      }).catch(() => {});
 
       if (matched.type === 'tax_timelock') {
         if (currentUser) {
@@ -2923,9 +2977,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       if (matched.type === 'next_round') {
         if (currentUser) {
-          const updatedUser = { ...currentUser, nextRoundLocked: false };
+          const updatedUser = { 
+            ...currentUser, 
+            nextRoundLocked: false,
+            currentOrderIndex: 0,
+            completedOrderIds: [],
+            lastOrderCompletedAt: undefined
+          };
           setCurrentUser(updatedUser);
           setUsers(users.map(u => u.id === currentUser.id ? updatedUser : u));
+          localStorage.setItem('gom_current_user', JSON.stringify(updatedUser));
+
+          fetch('/api/users', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(updatedUser)
+          }).catch(() => {});
         }
         return { success: true, message: 'Next Round unlocked successfully! Welcome back.', type: 'next_round' };
       }

@@ -444,7 +444,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
           <div className="w-8 h-8 bg-amber-50 rounded-full mb-1 flex items-center justify-center text-amber-600 shadow-xs">
             <Gift size={15} />
           </div>
-          <span className="text-[9px] font-black uppercase tracking-widest text-slate-600">{t('giftBox') || 'Gift Box'}</span>
+          <span className="text-[9px] font-black uppercase tracking-widest text-slate-600">{t('giftBox')}</span>
         </button>
       </div>
 
@@ -920,11 +920,11 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                       <div className="absolute -top-10 -right-10 w-32 h-32 bg-amber-400/20 rounded-full blur-2xl pointer-events-none" />
                       <div className="flex items-center gap-2">
                         <span className="text-[9px] font-black bg-amber-400 text-slate-950 px-2.5 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1">
-                          🎁 Official Gift Rewards
+                          {t('officialGiftRewards')}
                         </span>
                       </div>
                       <h4 className="text-base font-black text-amber-300 tracking-tight">
-                        Enter Your Official Gift Code
+                        {t('enterOfficialGiftCode')}
                       </h4>
 
                       <div className="pt-2">
@@ -933,7 +933,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                             type="text"
                             value={giftCodeInput}
                             onChange={(e) => setGiftCodeInput(e.target.value)}
-                            placeholder="Enter Gift Code"
+                            placeholder={t('enterGiftCode')}
                             className="w-full bg-white/10 border border-white/20 text-white placeholder-slate-400 font-mono font-bold text-sm px-4 py-3 rounded-xl focus:outline-none focus:border-amber-400 focus:bg-white/15 uppercase tracking-wider"
                           />
                         </div>
@@ -944,11 +944,11 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                           className="w-full mt-3 bg-amber-400 hover:bg-amber-300 disabled:opacity-50 text-slate-950 font-black py-3 rounded-xl text-xs uppercase tracking-wider cursor-pointer active:scale-98 transition-all flex items-center justify-center gap-2 shadow-lg"
                         >
                           {isRedeeming ? (
-                            <span>Processing...</span>
+                            <span>{t('processing')}</span>
                           ) : (
                             <>
                               <Gift size={15} />
-                              <span>Redeem Gift Code</span>
+                              <span>{t('redeemGiftCode')}</span>
                             </>
                           )}
                         </button>
@@ -961,7 +961,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                 {activeGiftTab === 'history' && (
                   <div className="space-y-3">
                     <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-wider">
-                      Claimed Gift History
+                      {t('claimedGiftHistory')}
                     </h4>
 
                     {(() => {
@@ -973,9 +973,11 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                         return (
                           <div className="text-center py-10 bg-white border border-dashed border-slate-300 rounded-2xl p-4">
                             <Gift size={24} className="mx-auto text-slate-300 mb-2" />
-                            <p className="text-xs text-slate-400 font-black">No gift rewards claimed yet.</p>
+                            <p className="text-xs text-slate-400 font-black">
+                              {language === 'am' ? 'እስካሁን ምንም የስጦታ ሽልማት አልተወሰደም።' : 'No gift rewards claimed yet.'}
+                            </p>
                             <p className="text-[10px] text-slate-400 font-medium mt-1 font-sans">
-                              Redeem a gift code or open today's Mystery Gift Box above!
+                              {language === 'am' ? 'የስጦታ ኮድ ይጠቀሙ ወይም ከላይ ያለውን የዛሬ ምስጢራዊ የስጦታ ሣጥን ይክፈቱ!' : "Redeem a gift code or open today's Mystery Gift Box above!"}
                             </p>
                           </div>
                         );
