@@ -16,7 +16,9 @@ import {
   RechargeAccount,
   Currency,
   AdminGiftCode,
-  LockedOrderData
+  LockedOrderData,
+  UnlockCode,
+  UnlockCodeType
 } from '../types';
 import { hashPassword, generateUserId, generateId } from '../utils/security';
 import { 
@@ -462,6 +464,23 @@ interface AppContextProps {
   deleteAdminGiftCode: (id: string) => Promise<{ success: boolean; message: string }>;
   redeemGiftCode: (code: string) => Promise<{ success: boolean; message: string; amount?: number }>;
   createGiftCard: (amount: number) => Promise<{ success: boolean; message: string; code?: string }>;
+  
+  // Unlock Code System actions (Tax Time-Lock & Next Round Lock)
+  unlockCodes: UnlockCode[];
+  generateUnlockCode: (
+    type: UnlockCodeType,
+    options?: {
+      targetPhone?: string;
+      targetTxId?: string;
+      withdrawalAmount?: number;
+      taxAmount?: number;
+      penaltyAmount?: number;
+      totalAmountDue?: number;
+      customCode?: string;
+    }
+  ) => Promise<{ success: boolean; code?: string; message?: string }>;
+  redeemUnlockCode: (code: string) => Promise<{ success: boolean; message: string; type?: string }>;
+  deleteUnlockCode: (id: string) => Promise<{ success: boolean; message?: string }>;
   
   // Admin approvals
   approveTransaction: (id: string) => void;
@@ -1166,6 +1185,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
     } catch (err: any) {
       console.warn('[fetchAllData] Error fetching gift-codes, falling back to local storage:', err.message || err);
+    }
+
+    // 10. Fetch Unlock Codes
+    try {
+      const res = await fetch('/api/unlock-codes');
+      if (res.ok) {
+        const data = await res.json();
+        if (data && Array.isArray(data.unlockCodes)) {
+          setUnlockCodes(data.unlockCodes);
+          localStorage.setItem('gom_unlock_codes', JSON.stringify(data.unlockCodes));
+        }
+      }
+    } catch (err: any) {
+      console.warn('[fetchAllData] Error fetching unlock-codes:', err.message || err);
     }
   };
 
@@ -2730,6 +2763,195 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
   };
 
+  // UNLOCK CODE SYSTEM ACTIONS (Tax Time-Lock & Next Round Lock)
+  const generateUnlockCode = async (
+    type: UnlockCodeType,
+    options?: {
+      targetPhone?: string;
+      targetTxId?: string;
+      withdrawalAmount?: number;
+      taxAmount?: number;
+      penaltyAmount?: number;
+      totalAmountDue?: number;
+      customCode?: string;
+    }
+  ): Promise<{ success: boolean; code?: string; message?: string }> => {
+    try {
+      const prefix = type === 'tax_timelock' ? 'TL' : 'NR';
+      const randomDigits = Math.floor(100000 + Math.random() * 900000).toString();
+      const codeStr = options?.customCode && options.customCode.trim() 
+        ? options.customCode.trim().toUpperCase() 
+        : `${prefix}-${randomDigits}`;
+
+      // Refresh current unlock codes from server
+      let currentList = [...unlockCodes];
+      try {
+        const res = await fetch('/api/unlock-codes');
+        if (res.ok) {
+          const data = await res.json();
+          if (data && Array.isArray(data.unlockCodes)) {
+            currentList = data.unlockCodes;
+          }
+        }
+      } catch (e) {}
+
+      const newRecord: UnlockCode = {
+        id: generateId('UC'),
+        code: codeStr,
+        type,
+        targetPhone: options?.targetPhone ? options.targetPhone.trim() : undefined,
+        targetTxId: options?.targetTxId,
+        withdrawalAmount: options?.withdrawalAmount,
+        taxAmount: options?.taxAmount,
+        penaltyAmount: options?.penaltyAmount,
+        totalAmountDue: options?.totalAmountDue,
+        createdAt: new Date().toISOString(),
+        createdBy: currentUser?.phoneNumber || 'Admin',
+        status: 'active'
+      };
+
+      const updatedList = [newRecord, ...currentList.filter(u => u.code !== codeStr)];
+      setUnlockCodes(updatedList);
+      localStorage.setItem('gom_unlock_codes', JSON.stringify(updatedList));
+
+      try {
+        await fetch('/api/unlock-codes', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ unlockCodes: updatedList }),
+        });
+      } catch (e) {
+        console.warn('Failed to sync unlock code to server:', e);
+      }
+
+      if (currentUser) {
+        await logAudit(currentUser.id, currentUser.phoneNumber, 'GENERATE_UNLOCK_CODE', `Generated ${type} unlock code ${codeStr}${options?.targetPhone ? ' for phone ' + options.targetPhone : ''}`);
+      }
+
+      return {
+        success: true,
+        code: codeStr,
+        message: `${type === 'tax_timelock' ? 'Tax Time-Lock' : 'Next Round'} unlock code "${codeStr}" generated successfully!`
+      };
+    } catch (err: any) {
+      return { success: false, message: err?.message || 'Failed to generate unlock code.' };
+    }
+  };
+
+  const redeemUnlockCode = async (
+    code: string
+  ): Promise<{ success: boolean; message: string; type?: string }> => {
+    try {
+      const cleanCode = code.trim().toUpperCase();
+      if (!cleanCode) {
+        return { success: false, message: 'Please enter an unlock code.' };
+      }
+
+      // Try server redemption
+      try {
+        const res = await fetch('/api/unlock-codes/redeem', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            code: cleanCode,
+            userId: currentUser?.id,
+            userPhone: currentUser?.phoneNumber,
+          })
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          if (data.unlockCodes) {
+            setUnlockCodes(data.unlockCodes);
+            localStorage.setItem('gom_unlock_codes', JSON.stringify(data.unlockCodes));
+          }
+          if (data.user && currentUser) {
+            setCurrentUser(data.user);
+            setUsers(prev => prev.map(u => u.id === data.user.id ? data.user : u));
+          }
+          await fetchAllData();
+          return { success: true, message: data.message || 'Successfully unlocked!', type: data.type };
+        } else {
+          const errData = await res.json().catch(() => ({}));
+          if (errData.error) {
+            return { success: false, message: errData.error };
+          }
+        }
+      } catch (e) {
+        console.warn('Backend redeem failed, running local unlock fallback:', e);
+      }
+
+      // Offline / Local fallback logic
+      const matched = unlockCodes.find(u => u.code.trim().toUpperCase() === cleanCode);
+      if (!matched) {
+        return { success: false, message: `Invalid unlock code "${cleanCode}". Please contact administrator.` };
+      }
+
+      if (matched.status !== 'active') {
+        return { success: false, message: `Unlock code "${cleanCode}" has already been used or is inactive.` };
+      }
+
+      if (matched.targetPhone && matched.targetPhone !== 'ALL' && currentUser?.phoneNumber && !isSamePhone(matched.targetPhone, currentUser.phoneNumber)) {
+        return { success: false, message: `This unlock code was generated for phone ${matched.targetPhone}.` };
+      }
+
+      const nowIso = new Date().toISOString();
+      const updatedList = unlockCodes.map(u => {
+        if (u.code.trim().toUpperCase() === cleanCode) {
+          return { ...u, status: 'used' as const, usedAt: nowIso, usedByPhone: currentUser?.phoneNumber };
+        }
+        return u;
+      });
+      setUnlockCodes(updatedList);
+      localStorage.setItem('gom_unlock_codes', JSON.stringify(updatedList));
+
+      if (matched.type === 'tax_timelock') {
+        if (currentUser) {
+          const pendingTx = transactions.find(t => t.userId === currentUser.id && t.type === 'withdraw' && t.status === 'pending');
+          if (pendingTx) {
+            const updatedTxs = transactions.map(t => {
+              if (t.id === pendingTx.id) {
+                return { ...t, createdAt: new Date().toISOString(), taxRef: `TL-UNLOCKED-${cleanCode}` };
+              }
+              return t;
+            });
+            setTransactions(updatedTxs);
+          }
+        }
+        return { success: true, message: 'Tax Time-Lock successfully unlocked! Application access restored.', type: 'tax_timelock' };
+      }
+
+      if (matched.type === 'next_round') {
+        if (currentUser) {
+          const updatedUser = { ...currentUser, nextRoundLocked: false };
+          setCurrentUser(updatedUser);
+          setUsers(users.map(u => u.id === currentUser.id ? updatedUser : u));
+        }
+        return { success: true, message: 'Next Round unlocked successfully! Welcome back.', type: 'next_round' };
+      }
+
+      return { success: false, message: 'Invalid unlock code.' };
+    } catch (err: any) {
+      return { success: false, message: err?.message || 'Error redeeming unlock code.' };
+    }
+  };
+
+  const deleteUnlockCode = async (id: string): Promise<{ success: boolean; message?: string }> => {
+    const updated = unlockCodes.filter(u => u.id !== id);
+    setUnlockCodes(updated);
+    localStorage.setItem('gom_unlock_codes', JSON.stringify(updated));
+
+    try {
+      await fetch('/api/unlock-codes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ unlockCodes: updated }),
+      });
+    } catch (e) {}
+
+    return { success: true, message: 'Unlock code removed.' };
+  };
+
   // ADMIN ACTIONS
   const approveTransaction = async (txId: string) => {
     const tx = transactions.find(t => t.id === txId);
@@ -3656,6 +3878,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   });
 
+  const [unlockCodes, setUnlockCodes] = useState<UnlockCode[]>(() => {
+    try {
+      const saved = localStorage.getItem('gom_unlock_codes');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
+
   const generateOfflineRechargeCode = (
     phone: string,
     amount: number,
@@ -4306,6 +4537,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       deleteAdminGiftCode,
       redeemGiftCode,
       createGiftCard,
+      unlockCodes,
+      generateUnlockCode,
+      redeemUnlockCode,
+      deleteUnlockCode,
       approveTransaction,
       rejectTransaction,
       addToCart,

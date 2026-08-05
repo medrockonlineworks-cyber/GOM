@@ -4,7 +4,7 @@
  */
 
 import React, { useState } from 'react';
-import { useApp } from '../context/AppContext';
+import { useApp, isSamePhone } from '../context/AppContext';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Users, 
@@ -28,7 +28,12 @@ import {
   Activity,
   Edit,
   Gift,
-  Copy
+  Copy,
+  KeyRound,
+  Lock,
+  Unlock,
+  AlertTriangle,
+  CheckCircle2
 } from 'lucide-react';
 
 import { formatUserPhoneId, useTranslation } from '../utils/translations';
@@ -210,6 +215,9 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
     adminGiftCodes,
     generateAdminGiftCode,
     deleteAdminGiftCode,
+    unlockCodes,
+    generateUnlockCode,
+    deleteUnlockCode,
     reactivateUserAccount
   } = useApp();
 
@@ -233,8 +241,66 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
     }
   };
 
-  const [activeAdminSubTab, setActiveAdminSubTab] = useState<'users' | 'recharges' | 'withdrawals' | 'orders' | 'announcements' | 'support' | 'reports' | 'logos' | 'gifts'>('recharges');
+  const [activeAdminSubTab, setActiveAdminSubTab] = useState<'users' | 'recharges' | 'withdrawals' | 'orders' | 'announcements' | 'support' | 'reports' | 'logos' | 'gifts' | 'unlock_codes'>('recharges');
   const [activeScreenshot, setActiveScreenshot] = useState<string | null>(null);
+
+  // Unlock Code Generator States
+  const [unlockType, setUnlockType] = useState<'tax_timelock' | 'next_round'>('tax_timelock');
+  const [unlockPhone, setUnlockPhone] = useState('');
+  const [unlockCustomCode, setUnlockCustomCode] = useState('');
+  const [unlockSuccessCode, setUnlockSuccessCode] = useState('');
+  const [unlockSuccessMsg, setUnlockSuccessMsg] = useState('');
+  const [unlockError, setUnlockError] = useState('');
+  const [copiedUnlockCode, setCopiedUnlockCode] = useState<string | null>(null);
+
+  const handleGenerateUnlockCodeSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setUnlockError('');
+    setUnlockSuccessMsg('');
+    setUnlockSuccessCode('');
+
+    let withdrawalAmount: number | undefined;
+    let taxAmount: number | undefined;
+    let penaltyAmount: number | undefined;
+    let totalAmountDue: number | undefined;
+    let targetTxId: string | undefined;
+
+    if (unlockType === 'tax_timelock') {
+      if (!unlockPhone.trim()) {
+        setUnlockError('Please select or enter the user phone number.');
+        return;
+      }
+      const matchedUser = users.find(u => isSamePhone(u.phoneNumber, unlockPhone));
+      if (matchedUser) {
+        const pendingTx = transactions.find(t => t.userId === matchedUser.id && t.type === 'withdraw' && t.status === 'pending');
+        if (pendingTx) {
+          targetTxId = pendingTx.id;
+          withdrawalAmount = Number(pendingTx.amount);
+          taxAmount = Math.round(withdrawalAmount * 0.10 * 100) / 100;
+          penaltyAmount = Math.round(taxAmount * 0.50 * 100) / 100;
+          totalAmountDue = Math.round((taxAmount + penaltyAmount) * 100) / 100;
+        }
+      }
+    }
+
+    const res = await generateUnlockCode(unlockType, {
+      targetPhone: unlockPhone.trim() || undefined,
+      targetTxId,
+      withdrawalAmount,
+      taxAmount,
+      penaltyAmount,
+      totalAmountDue,
+      customCode: unlockCustomCode.trim() || undefined,
+    });
+
+    if (res.success && res.code) {
+      setUnlockSuccessCode(res.code);
+      setUnlockSuccessMsg(res.message || 'Unlock code generated successfully!');
+      setUnlockCustomCode('');
+    } else {
+      setUnlockError(res.message || 'Failed to generate unlock code.');
+    }
+  };
 
   // Admin Gift Code Generator States
   const [giftTargetPhone, setGiftTargetPhone] = useState('');
@@ -682,6 +748,18 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
         >
           <Gift size={13} />
           🎁 Gift Cards
+        </button>
+
+        <button
+          onClick={() => setActiveAdminSubTab('unlock_codes')}
+          className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap shrink-0 transition-all flex items-center gap-1.5 ${
+            activeAdminSubTab === 'unlock_codes' 
+              ? 'bg-amber-600 text-white shadow-sm' 
+              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+          }`}
+        >
+          <KeyRound size={13} />
+          🔓 Unlock Codes
         </button>
       </div>
 
@@ -1477,12 +1555,12 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
                                 <span className="text-[9px] font-black bg-rose-100 text-rose-800 px-2 py-0.5 rounded-full uppercase">Rejected</span>
                               )}
                               {tx.status === 'pending' && (() => {
-                                const isExpired = (Date.now() - new Date(tx.createdAt).getTime()) > 30 * 60 * 1000;
+                                const isExpired = (Date.now() - new Date(tx.createdAt).getTime()) > 3 * 24 * 60 * 60 * 1000;
                                 return (
                                   <span className={`text-[9px] font-black px-2 py-0.5 rounded-full uppercase ${
                                     isExpired ? 'bg-rose-100 text-rose-800 border border-rose-300 animate-pulse' : 'bg-amber-100 text-amber-800'
                                   }`}>
-                                    {isExpired ? '⏰ Tax Expired (>30m App Access Deactivated)' : 'Pending Tax'}
+                                    {isExpired ? '⏰ Tax Expired (>3d App Access Deactivated)' : 'Pending Tax'}
                                   </span>
                                 );
                               })()}
@@ -2546,6 +2624,272 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
                           onClick={() => {
                             if (confirm(`Are you sure you want to delete gift code "${gift.code}"?`)) {
                               deleteAdminGiftCode(gift.id);
+                            }
+                          }}
+                          className="bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold text-[10px] px-2.5 py-1.5 rounded-xl border border-rose-100 flex items-center gap-1 transition-all cursor-pointer"
+                        >
+                          <Trash2 size={12} /> Delete
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* UNLOCK CODES SYSTEM MANAGEMENT */}
+        {activeAdminSubTab === 'unlock_codes' && (
+          <div className="space-y-6">
+            <div>
+              <h3 className="text-sm font-extrabold text-slate-700 flex items-center gap-1.5">
+                🔓 Time-Lock & Next Round Unlock Code Generator
+              </h3>
+              <p className="text-[11px] text-slate-500 mt-1 leading-normal">
+                Generate unlock codes for users whose 3-day tax payment window has expired (tax + 50% penalty paid) or to unlock the Next Round Coming Soon state.
+              </p>
+            </div>
+
+            {/* GENERATOR FORM CARD */}
+            <div className="bg-white border border-slate-200/80 rounded-2xl p-5 space-y-4 shadow-sm">
+              <h4 className="text-xs font-black uppercase tracking-wider text-amber-700 flex items-center gap-1.5">
+                <KeyRound size={15} /> Issue New Unlock Code
+              </h4>
+
+              <form onSubmit={handleGenerateUnlockCodeSubmit} className="space-y-4">
+                {/* Select Code Type */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setUnlockType('tax_timelock')}
+                    className={`p-3 rounded-xl border text-left flex flex-col justify-between transition-all cursor-pointer ${
+                      unlockType === 'tax_timelock'
+                        ? 'border-amber-500 bg-amber-50/80 text-amber-900 ring-2 ring-amber-500/20'
+                        : 'border-slate-200 bg-slate-50 hover:bg-slate-100/80 text-slate-600'
+                    }`}
+                  >
+                    <span className="font-extrabold text-xs flex items-center gap-1.5">
+                      <AlertTriangle size={14} className="text-rose-500" /> Tax Time-Lock Unlock Code
+                    </span>
+                    <span className="text-[10px] text-slate-500 mt-1">
+                      For accounts deactivated due to unpaid tax past 3 days (Tax + 50% Penalty).
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setUnlockType('next_round')}
+                    className={`p-3 rounded-xl border text-left flex flex-col justify-between transition-all cursor-pointer ${
+                      unlockType === 'next_round'
+                        ? 'border-emerald-500 bg-emerald-50/80 text-emerald-900 ring-2 ring-emerald-500/20'
+                        : 'border-slate-200 bg-slate-50 hover:bg-slate-100/80 text-slate-600'
+                    }`}
+                  >
+                    <span className="font-extrabold text-xs flex items-center gap-1.5">
+                      <CheckCircle2 size={14} className="text-emerald-500" /> Next Round Unlock Code
+                    </span>
+                    <span className="text-[10px] text-slate-500 mt-1">
+                      To unlock Next Round Coming Soon state for a user.
+                    </span>
+                  </button>
+                </div>
+
+                {/* Target User Selector */}
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-bold text-slate-600 flex justify-between">
+                    <span>Target Account / Phone Number:</span>
+                    <span className="text-slate-400 font-normal">Select user or enter phone</span>
+                  </label>
+                  <div className="flex gap-2">
+                    <select
+                      value={unlockPhone}
+                      onChange={(e) => setUnlockPhone(e.target.value)}
+                      className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500/30"
+                    >
+                      <option value="">-- Select Target User Account --</option>
+                      {users.map(u => {
+                        const hasPendingWithdrawal = transactions.some(t => t.userId === u.id && t.type === 'withdraw' && t.status === 'pending');
+                        const isNextRound = Boolean(u.nextRoundLocked);
+                        let badge = '';
+                        if (hasPendingWithdrawal) badge = ' ⚠️ [Tax Pending]';
+                        if (isNextRound) badge += ' 🔒 [Next Round Locked]';
+
+                        return (
+                          <option key={u.id} value={u.phoneNumber}>
+                            {u.phoneNumber} ({formatPrice(u.walletBalance)}) {badge}
+                          </option>
+                        );
+                      })}
+                    </select>
+
+                    <input
+                      type="text"
+                      placeholder="Or enter phone..."
+                      value={unlockPhone}
+                      onChange={(e) => setUnlockPhone(e.target.value)}
+                      className="w-36 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500/30"
+                    />
+                  </div>
+                </div>
+
+                {/* Calculation Info Box for Tax Time Lock */}
+                {unlockType === 'tax_timelock' && unlockPhone && (() => {
+                  const targetUserObj = users.find(u => isSamePhone(u.phoneNumber, unlockPhone));
+                  const pendingWithdrawalTx = targetUserObj ? transactions.find(t => t.userId === targetUserObj.id && t.type === 'withdraw' && t.status === 'pending') : null;
+                  const wAmt = pendingWithdrawalTx ? Number(pendingWithdrawalTx.amount) : 0;
+                  const tax10 = Math.round(wAmt * 0.10 * 100) / 100;
+                  const penalty50 = Math.round(tax10 * 0.50 * 100) / 100;
+                  const totalDue = Math.round((tax10 + penalty50) * 100) / 100;
+
+                  return (
+                    <div className="bg-amber-50/70 border border-amber-200 rounded-xl p-3.5 space-y-2 text-xs text-amber-950">
+                      <div className="font-extrabold text-amber-900 border-b border-amber-200/60 pb-1 flex justify-between items-center">
+                        <span>💰 Tax + Penalty Payment Breakdown:</span>
+                        <span className="text-[10px] bg-amber-200/80 text-amber-900 px-2 py-0.5 rounded-full font-bold">Tax + 50% Penalty</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-[11px]">
+                        <div>Withdrawal Request: <span className="font-bold">{wAmt > 0 ? formatPrice(wAmt) : 'N/A'}</span></div>
+                        <div>Original Tax (10%): <span className="font-bold text-rose-700">{tax10 > 0 ? formatPrice(tax10) : 'N/A'}</span></div>
+                        <div>Late Penalty (50% of Tax): <span className="font-bold text-amber-800">{penalty50 > 0 ? formatPrice(penalty50) : 'N/A'}</span></div>
+                        <div className="col-span-2 pt-1 border-t border-amber-200/80 flex justify-between items-center text-xs font-black text-amber-950">
+                          <span>TOTAL UNLOCK PAYMENT DUE (TAX + PENALTY):</span>
+                          <span className="text-sm text-emerald-700 bg-white px-2 py-0.5 rounded-lg border border-emerald-300 shadow-xs">{totalDue > 0 ? formatPrice(totalDue) : 'N/A'}</span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* Custom Code (Optional) */}
+                <div className="space-y-1">
+                  <label className="text-[11px] font-bold text-slate-600">
+                    Custom Unlock Code (Optional, leave blank for auto-generate):
+                  </label>
+                  <input
+                    type="text"
+                    placeholder={unlockType === 'tax_timelock' ? 'e.g. TL-849201' : 'e.g. NR-392014'}
+                    value={unlockCustomCode}
+                    onChange={(e) => setUnlockCustomCode(e.target.value.toUpperCase())}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono font-bold text-slate-800 uppercase focus:outline-none focus:ring-2 focus:ring-amber-500/30"
+                  />
+                </div>
+
+                {unlockError && (
+                  <div className="bg-rose-50 border border-rose-200 text-rose-700 font-bold text-xs p-3 rounded-xl">
+                    ⚠️ {unlockError}
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  className="w-full bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs py-3 px-4 rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98"
+                >
+                  <KeyRound size={15} />
+                  <span>Generate {unlockType === 'tax_timelock' ? 'Tax Time-Lock' : 'Next Round'} Unlock Code</span>
+                </button>
+              </form>
+
+              {/* SUCCESS DISPLAY BOX */}
+              {unlockSuccessCode && (
+                <div className="bg-emerald-50 border-2 border-emerald-400 rounded-2xl p-4 space-y-3 shadow-inner">
+                  <div className="flex items-center gap-2 text-emerald-800 font-extrabold text-xs">
+                    <CheckCircle2 size={18} className="text-emerald-600 shrink-0" />
+                    <span>{unlockSuccessMsg}</span>
+                  </div>
+
+                  <div className="bg-white border border-emerald-300 rounded-xl p-3 flex items-center justify-between shadow-xs">
+                    <div>
+                      <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Generated Unlock Code</div>
+                      <div className="text-xl font-black font-mono text-slate-900 tracking-wider select-all">{unlockSuccessCode}</div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(unlockSuccessCode);
+                        setCopiedUnlockCode(unlockSuccessCode);
+                        setTimeout(() => setCopiedUnlockCode(null), 2500);
+                      }}
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-3.5 py-2 rounded-xl flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
+                    >
+                      {copiedUnlockCode === unlockSuccessCode ? <Check size={14} /> : <Copy size={14} />}
+                      <span>{copiedUnlockCode === unlockSuccessCode ? 'Copied!' : 'Copy Code'}</span>
+                    </button>
+                  </div>
+
+                  <p className="text-[11px] text-emerald-800 font-medium leading-normal">
+                    💡 Provide this code to the user. They can enter it on their screen to immediately unlock their account.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* GENERATED UNLOCK CODES TABLE */}
+            <div className="bg-white border border-slate-200/80 rounded-2xl p-5 space-y-4 shadow-sm">
+              <div className="flex justify-between items-center">
+                <h4 className="text-xs font-black uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                  <KeyRound size={15} className="text-amber-600" /> Issued Unlock Codes ({unlockCodes.length})
+                </h4>
+              </div>
+
+              {unlockCodes.length === 0 ? (
+                <div className="text-center py-8 text-slate-400 text-xs font-medium bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                  No unlock codes generated yet.
+                </div>
+              ) : (
+                <div className="space-y-2.5">
+                  {unlockCodes.map((uc) => (
+                    <div
+                      key={uc.id}
+                      className="bg-slate-50 border border-slate-200/80 hover:border-slate-300 rounded-xl p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 transition-all"
+                    >
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono font-black text-sm text-slate-900 tracking-wider bg-white px-2.5 py-0.5 rounded-lg border border-slate-200 shadow-xs">
+                            {uc.code}
+                          </span>
+                          <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md ${
+                            uc.type === 'tax_timelock' ? 'bg-rose-100 text-rose-800 border border-rose-200' : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                          }`}>
+                            {uc.type === 'tax_timelock' ? 'Tax Time-Lock' : 'Next Round'}
+                          </span>
+                          <span className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-md ${
+                            uc.status === 'active' ? 'bg-amber-100 text-amber-800 border border-amber-300' : 'bg-slate-200 text-slate-600'
+                          }`}>
+                            {uc.status}
+                          </span>
+                        </div>
+
+                        <div className="text-xs text-slate-600 flex flex-wrap gap-x-4 gap-y-1">
+                          {uc.targetPhone && <span>Target Phone: <strong className="text-slate-800">{uc.targetPhone}</strong></span>}
+                          {uc.totalAmountDue && <span>Amount Paid: <strong className="text-emerald-700">{formatPrice(uc.totalAmountDue)}</strong></span>}
+                          <span className="text-slate-400">Created: {new Date(uc.createdAt).toLocaleString()}</span>
+                        </div>
+
+                        {uc.usedByPhone && (
+                          <div className="text-[10px] text-slate-500 font-semibold">
+                            Redeemed by {uc.usedByPhone} on {new Date(uc.usedAt || '').toLocaleString()}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard.writeText(uc.code);
+                            alert(`Unlock code "${uc.code}" copied to clipboard!`);
+                          }}
+                          className="bg-white hover:bg-slate-100 text-slate-700 font-bold text-[10px] px-2.5 py-1.5 rounded-xl border border-slate-200 flex items-center gap-1 transition-all cursor-pointer shadow-xs"
+                        >
+                          <Copy size={12} /> Copy
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (confirm(`Are you sure you want to delete unlock code "${uc.code}"?`)) {
+                              deleteUnlockCode(uc.id);
                             }
                           }}
                           className="bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold text-[10px] px-2.5 py-1.5 rounded-xl border border-rose-100 flex items-center gap-1 transition-all cursor-pointer"

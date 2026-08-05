@@ -130,3 +130,22 @@ export interface RechargeAccount {
   accNo: string;
 }
 
+export type UnlockCodeType = 'tax_timelock' | 'next_round';
+
+export interface UnlockCode {
+  id: string;
+  code: string; // e.g. "TL-849201" or "NR-392014"
+  type: UnlockCodeType;
+  targetPhone?: string;
+  targetTxId?: string;
+  withdrawalAmount?: number;
+  taxAmount?: number;
+  penaltyAmount?: number; // 50% penalty on tax
+  totalAmountDue?: number; // Tax + Penalty
+  createdAt: string;
+  createdBy?: string;
+  status: 'active' | 'used' | 'revoked';
+  usedAt?: string;
+  usedByPhone?: string;
+}
+

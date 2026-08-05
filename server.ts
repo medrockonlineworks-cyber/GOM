@@ -1463,6 +1463,174 @@ app.post('/api/gift-codes/redeem', async (req, res) => {
   }
 });
 
+// Unlock Codes Endpoints (Tax Time-Lock & Next Round Lock)
+app.get('/api/unlock-codes', async (req, res) => {
+  try {
+    const list = await db.select().from(systemConfig).where(eq(systemConfig.key, 'unlock_codes'));
+    const unlockCodes = list.length > 0 ? (list[0].productCosts as any[]) : [];
+    res.json({ unlockCodes });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/unlock-codes', async (req, res) => {
+  try {
+    const { unlockCodes } = req.body;
+    if (!Array.isArray(unlockCodes)) {
+      return res.status(400).json({ error: 'unlockCodes must be an array.' });
+    }
+
+    const existing = await db.select().from(systemConfig).where(eq(systemConfig.key, 'unlock_codes'));
+    if (existing.length > 0) {
+      await db.update(systemConfig)
+        .set({ productCosts: unlockCodes })
+        .where(eq(systemConfig.key, 'unlock_codes'));
+    } else {
+      await db.insert(systemConfig).values({
+        key: 'unlock_codes',
+        productCosts: unlockCodes,
+        bankLogos: {},
+        marketplaceLogos: {},
+      });
+    }
+
+    res.json({ success: true, unlockCodes });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/unlock-codes/redeem', async (req, res) => {
+  try {
+    const { code, userId, userPhone } = req.body;
+    if (!code || (!userId && !userPhone)) {
+      return res.status(400).json({ error: 'Code and user ID or phone are required.' });
+    }
+
+    const cleanCode = code.toString().trim().toUpperCase();
+
+    // 1. Fetch current unlock codes list
+    const list = await db.select().from(systemConfig).where(eq(systemConfig.key, 'unlock_codes'));
+    let unlockCodes = list.length > 0 ? (list[0].productCosts as any[]) : [];
+
+    // 2. Find matching code
+    const matched = unlockCodes.find((item: any) => item && item.code && item.code.toString().trim().toUpperCase() === cleanCode);
+
+    if (!matched) {
+      return res.status(404).json({ error: `Invalid unlock code "${cleanCode}". Please verify with administrator.` });
+    }
+
+    if (matched.status !== 'active') {
+      return res.status(400).json({ error: `Unlock code "${cleanCode}" has already been used or is inactive.` });
+    }
+
+    // 3. Find user
+    let userRow: any = null;
+    if (userId) {
+      const rows = await db.select().from(users).where(eq(users.id, userId));
+      if (rows.length > 0) userRow = rows[0];
+    }
+    if (!userRow && userPhone) {
+      const allUsers = await db.select().from(users);
+      userRow = allUsers.find((u: any) => isSamePhone(u.phoneNumber, userPhone));
+    }
+
+    const effectivePhone = userRow?.phoneNumber || userPhone || '';
+    const effectiveUserId = userRow?.id || userId || '';
+
+    if (matched.targetPhone && matched.targetPhone !== 'ALL' && !isSamePhone(matched.targetPhone, effectivePhone)) {
+      return res.status(403).json({
+        error: `This unlock code was issued for phone number ${matched.targetPhone}. It cannot be used by your account (${effectivePhone}).`
+      });
+    }
+
+    const nowIso = new Date().toISOString();
+
+    // 4. Handle Tax Time-Lock unlock
+    if (matched.type === 'tax_timelock') {
+      // Find pending withdrawal transaction for this user
+      const userTxs = await db.select().from(transactions).where(eq(transactions.userId, effectiveUserId));
+      const pendingWithdrawal = userTxs.find((t: any) => t.type === 'withdraw' && t.status === 'pending');
+
+      if (pendingWithdrawal) {
+        // Reset createdAt to current time or update tax status so time-lock is removed
+        await db.update(transactions)
+          .set({
+            createdAt: new Date(),
+            taxRef: `TL-UNLOCKED-${cleanCode}`,
+            description: `${pendingWithdrawal.description || ''} (Time Lock Unlocked via Code ${cleanCode})`.trim()
+          })
+          .where(eq(transactions.id, pendingWithdrawal.id));
+      }
+
+      // Mark code as used
+      unlockCodes = unlockCodes.map((item: any) => {
+        if (item && item.code && item.code.toString().trim().toUpperCase() === cleanCode) {
+          return { ...item, status: 'used', usedAt: nowIso, usedByPhone: effectivePhone };
+        }
+        return item;
+      });
+
+      if (list.length > 0) {
+        await db.update(systemConfig)
+          .set({ productCosts: unlockCodes })
+          .where(eq(systemConfig.key, 'unlock_codes'));
+      }
+
+      await dbLogAudit(effectiveUserId, effectivePhone, 'UNLOCK_TAX_TIMELOCK', `Unlocked Tax Time Lock using code ${cleanCode}`);
+
+      return res.json({
+        success: true,
+        message: 'Tax Time-Lock successfully unlocked! Application access has been restored.',
+        type: 'tax_timelock',
+        unlockCodes
+      });
+    }
+
+    // 5. Handle Next Round lock unlock
+    if (matched.type === 'next_round') {
+      let updatedUser: any = null;
+      if (userRow) {
+        await db.update(users)
+          .set({ nextRoundLocked: false })
+          .where(eq(users.id, userRow.id));
+        
+        updatedUser = { ...userRow, nextRoundLocked: false };
+      }
+
+      // Mark code as used
+      unlockCodes = unlockCodes.map((item: any) => {
+        if (item && item.code && item.code.toString().trim().toUpperCase() === cleanCode) {
+          return { ...item, status: 'used', usedAt: nowIso, usedByPhone: effectivePhone };
+        }
+        return item;
+      });
+
+      if (list.length > 0) {
+        await db.update(systemConfig)
+          .set({ productCosts: unlockCodes })
+          .where(eq(systemConfig.key, 'unlock_codes'));
+      }
+
+      await dbLogAudit(effectiveUserId, effectivePhone, 'UNLOCK_NEXT_ROUND', `Unlocked Next Round lock using code ${cleanCode}`);
+
+      return res.json({
+        success: true,
+        message: 'Next Round unlocked successfully! Welcome back.',
+        type: 'next_round',
+        user: updatedUser,
+        unlockCodes
+      });
+    }
+
+    return res.status(400).json({ error: 'Unknown unlock code type.' });
+  } catch (err: any) {
+    console.error('Error redeeming unlock code:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 
 // Serve the React frontend (Vite or Static Build)
 async function startServer() {

