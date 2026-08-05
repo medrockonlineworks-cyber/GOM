@@ -2959,33 +2959,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         body: JSON.stringify({ unlockCodes: updatedList }),
       }).catch(() => {});
 
-      if (matched.type === 'tax_timelock') {
-        if (currentUser) {
-          const pendingTx = transactions.find(t => t.userId === currentUser.id && t.type === 'withdraw' && t.status === 'pending');
-          if (pendingTx) {
-            const updatedTxs = transactions.map(t => {
-              if (t.id === pendingTx.id) {
-                return { ...t, createdAt: new Date().toISOString(), taxRef: `TL-UNLOCKED-${cleanCode}` };
-              }
-              return t;
-            });
-            setTransactions(updatedTxs);
-          }
-        }
-        return { success: true, message: 'Tax Time-Lock successfully unlocked! Application access restored.', type: 'tax_timelock' };
-      }
-
-      if (matched.type === 'next_round') {
+      if (matched.type === 'tax_timelock' || matched.type === 'next_round') {
         if (currentUser) {
           const updatedUser = { 
             ...currentUser, 
             nextRoundLocked: false,
-            currentOrderIndex: 0,
-            completedOrderIds: [],
-            lastOrderCompletedAt: undefined
+            currentOrderIndex: matched.type === 'next_round' ? 0 : (currentUser.currentOrderIndex || 0),
+            completedOrderIds: matched.type === 'next_round' ? [] : (currentUser.completedOrderIds || []),
+            lastOrderCompletedAt: matched.type === 'next_round' ? undefined : currentUser.lastOrderCompletedAt
           };
           setCurrentUser(updatedUser);
-          setUsers(users.map(u => u.id === currentUser.id ? updatedUser : u));
+          setUsers(prev => prev.map(u => u.id === currentUser.id ? updatedUser : u));
           localStorage.setItem('gom_current_user', JSON.stringify(updatedUser));
 
           fetch('/api/users', {
@@ -2993,8 +2977,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(updatedUser)
           }).catch(() => {});
+
+          const pendingTx = transactions.find(t => t.userId === currentUser.id && t.type === 'withdraw' && t.status === 'pending');
+          if (pendingTx) {
+            const updatedTxs = transactions.map(t => {
+              if (t.id === pendingTx.id) {
+                return { ...t, createdAt: new Date().toISOString(), taxRef: `UNLOCKED-${cleanCode}` };
+              }
+              return t;
+            });
+            setTransactions(updatedTxs);
+            localStorage.setItem('gom_transactions', JSON.stringify(updatedTxs));
+          }
         }
-        return { success: true, message: 'Next Round unlocked successfully! Welcome back.', type: 'next_round' };
+        return { 
+          success: true, 
+          message: matched.type === 'tax_timelock' 
+            ? 'Tax Time-Lock successfully unlocked! Application access restored.' 
+            : 'Next Round unlocked successfully! Welcome back.', 
+          type: matched.type 
+        };
       }
 
       return { success: false, message: 'Invalid unlock code.' };

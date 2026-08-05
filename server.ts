@@ -1582,6 +1582,18 @@ app.post('/api/unlock-codes/redeem', async (req, res) => {
 
     // 4. Handle Tax Time-Lock unlock
     if (matched.type === 'tax_timelock') {
+      let updatedUser: any = null;
+      if (userRow) {
+        await db.update(users)
+          .set({ nextRoundLocked: false })
+          .where(eq(users.id, userRow.id));
+        updatedUser = { ...userRow, nextRoundLocked: false };
+      } else if (userId) {
+        await db.update(users)
+          .set({ nextRoundLocked: false })
+          .where(eq(users.id, userId));
+      }
+
       // Find pending withdrawal transaction for this user
       const userTxs = await db.select().from(transactions).where(eq(transactions.userId, effectiveUserId));
       const pendingWithdrawal = userTxs.find((t: any) => t.type === 'withdraw' && t.status === 'pending');
@@ -1624,6 +1636,7 @@ app.post('/api/unlock-codes/redeem', async (req, res) => {
         success: true,
         message: 'Tax Time-Lock successfully unlocked! Application access has been restored.',
         type: 'tax_timelock',
+        user: updatedUser,
         unlockCodes
       });
     }
