@@ -1,9 +1,17 @@
 @import "tailwindcss";
 
 @theme {
+  --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --color-deep-forest: #1C2B2D;
   --color-deep-forest-light: #283e40;
   --color-bronze: #CD7F32;
   --color-bronze-hover: #b56c24;
   --color-alabaster: #F5F5F5;
+}
+
+body {
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background-color: #F5F5F5;
+  color: #1e293b;
+  -webkit-font-smoothing: antialiased;
 }
