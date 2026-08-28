@@ -98,14 +98,16 @@ const MarketplaceLogoCell: React.FC<{ src: string; alt: string; brandKey: string
 };
 
 const generateRandomWithdrawal = () => {
-  const countryFormats = [
-    // Ethiopia
+  const ethiopianFormats = [
     () => {
-      const prefixes = ['910', '911', '912', '913', '914', '915', '916', '918', '920', '921', '922', '930', '960', '707', '708', '710', '711', '712', '790'];
+      const prefixes = ['910', '911', '912', '913', '914', '915', '916', '918', '920', '921', '922', '929', '930', '935', '940', '944', '960', '970', '980', '707', '708', '710', '711', '712', '713', '714', '790'];
       const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
       const suffix = Math.floor(10 + Math.random() * 90);
       return `+251 ${prefix}****${suffix}`;
-    },
+    }
+  ];
+
+  const internationalFormats = [
     // USA/Canada
     () => {
       const prefixes = ['213', '646', '312', '415', '718', '305', '206'];
@@ -133,43 +135,27 @@ const generateRandomWithdrawal = () => {
       const suffix = Math.floor(10 + Math.random() * 90);
       return `+254 ${prefix}****${suffix}`;
     },
-    // Nigeria
-    () => {
-      const prefixes = ['803', '805', '812', '905'];
-      const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
-      const suffix = Math.floor(10 + Math.random() * 90);
-      return `+234 ${prefix}****${suffix}`;
-    },
     // Saudi Arabia
     () => {
       const prefixes = ['50', '53', '55', '59'];
       const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
       const suffix = Math.floor(10 + Math.random() * 90);
       return `+966 ${prefix}****${suffix}`;
-    },
-    // South Africa
-    () => {
-      const prefixes = ['72', '82', '73', '83'];
-      const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
-      const suffix = Math.floor(10 + Math.random() * 90);
-      return `+27 ${prefix}****${suffix}`;
-    },
-    // India
-    () => {
-      const prefixes = ['98', '99', '88', '77', '91'];
-      const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
-      const suffix = Math.floor(10 + Math.random() * 90);
-      return `+91 ${prefix}****${suffix}`;
     }
   ];
 
-  const randomFormat = countryFormats[Math.floor(Math.random() * countryFormats.length)];
-  const phone = randomFormat();
+  // Show Ethiopian (ETB) withdrawals ~80% of the time
+  const isETB = Math.random() < 0.80;
+  const phone = isETB 
+    ? ethiopianFormats[0]() 
+    : internationalFormats[Math.floor(Math.random() * internationalFormats.length)]();
   
+  // Realistic withdrawal amounts strictly > 100,000 ETB and < 600,000 ETB
   const amounts = [
-    20000, 22500, 25000, 28400, 32000, 35000, 42000, 48500, 55000, 68000, 75000,
-    82000, 95000, 112000, 125000, 138400, 150000, 168000, 185000, 210000, 225000,
-    245000, 268000, 285000, 300000
+    105000, 112000, 125000, 138500, 149000, 165000, 178000, 192500, 
+    210000, 225000, 248000, 265000, 282000, 305000, 328000, 345000, 
+    368000, 395000, 415000, 438000, 462000, 485000, 510000, 535000, 
+    558000, 575000, 592000
   ];
   const amount = amounts[Math.floor(Math.random() * amounts.length)];
   return { phone, amount };
