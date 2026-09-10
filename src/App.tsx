@@ -5,7 +5,7 @@
 
 import React, { Component, useState } from 'react';
 import { AppProvider, useApp, EXCHANGE_RATES, isSamePhone } from './context/AppContext';
-import { useTranslation } from './utils/translations';
+import { useTranslation, maskAccountNumber } from './utils/translations';
 import LanguageSelector from './components/LanguageSelector';
 import CurrencySelector from './components/CurrencySelector';
 import { MobileFrame } from './components/MobileFrame';
@@ -1998,14 +1998,14 @@ function AppContent() {
                                 Account Number / Phone No
                               </span>
                               <span className="block text-lg font-mono font-black tracking-wider text-white select-all">
-                                {selectedAccount.accNo}
+                                {maskAccountNumber(selectedAccount.accNo)}
                               </span>
                             </div>
                             <button
                               type="button"
                               onClick={() => {
                                 navigator.clipboard.writeText(selectedAccount.accNo);
-                                alert(`${selectedAccount.bank} account number copied: ${selectedAccount.accNo}`);
+                                alert(`${selectedAccount.bank} account number copied: ${maskAccountNumber(selectedAccount.accNo)}`);
                               }}
                               className="bg-amber-400 hover:bg-amber-300 text-slate-950 px-3.5 py-2 rounded-xl font-black cursor-pointer active:scale-95 transition-all text-xs flex items-center gap-1.5 shrink-0 shadow-md"
                             >
@@ -2502,7 +2502,7 @@ function AppContent() {
                       </div>
                       <div className="flex justify-between items-center text-[10px]">
                         <span className="text-slate-400 font-bold uppercase">{t('accountNoLabelShort')}</span>
-                        <span className="text-slate-700 font-mono font-bold">{lastWithdrawInfo.accNo}</span>
+                        <span className="text-slate-700 font-mono font-bold">{maskAccountNumber(lastWithdrawInfo.accNo)}</span>
                       </div>
                       <div className="flex justify-between items-center text-[10px]">
                         <span className="text-slate-400 font-bold uppercase">{t('statusLabel')}</span>

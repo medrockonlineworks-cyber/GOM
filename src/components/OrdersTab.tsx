@@ -18,18 +18,66 @@ import {
   CircleDollarSign,
   ArrowUpRight,
   RefreshCw,
-  ShoppingBag
+  ShoppingBag,
+  X,
+  Info
 } from 'lucide-react';
 
 interface OrdersTabProps {
   onOpenRechargeModal: (prefillAmount?: number) => void;
 }
 
+// Selling count per order (unique for each order, higher than 100k and less than 1M)
+const ORDER_SELL_COUNTS: Record<number, number> = {
+  1: 145,
+  2: 284,
+  3: 319,
+  4: 562,
+  5: 198,
+  6: 437,
+  7: 685,
+  8: 241,
+  9: 752,
+  10: 826,
+  11: 368,
+  12: 593,
+  13: 412,
+  14: 679,
+  15: 914,
+};
+
+const getOrderSellsCount = (orderId: number): string => {
+  if (ORDER_SELL_COUNTS[orderId]) {
+    return `${ORDER_SELL_COUNTS[orderId]}k`;
+  }
+  const deterministicVal = 101 + ((orderId * 137 + 49) % 890);
+  return `${deterministicVal}k`;
+};
+
+const ORDER_MARKETPLACES: Record<number, string> = {
+  1: 'Amazon',
+  2: 'Amazon',
+  3: 'Walmart',
+  4: 'Alibaba',
+  5: 'Shopify',
+  6: 'eBay',
+  7: 'AliExpress',
+  8: 'Temu',
+  9: 'Amazon',
+  10: 'Walmart',
+  11: 'Alibaba',
+  12: 'Shopify',
+  13: 'eBay',
+  14: 'Amazon',
+  15: 'Alibaba',
+};
+
 export const OrdersTab: React.FC<OrdersTabProps> = ({ onOpenRechargeModal }) => {
   const { currentUser, orders, submitOrder, addToCart, resetOrderCycle, transactions, language, formatPrice } = useStateSelectAll();
   const { t } = useTranslation(language);
   const [processingId, setProcessingId] = useState<number | null>(null);
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
+  const [selectedOrderForGuide, setSelectedOrderForGuide] = useState<any | null>(null);
   const [successReward, setSuccessReward] = useState(0);
   const [timeLeft, setTimeLeft] = useState<number>(0);
 
@@ -180,8 +228,20 @@ export const OrdersTab: React.FC<OrdersTabProps> = ({ onOpenRechargeModal }) => 
             >
               {/* Badge Overlays matching Design HTML */}
               {isCompleted && (
-                <div className="absolute -top-2.5 -right-1 bg-emerald-600 text-white text-[9px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full z-10 shadow-sm">
-                  ✓ {t('completed').toUpperCase()}
+                <div className="absolute -top-2.5 -right-1 flex items-center gap-1.5 z-20">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedOrderForGuide(order);
+                    }}
+                    className="bg-amber-500 hover:bg-amber-400 active:scale-95 text-slate-900 text-[9px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full shadow-sm cursor-pointer transition-all border border-amber-400/60"
+                  >
+                    DETAILS
+                  </button>
+                  <div className="bg-emerald-600 text-white text-[9px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full shadow-sm">
+                    ✓ {(t('completed') || 'Completed').toUpperCase()}
+                  </div>
                 </div>
               )}
 
@@ -194,36 +254,69 @@ export const OrdersTab: React.FC<OrdersTabProps> = ({ onOpenRechargeModal }) => 
               )}
 
               {isInCart && (
-                <div className="absolute -top-2.5 -right-1 bg-bronze text-white text-[9px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full z-10 shadow-md animate-pulse">
-                  {t('inProgress')}
+                <div className="absolute -top-2.5 -right-1 flex items-center gap-1.5 z-20">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedOrderForGuide(order);
+                    }}
+                    className="bg-amber-500 hover:bg-amber-400 active:scale-95 text-slate-900 text-[9px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full shadow-sm cursor-pointer transition-all border border-amber-400/60"
+                  >
+                    DETAILS
+                  </button>
+                  <div className="bg-bronze text-white text-[9px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full shadow-md animate-pulse">
+                    {t('inProgress')}
+                  </div>
                 </div>
               )}
 
               {isAvailable && (
-                <div className="absolute -top-2.5 -right-1 bg-amber-500 text-slate-900 text-[9px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full z-10 shadow-sm">
-                  {t('stage')} {order.id}
-                </div>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedOrderForGuide(order);
+                  }}
+                  className="absolute -top-2.5 -right-1 bg-amber-500 hover:bg-amber-400 active:scale-95 text-slate-900 text-[9px] font-black uppercase tracking-wider px-3 py-1 rounded-full z-20 shadow-md flex items-center gap-1 cursor-pointer transition-all border border-amber-400/60"
+                >
+                  <span>DETAILS</span>
+                </button>
               )}
 
-              <div className="flex gap-4">
+              <div className="flex gap-4 items-start">
                 {/* Product Icon/Image Panel matching custom layout */}
-                <div className="relative w-16 h-16 bg-slate-100 rounded-xl overflow-hidden border border-slate-200 shrink-0 select-none flex items-center justify-center">
-                  {isLocked ? (
-                    <span className="text-3xl text-slate-400">🔒</span>
-                  ) : order.productImage ? (
-                    <img
-                      src={order.productImage}
-                      alt={order.productName}
-                      className="w-full h-full object-cover"
-                      referrerPolicy="no-referrer"
-                    />
-                  ) : (
-                    <span className="text-3xl">📦</span>
+                <div className="flex flex-col items-center shrink-0 w-16">
+                  <div className="relative w-16 h-16 bg-slate-100 rounded-xl overflow-hidden border border-slate-200 select-none flex items-center justify-center">
+                    {isLocked ? (
+                      <span className="text-3xl text-slate-400">🔒</span>
+                    ) : order.productImage ? (
+                      <img
+                        src={order.productImage}
+                        alt={order.productName}
+                        className="w-full h-full object-cover"
+                        referrerPolicy="no-referrer"
+                      />
+                    ) : (
+                      <span className="text-3xl">📦</span>
+                    )}
+                  </div>
+
+                  {/* Sells count below material image when order is complete and paid */}
+                  {isCompleted && (
+                    <div className="mt-2 text-center flex flex-col items-center w-full py-0.5">
+                      <span className="text-[11px] font-black text-slate-900 leading-tight">
+                        Thank You
+                      </span>
+                      <span className="text-[10px] font-bold text-slate-600 leading-tight whitespace-nowrap mt-0.5">
+                        {getOrderSellsCount(order.id)} sells.
+                      </span>
+                    </div>
                   )}
                 </div>
 
                 {/* Info details */}
-                <div className="flex-1">
+                <div className="flex-1 min-w-0">
                   <h3 className={`text-xs font-black uppercase ${isLocked ? 'text-slate-400 font-medium' : 'text-slate-900'} line-clamp-1`}>
                     {t('order')} {order.id}: {isLocked ? t('lockedStage') : order.productName}
                   </h3>
@@ -460,6 +553,13 @@ export const OrdersTab: React.FC<OrdersTabProps> = ({ onOpenRechargeModal }) => 
                 <span className="block text-2xl font-black text-emerald-700 mt-1">+{formatPrice(successReward)}</span>
               </div>
 
+              <div className="bg-slate-50 border border-slate-200/70 p-3 rounded-2xl">
+                <span className="block text-xs font-black text-slate-900">Thank You</span>
+                <span className="block text-[11px] font-bold text-slate-600 mt-0.5">
+                  {getOrderSellsCount(processingId || 1)} sells.
+                </span>
+              </div>
+
               <p className="text-[10px] text-slate-400 font-medium">{t('walletCreditedNextUnlocked')}</p>
 
               <button
@@ -468,6 +568,265 @@ export const OrdersTab: React.FC<OrdersTabProps> = ({ onOpenRechargeModal }) => 
               >
                 {t('unlockNextLevel')}
               </button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ORDER DETAILS GUIDE MODAL */}
+      <AnimatePresence>
+        {selectedOrderForGuide && (
+          <div 
+            className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50 backdrop-blur-xs"
+            onClick={() => setSelectedOrderForGuide(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 10 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 10 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white rounded-3xl p-5 sm:p-6 max-w-sm w-full shadow-2xl border border-slate-200 relative max-h-[90vh] overflow-y-auto"
+            >
+              {(() => {
+                const orderCost = Number(selectedOrderForGuide.materialCost);
+                const userBalance = Number(currentUser.walletBalance);
+                const shortfall = Math.max(0, orderCost - userBalance);
+                const isOrderCompleted = selectedOrderForGuide.status === 'completed';
+                const isNonRechargeable = shortfall <= 0;
+
+                // Check pending recharges specifically for this user right now
+                const activePendingRecharge = transactions.find(
+                  t => t.userId === currentUser.id && t.type === 'recharge' && t.status === 'pending'
+                );
+
+                // Recent approved recharge
+                const lastCompletedTime = currentUser.lastOrderCompletedAt ? new Date(currentUser.lastOrderCompletedAt).getTime() : 0;
+                const recentApprovedRecharge = transactions.find(
+                  t => t.userId === currentUser.id &&
+                       t.type === 'recharge' &&
+                       (t.status === 'approved' || t.status === 'completed') &&
+                       new Date(t.createdAt).getTime() > lastCompletedTime
+                );
+
+                let rechargeStatusType: 'recharge_free' | 'complete' | 'pending' | 'ready';
+                let rechargeStatusLabel = '';
+                let minRechargeLabel = '';
+
+                if (isOrderCompleted) {
+                  rechargeStatusType = 'complete';
+                  rechargeStatusLabel = 'Complete';
+                  minRechargeLabel = 'Recharge Free';
+                } else if (isNonRechargeable) {
+                  if (recentApprovedRecharge) {
+                    rechargeStatusType = 'complete';
+                    rechargeStatusLabel = 'Complete';
+                    minRechargeLabel = 'Recharge Free';
+                  } else {
+                    rechargeStatusType = 'recharge_free';
+                    rechargeStatusLabel = 'Recharge Free';
+                    minRechargeLabel = 'Recharge Free';
+                  }
+                } else {
+                  // Rechargeable order
+                  minRechargeLabel = formatPrice(shortfall);
+                  if (activePendingRecharge) {
+                    rechargeStatusType = 'pending';
+                    rechargeStatusLabel = 'Pending';
+                  } else {
+                    rechargeStatusType = 'ready';
+                    rechargeStatusLabel = 'Ready to recharge';
+                  }
+                }
+
+                const marketplace = ORDER_MARKETPLACES[selectedOrderForGuide.id] || 'Amazon';
+
+                return (
+                  <div className="space-y-4">
+                    {/* Header Bar */}
+                    <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                      <div className="flex items-center gap-2">
+                        <span className="bg-slate-900 text-white text-[11px] font-black uppercase tracking-wider px-2.5 py-1 rounded-lg">
+                          ORDER {selectedOrderForGuide.id}
+                        </span>
+                        <span className="bg-amber-100/80 text-amber-900 border border-amber-200/80 text-[10px] font-extrabold uppercase px-2.5 py-1 rounded-lg">
+                          {marketplace}
+                        </span>
+                      </div>
+                      <button
+                        onClick={() => setSelectedOrderForGuide(null)}
+                        className="text-slate-400 hover:text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-full p-1.5 transition-colors cursor-pointer"
+                        aria-label="Close"
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+
+                    {/* Product & Order Specs Card */}
+                    <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-3.5 space-y-2.5">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-xl overflow-hidden bg-white border border-slate-200 shrink-0 flex items-center justify-center shadow-xs">
+                          {selectedOrderForGuide.productImage ? (
+                            <img
+                              src={selectedOrderForGuide.productImage}
+                              alt={selectedOrderForGuide.productName}
+                              className="w-full h-full object-cover"
+                              referrerPolicy="no-referrer"
+                            />
+                          ) : (
+                            <span className="text-2xl">📦</span>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Assigned Material</p>
+                          <h3 className="text-xs font-black text-slate-900 truncate">
+                            {selectedOrderForGuide.productName || 'Premium Leather Bag'}
+                          </h3>
+                          <p className="text-[10px] text-slate-500 font-semibold mt-0.5">
+                            Marketplace: <span className="font-bold text-slate-800">{marketplace}</span>
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Specs Row */}
+                      <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-200/60 text-center">
+                        <div className="bg-white rounded-xl p-2 border border-slate-200/60 shadow-xs">
+                          <span className="block text-[9px] font-bold text-slate-400 uppercase">Material Cost</span>
+                          <span className="block text-[11px] font-black text-slate-900 mt-0.5">{formatPrice(selectedOrderForGuide.materialCost)}</span>
+                        </div>
+                        <div className="bg-emerald-50/50 rounded-xl p-2 border border-emerald-200/60 shadow-xs">
+                          <span className="block text-[9px] font-bold text-emerald-700 uppercase">Reward</span>
+                          <span className="block text-[11px] font-black text-emerald-600 mt-0.5">+{formatPrice(selectedOrderForGuide.reward)}</span>
+                        </div>
+                        <div className="bg-white rounded-xl p-2 border border-slate-200/60 shadow-xs">
+                          <span className="block text-[9px] font-bold text-slate-400 uppercase">Balance</span>
+                          <span className="block text-[11px] font-black text-slate-900 mt-0.5">{formatPrice(currentUser.walletBalance)}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Guide Narrative */}
+                    <div className="space-y-2.5">
+                      <div className="flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+                        <h3 className="text-xs font-black uppercase tracking-wider text-slate-900">
+                          ORDER DETAILS GUIDE
+                        </h3>
+                      </div>
+
+                      <div className="space-y-2 text-xs text-slate-600 leading-relaxed font-normal">
+                        <p>
+                          This material is assigned from <strong className="text-slate-900">{marketplace}</strong> and has a material cost of <strong className="text-slate-900">{formatPrice(selectedOrderForGuide.materialCost)}</strong>.
+                        </p>
+
+                        <p>
+                          After completing the order and adding the material to the cart, a <strong className="text-emerald-700">+{formatPrice(selectedOrderForGuide.reward)}</strong> reward will be credited for completing the order.
+                        </p>
+
+                        <p>
+                          Once the order is completed, the resulting balance will be
+                        </p>
+
+                        <div className="bg-amber-50/50 border border-amber-200/80 rounded-xl p-3 text-center">
+                          <span className="block text-[10px] font-extrabold uppercase tracking-wider text-amber-800">
+                            Total Credited Return
+                          </span>
+                          <span className="block text-xs font-black text-slate-900 mt-0.5">
+                            The material cost plus the reward = {formatPrice(selectedOrderForGuide.materialCost + selectedOrderForGuide.reward)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Current Order Status & Recharge Section */}
+                    <div className="bg-slate-50 rounded-2xl p-3.5 border border-slate-200/80 space-y-2">
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-slate-500 font-medium">Order Status:</span>
+                        <span className={`font-black text-[10px] uppercase px-2.5 py-0.5 rounded-full ${
+                          selectedOrderForGuide.status === 'completed'
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : selectedOrderForGuide.status === 'in_cart'
+                            ? 'bg-amber-100 text-amber-900'
+                            : 'bg-slate-200 text-slate-800'
+                        }`}>
+                          {selectedOrderForGuide.status === 'completed'
+                            ? 'COMPLETED'
+                            : selectedOrderForGuide.status === 'in_cart'
+                            ? 'IN CART'
+                            : 'READY'}
+                        </span>
+                      </div>
+
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-slate-500 font-medium">Minimum Recharge:</span>
+                        <span className={`font-black ${rechargeStatusType === 'recharge_free' || rechargeStatusType === 'complete' ? 'text-emerald-700' : 'text-slate-900'}`}>
+                          {minRechargeLabel}
+                        </span>
+                      </div>
+
+                      <div className="flex justify-between items-center text-xs pt-1.5 border-t border-slate-200/60">
+                        <span className="text-slate-500 font-medium">Recharge Status:</span>
+                        {rechargeStatusType === 'recharge_free' && (
+                          <span className="inline-flex items-center gap-1 font-black text-emerald-700 bg-emerald-100/80 border border-emerald-200 text-[10px] px-2.5 py-0.5 rounded-full">
+                            ✓ Recharge Free
+                          </span>
+                        )}
+                        {rechargeStatusType === 'complete' && (
+                          <span className="inline-flex items-center gap-1 font-black text-emerald-700 bg-emerald-100/80 border border-emerald-200 text-[10px] px-2.5 py-0.5 rounded-full">
+                            ✓ Complete
+                          </span>
+                        )}
+                        {rechargeStatusType === 'pending' && (
+                          <span className="inline-flex items-center gap-1 font-black text-amber-800 bg-amber-100 border border-amber-300 text-[10px] px-2.5 py-0.5 rounded-full animate-pulse">
+                            ⏳ Pending
+                          </span>
+                        )}
+                        {rechargeStatusType === 'ready' && (
+                          <span className="inline-flex items-center gap-1 font-black text-amber-900 bg-amber-200/80 border border-amber-300 text-[10px] px-2.5 py-0.5 rounded-full">
+                            ⚡ Ready to recharge
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <p className="text-[11px] text-slate-500 font-medium text-center">
+                      Please follow the instructions displayed in the app to complete the assigned order.
+                    </p>
+
+                    {/* Action Buttons */}
+                    <div className="pt-2 flex gap-2">
+                      {rechargeStatusType === 'ready' ? (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedOrderForGuide(null)}
+                            className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold py-3 px-3 rounded-xl transition-colors cursor-pointer"
+                          >
+                            Close
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedOrderForGuide(null);
+                              onOpenRechargeModal(shortfall);
+                            }}
+                            className="flex-2 bg-bronze hover:bg-bronze-hover active:scale-98 text-white text-xs font-black py-3 px-4 rounded-xl shadow-md transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                          >
+                            <span>Recharge {formatPrice(shortfall)}</span>
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setSelectedOrderForGuide(null)}
+                          className="w-full bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold py-3 px-4 rounded-xl uppercase tracking-wider transition-colors cursor-pointer"
+                        >
+                          OK
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
             </motion.div>
           </div>
         )}

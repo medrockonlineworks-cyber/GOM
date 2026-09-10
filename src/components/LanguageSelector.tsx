@@ -42,7 +42,7 @@ export default function LanguageSelector() {
         className="bg-[#051F10]/95 border border-emerald-800/80 rounded-xl px-3 py-1.5 flex items-center gap-1.5 text-[10px] font-black text-white cursor-pointer hover:bg-emerald-900 transition-colors shadow-inner focus:outline-none"
       >
         <Globe size={11} className="text-emerald-400 animate-[spin_12s_linear_infinite]" />
-        <span>{currentLang.flag} {currentLang.code.toUpperCase()}</span>
+        <span>{currentLang?.flag || '🌐'} {(currentLang?.code || 'EN').toUpperCase()}</span>
         <ChevronDown size={10} className={`text-slate-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 

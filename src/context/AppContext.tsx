@@ -584,6 +584,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // Ensure all loaded users have inviteCodes and referral fields
     const completedList = loadedUsers.map(u => {
       const updated = { ...u };
+      if (!updated.role) {
+        updated.role = isSamePhone(updated.phoneNumber, '0951560276') ? 'admin' : 'user';
+      }
       if (!updated.inviteCode) {
         const phoneDigits = String(updated.phoneNumber || '').replace(/[^0-9]/g, '');
         const suffix = phoneDigits.slice(-5) || String(updated.id || '').slice(-5) || '00000';
@@ -912,19 +915,38 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (res.ok) {
         uList = await res.json();
         if (Array.isArray(uList)) {
-          setUsers(uList);
-          localStorage.setItem('gom_users', JSON.stringify(uList));
+          const sanitizedList = uList.map((u: any) => ({
+            ...u,
+            role: u.role || (isSamePhone(u.phoneNumber, '0951560276') ? 'admin' : 'user'),
+          }));
+          setUsers(prev => {
+            const merged = sanitizedList.map(su => {
+              const lu = prev.find(p => p.id === su.id);
+              if (lu) {
+                return {
+                  ...su,
+                  walletBalance: Math.max(Number(lu.walletBalance || 0), Number(su.walletBalance || 0)),
+                  completedOrderIds: Array.from(new Set([...(lu.completedOrderIds || []), ...(su.completedOrderIds || [])])).sort((a, b) => a - b)
+                };
+              }
+              return su;
+            });
+            localStorage.setItem('gom_users', JSON.stringify(merged));
+            return merged;
+          });
           
           setRawCurrentUser(prev => {
             if (!prev) return null;
             const match = uList.find((u: any) => u.id === prev.id);
             if (!match) return prev;
-            if (JSON.stringify(match) !== JSON.stringify(prev)) {
-              const updated = { ...prev, ...match };
-              localStorage.setItem('gom_current_user', JSON.stringify(updated));
-              return updated;
-            }
-            return prev;
+            const updated = {
+              ...prev,
+              ...match,
+              walletBalance: Math.max(Number(prev.walletBalance || 0), Number(match.walletBalance || 0)),
+              completedOrderIds: Array.from(new Set([...(prev.completedOrderIds || []), ...(match.completedOrderIds || [])])).sort((a, b) => a - b)
+            };
+            localStorage.setItem('gom_current_user', JSON.stringify(updated));
+            return updated;
           });
         }
       } else {
@@ -937,17 +959,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         try {
           uList = JSON.parse(savedUsers);
           if (Array.isArray(uList)) {
-            setUsers(uList);
+            const sanitizedList = uList.map((u: any) => ({
+              ...u,
+              role: u.role || (isSamePhone(u.phoneNumber, '0951560276') ? 'admin' : 'user'),
+            }));
+            setUsers(sanitizedList);
             setRawCurrentUser(prev => {
               if (!prev) return null;
               const match = uList.find((u: any) => u.id === prev.id);
               if (!match) return prev;
-              if (JSON.stringify(match) !== JSON.stringify(prev)) {
-                const updated = { ...prev, ...match };
-                localStorage.setItem('gom_current_user', JSON.stringify(updated));
-                return updated;
-              }
-              return prev;
+              const updated = {
+                ...prev,
+                ...match,
+                walletBalance: Math.max(Number(prev.walletBalance || 0), Number(match.walletBalance || 0)),
+                completedOrderIds: Array.from(new Set([...(prev.completedOrderIds || []), ...(match.completedOrderIds || [])])).sort((a, b) => a - b)
+              };
+              localStorage.setItem('gom_current_user', JSON.stringify(updated));
+              return updated;
             });
           }
         } catch (e) {}
@@ -960,8 +988,59 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (res.ok) {
         const tList = await res.json();
         if (Array.isArray(tList)) {
-          setTransactions(tList);
-          localStorage.setItem('gom_transactions', JSON.stringify(tList));
+          setTransactions(prev => {
+            // Collect all locally approved transaction IDs and reference codes to prevent reverting
+            const localApproved = new Set<string>();
+            const localApprovedRefs = new Set<string>();
+
+            prev.forEach(t => {
+              if (t.status === 'approved' || t.status === 'completed') {
+                localApproved.add(t.id);
+                if (t.accountNumberOrRef) localApprovedRefs.add(t.accountNumberOrRef.trim().toUpperCase());
+              }
+            });
+
+            try {
+              const saved = localStorage.getItem('gom_transactions');
+              if (saved) {
+                const parsed = JSON.parse(saved);
+                if (Array.isArray(parsed)) {
+                  parsed.forEach((t: any) => {
+                    if (t.status === 'approved' || t.status === 'completed') {
+                      localApproved.add(t.id);
+                      if (t.accountNumberOrRef) localApprovedRefs.add(t.accountNumberOrRef.trim().toUpperCase());
+                    }
+                  });
+                }
+              }
+            } catch (e) {}
+
+            const merged = tList.map((serverTx: Transaction) => {
+              const isLocallyApproved = localApproved.has(serverTx.id) ||
+                (serverTx.type === 'recharge' && serverTx.accountNumberOrRef && localApprovedRefs.has(serverTx.accountNumberOrRef.trim().toUpperCase()));
+              
+              if (isLocallyApproved && serverTx.status === 'pending') {
+                // Keep the approved status and safely sync it back to backend
+                fetch(`/api/transactions/${serverTx.id}/status`, {
+                  method: 'PUT',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ status: 'approved', tx: serverTx })
+                }).catch(() => {});
+                return { ...serverTx, status: 'approved' as const };
+              }
+              return serverTx;
+            });
+
+            // Append any locally submitted transactions that haven't landed on server yet
+            prev.forEach(localTx => {
+              if (!merged.some(m => m.id === localTx.id)) {
+                merged.push(localTx);
+              }
+            });
+
+            localStorage.setItem('gom_transactions', JSON.stringify(merged));
+            return merged;
+          });
         }
       } else {
         throw new Error('Response not ok');
@@ -3026,7 +3105,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const tx = transactions.find(t => t.id === txId);
     if (!tx || (tx.status !== 'pending' && tx.status !== 'tax_submitted')) return;
 
-    const updatedTxs = transactions.map(t => t.id === txId ? { ...t, status: 'approved' as const } : t);
+    const normalizedRef = tx.accountNumberOrRef ? tx.accountNumberOrRef.trim().toUpperCase() : null;
+
+    const updatedTxs = transactions.map(t => {
+      if (t.id === txId) return { ...t, status: 'approved' as const };
+      if (tx.type === 'recharge' && normalizedRef && t.userId === tx.userId && t.type === 'recharge' && t.accountNumberOrRef && t.accountNumberOrRef.trim().toUpperCase() === normalizedRef) {
+        return { ...t, status: 'approved' as const };
+      }
+      return t;
+    });
     setTransactions(updatedTxs);
     localStorage.setItem('gom_transactions', JSON.stringify(updatedTxs));
 
@@ -3071,7 +3158,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const res = await fetch(`/api/transactions/${txId}/status`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'approved' })
+        body: JSON.stringify({ status: 'approved', tx })
       });
       if (res.ok) {
         const data = await res.json();
@@ -4134,20 +4221,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
 
         // 5. Update the recharge status to Approved and 6. Record the transaction in the wallet history
+        const normalizedRef = tx.accountNumberOrRef ? tx.accountNumberOrRef.trim().toUpperCase() : null;
         let updatedTxsList: Transaction[] = transactions;
         const storedTxs = localStorage.getItem('gom_transactions');
+        const updateTxItem = (t: any) => {
+          if (t.id === txId) return { ...t, status: 'approved' as const };
+          if (tx.type === 'recharge' && normalizedRef && t.userId === tx.userId && t.type === 'recharge' && t.accountNumberOrRef && t.accountNumberOrRef.trim().toUpperCase() === normalizedRef) {
+            return { ...t, status: 'approved' as const };
+          }
+          return t;
+        };
+
         if (storedTxs) {
           try {
             const parsedTxs = JSON.parse(storedTxs);
             if (Array.isArray(parsedTxs)) {
-              updatedTxsList = parsedTxs.map(t => t.id === txId ? { ...t, status: 'approved' as const } : t);
+              updatedTxsList = parsedTxs.map(updateTxItem);
               localStorage.setItem('gom_transactions', JSON.stringify(updatedTxsList));
             }
           } catch (e) {
             console.error("Error parsing transactions list from local storage:", e);
           }
         } else {
-          updatedTxsList = transactions.map(t => t.id === txId ? { ...t, status: 'approved' as const } : t);
+          updatedTxsList = transactions.map(updateTxItem);
           localStorage.setItem('gom_transactions', JSON.stringify(updatedTxsList));
         }
 
@@ -4168,7 +4264,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const res = await fetch(`/api/transactions/${txId}/status`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'approved' })
+        body: JSON.stringify({ status: 'approved', tx })
       });
 
       if (!res.ok) {

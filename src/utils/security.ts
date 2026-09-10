@@ -28,3 +28,22 @@ export function generateId(prefix: string = 'TX'): string {
   const timestamp = Date.now().toString().slice(-4);
   return `${prefix}-${randomStr}${timestamp}`;
 }
+
+/**
+ * Masks an account number to hide sensitive banking details.
+ * Example: 1000418563748 -> 1000 *********
+ */
+export function maskAccountNumber(acc: string | undefined | null): string {
+  if (!acc) return '1000 *********';
+  const str = String(acc).trim();
+  if (!str) return '1000 *********';
+  if (str.includes('***')) return str;
+  if (str === 'SYSTEM_MANUAL' || str.toLowerCase().includes('system')) return '1000 *********';
+  if (str.length >= 4) {
+    const prefix = str.slice(0, 4);
+    const restLength = Math.max(9, str.length - 4);
+    return `${prefix} ${'*'.repeat(restLength)}`;
+  }
+  return `${str} *********`;
+}
+

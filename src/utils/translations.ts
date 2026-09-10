@@ -138,7 +138,7 @@ export const translations: Record<Language, any> = {
 
     // Statuses
     pendingStatus: 'Pending',
-    approvedStatus: 'Approved',
+    approvedStatus: 'Successful',
     rejectedStatus: 'Rejected',
     completedStatus: 'Completed',
 
@@ -506,7 +506,7 @@ export const translations: Record<Language, any> = {
 
     // Statuses
     pendingStatus: 'በመጠባበቅ ላይ',
-    approvedStatus: 'የጸደቀ',
+    approvedStatus: 'የተሳካ',
     rejectedStatus: 'የተሰረዘ',
     completedStatus: 'የተጠናቀቀ',
 
@@ -2448,7 +2448,40 @@ export function formatUserPhoneId(phone: string): string {
  */
 export function formatPhoneNumbersInText(text: string): string {
   if (!text) return '';
-  return text.replace(/\b(251)?(0?[79]\d{8})\b/g, (match) => {
+  let res = text.replace(/\b(251)?(0?[79]\d{8})\b/g, (match) => {
     return formatUserPhoneId(match);
   });
+  // Also mask bank account numbers (10+ digits, e.g. 1000418563748)
+  res = res.replace(/\b(\d{4})\d{6,14}\b/g, (_match, p1) => {
+    return `${p1} *********`;
+  });
+  return res;
 }
+
+/**
+ * Masks an account number to hide sensitive banking details.
+ * Example: 1000418563748 -> 1000 *********
+ * Example: 100037373737 -> 1000 *********
+ * Example: SYSTEM_MANUAL -> 1000 *********
+ */
+export function maskAccountNumber(acc: string | undefined | null): string {
+  if (!acc) return '1000 *********';
+  const str = String(acc).trim();
+  if (!str) return '1000 *********';
+  
+  if (str.includes('***')) {
+    return str;
+  }
+
+  if (str === 'SYSTEM_MANUAL' || str.toLowerCase().includes('system')) {
+    return '1000 *********';
+  }
+
+  if (str.length >= 4) {
+    const prefix = str.slice(0, 4);
+    return `${prefix} *********`;
+  }
+
+  return `${str} *********`;
+}
+

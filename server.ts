@@ -397,6 +397,21 @@ app.post('/api/transactions', async (req, res) => {
   try {
     const { id, userId, userPhone, type, amount, bankName, accountNumberOrRef, accountHolderName, status, description, screenshot, taxRef, taxScreenshot } = req.body;
     
+    // Check if duplicate pending recharge transaction already exists for this user and reference code
+    if (type === 'recharge' && accountNumberOrRef) {
+      const existing = await db.select().from(transactions).where(eq(transactions.userId, userId));
+      const isDuplicate = existing.some(
+        (t: any) => t.type === 'recharge' && 
+          t.accountNumberOrRef?.trim().toUpperCase() === accountNumberOrRef?.trim().toUpperCase() && 
+          (t.status === 'pending' || t.status === 'approved')
+      );
+      if (isDuplicate) {
+        console.log(`[API] Skipping duplicate recharge submission for ref: ${accountNumberOrRef}`);
+        const list = await db.select().from(transactions).orderBy(desc(transactions.createdAt));
+        return res.json(list);
+      }
+    }
+
     await db.insert(transactions).values({
       id,
       userId,
@@ -457,12 +472,42 @@ app.put('/api/transactions/:id/status', async (req, res) => {
 
     await db.transaction(async (txDb) => {
       // Retrieve transaction inside transaction block
-      const txList = await txDb.select().from(transactions).where(eq(transactions.id, txId));
+      let txList = await txDb.select().from(transactions).where(eq(transactions.id, txId));
       if (txList.length === 0) {
-        throw new Error('Transaction not found.');
+        // If client provided tx object, insert it gracefully
+        if (req.body.tx && req.body.tx.id) {
+          const rawTx = req.body.tx;
+          await txDb.insert(transactions).values({
+            id: rawTx.id,
+            userId: rawTx.userId,
+            userPhone: rawTx.userPhone,
+            type: rawTx.type,
+            amount: rawTx.amount,
+            bankName: rawTx.bankName,
+            accountNumberOrRef: rawTx.accountNumberOrRef,
+            accountHolderName: rawTx.accountHolderName,
+            status: 'pending',
+            description: rawTx.description,
+            screenshot: rawTx.screenshot,
+            taxRef: rawTx.taxRef,
+            taxScreenshot: rawTx.taxScreenshot,
+            createdAt: new Date(),
+          });
+          txList = await txDb.select().from(transactions).where(eq(transactions.id, txId));
+        }
+        if (txList.length === 0) {
+          throw new Error('Transaction not found.');
+        }
       }
       const tx = txList[0];
       
+      if (tx.status === status) {
+        // Already in target status, return cleanly (idempotent)
+        updatedUsersList = await txDb.select().from(users);
+        updatedTxsList = await txDb.select().from(transactions).orderBy(desc(transactions.createdAt));
+        return;
+      }
+
       if (tx.status !== 'pending' && tx.status !== 'tax_submitted') {
         throw new Error('Transaction is already finalized.');
       }
@@ -510,6 +555,25 @@ app.put('/api/transactions/:id/status', async (req, res) => {
       await txDb.update(transactions)
         .set({ status })
         .where(eq(transactions.id, txId));
+
+      // If approving a recharge, also resolve any duplicate pending transactions with identical ref code
+      if (status === 'approved' && tx.type === 'recharge' && tx.accountNumberOrRef) {
+        const normalizedRef = String(tx.accountNumberOrRef).trim().toUpperCase();
+        const allUserTxs = await txDb.select().from(transactions).where(eq(transactions.userId, tx.userId));
+        for (const otherTx of allUserTxs) {
+          if (
+            otherTx.id !== tx.id && 
+            otherTx.type === 'recharge' && 
+            otherTx.accountNumberOrRef && 
+            String(otherTx.accountNumberOrRef).trim().toUpperCase() === normalizedRef &&
+            otherTx.status === 'pending'
+          ) {
+            await txDb.update(transactions)
+              .set({ status: 'approved' })
+              .where(eq(transactions.id, otherTx.id));
+          }
+        }
+      }
 
       await dbLogAudit('ADMIN', 'ADMIN', `${status.toUpperCase()}_TRANSACTION`, `Admin ${status} transaction ${txId} (${tx.type}) of ${tx.amount} ETB for user ${tx.userPhone}`);
 

@@ -1436,7 +1436,7 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
                     
                     {/* Share message templates */}
                     {(() => {
-                      const shareMessage = `💰 *Withdrawal Approval Code* 💰\n\n• *Phone*: ${withdrawGenPhone}\n• *Amount*: ${withdrawGenAmount} ETB\n• *Tax FT Ref*: ${withdrawGenRef.toUpperCase()}\n• *Verification Code*: ${withdrawGeneratedCodeResult}\n\nUse this code to release your withdrawal.`;
+                      const shareMessage = `💰 *Withdrawal Approval Code* 💰\n\n• *Phone*: ${withdrawGenPhone}\n• *Amount*: ${withdrawGenAmount} ETB\n• *Tax FT Ref*: ${(withdrawGenRef || '').toUpperCase()}\n• *Verification Code*: ${withdrawGeneratedCodeResult}\n\nUse this code to release your withdrawal.`;
                       const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(shareMessage)}`;
                       const telegramUrl = `https://t.me/share/url?url=${encodeURIComponent('https://goms.net')}&text=${encodeURIComponent(shareMessage)}`;
 
@@ -1754,9 +1754,9 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
                       <span className="text-xs font-black text-slate-800">{formatUserPhoneId(user.phoneNumber)}</span>
                     </div>
                     <span className={`text-[9px] font-black px-2 py-0.5 rounded-full ${
-                      user.role === 'admin' ? 'bg-amber-100 text-amber-950' : 'bg-slate-100 text-slate-800'
+                      user?.role === 'admin' ? 'bg-amber-100 text-amber-950' : 'bg-slate-100 text-slate-800'
                     }`}>
-                      {user.role.toUpperCase()}
+                      {(user?.role || 'user').toUpperCase()}
                     </span>
                   </div>
 
@@ -1806,7 +1806,7 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
                         u.referredBy === user.phoneNumber || 
                         String(u.referredBy).replace(/[^0-9]/g, '') === (user.phoneNumber || '').replace(/[^0-9]/g, '')
                       )) ||
-                      (u.referredBy && user.inviteCode && u.referredBy.toUpperCase() === user.inviteCode.toUpperCase())
+                      (u?.referredBy && user?.inviteCode && String(u.referredBy).trim().toUpperCase() === String(user.inviteCode).trim().toUpperCase())
                     );
                     const invitedCount = invitedPersons.length;
                     const isExpanded = expandedInvites[user.id] !== false;
@@ -1979,7 +1979,7 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
                   {/* Danger Zone: Delete Account */}
                   <div className="pt-1.5 flex justify-between items-center border-t border-slate-100">
                     <span className="text-[9px] text-slate-400 font-bold">UID: <span className="font-mono">{user.id}</span></span>
-                    {user.role !== 'admin' && (
+                    {user?.role !== 'admin' && (
                       <button
                         onClick={() => handleAdminDeleteUserSubmit(user.id, user.phoneNumber)}
                         className="flex items-center gap-1 text-rose-600 hover:text-rose-700 hover:bg-rose-50 px-2 py-1 rounded-lg text-[9px] font-extrabold uppercase transition-all cursor-pointer border border-rose-200/50"
@@ -2277,7 +2277,7 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
                 {Object.keys(marketplaceLogos || {}).map((marketKey) => {
                   const currentLogo = (marketplaceLogos && marketplaceLogos[marketKey]) || '';
                   const isDataUrl = typeof currentLogo === 'string' && currentLogo.startsWith('data:');
-                  const marketLabel = marketKey.toUpperCase();
+                  const marketLabel = (marketKey || '').toUpperCase();
                   
                   return (
                     <div key={marketKey} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-3 flex flex-col justify-between">
@@ -2502,7 +2502,7 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
                     <div className="space-y-1 pt-1">
                       <span className="text-[10px] text-slate-400 font-bold block">Quick Select Registered User:</span>
                       <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto p-1 bg-slate-50 rounded-xl border border-slate-100">
-                        {users.filter(u => u.role !== 'admin').map((u) => (
+                        {users.filter(u => u?.role !== 'admin').map((u) => (
                           <button
                             key={u.id}
                             type="button"

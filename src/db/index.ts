@@ -1,4 +1,5 @@
 import { drizzle } from 'drizzle-orm/node-postgres';
+import { getTableName } from 'drizzle-orm';
 import pkg from 'pg';
 import * as schema from './schema.ts';
 import fs from 'fs';
@@ -22,6 +23,20 @@ export const createPool = () => {
 // Helper: Convert snake_case to camelCase
 function toCamelCase(str: string): string {
   return str.replace(/_([a-z])/g, (g) => g[1].toUpperCase());
+}
+
+// Helper: Resolve table name accurately using drizzle-orm getTableName
+function resolveTableName(table: any): string {
+  if (!table) return 'unknown';
+  if (typeof table === 'string') return table;
+  try {
+    const name = getTableName(table);
+    if (name) return name;
+  } catch (e) {}
+  if (table[Symbol.for('drizzle:Name')]) return table[Symbol.for('drizzle:Name')];
+  if (table.tableName) return table.tableName;
+  if (table._?.name) return table._.name;
+  return 'unknown';
 }
 
 // Parser: Extract columns and values from Drizzle condition object
@@ -96,8 +111,53 @@ class MockDrizzle {
     try {
       if (fs.existsSync(this.filePath)) {
         const fileContent = fs.readFileSync(this.filePath, 'utf8');
-        this.data = JSON.parse(fileContent);
-        console.log('[MockDB] Loaded existing data from mock_db.json');
+        const parsed = JSON.parse(fileContent);
+        this.data = {
+          users: Array.isArray(parsed.users) ? parsed.users : [],
+          transactions: Array.isArray(parsed.transactions) ? parsed.transactions : [],
+          announcements: Array.isArray(parsed.announcements) ? parsed.announcements : [],
+          support_messages: Array.isArray(parsed.support_messages) ? parsed.support_messages : [],
+          audit_logs: Array.isArray(parsed.audit_logs) ? parsed.audit_logs : [],
+          recharge_accounts: Array.isArray(parsed.recharge_accounts) ? parsed.recharge_accounts : [],
+          system_config: Array.isArray(parsed.system_config) ? parsed.system_config : []
+        };
+
+        // Migrate items trapped in parsed.unknown
+        if (Array.isArray(parsed.unknown) && parsed.unknown.length > 0) {
+          for (const item of parsed.unknown) {
+            if (item.key === 'global' || item.key === 'admin_gift_codes' || item.key === 'used_codes' || item.key === 'generated_codes') {
+              if (!this.data.system_config.some(s => s.key === item.key)) {
+                this.data.system_config.push(item);
+              }
+            } else if (item.phoneNumber && (item.id?.startsWith('GOM-') || item.role)) {
+              if (!this.data.users.some(u => u.id === item.id || u.phoneNumber === item.phoneNumber)) {
+                this.data.users.push(item);
+              }
+            } else if (item.action || item.id?.startsWith('LOG-') || item.id?.startsWith('AUDIT-')) {
+              if (!this.data.audit_logs.some(l => l.id === item.id)) {
+                this.data.audit_logs.push(item);
+              }
+            } else if (item.type || item.id?.startsWith('TX-') || item.id?.startsWith('DEP-') || item.id?.startsWith('WTH-')) {
+              if (!this.data.transactions.some(t => t.id === item.id)) {
+                this.data.transactions.push(item);
+              }
+            } else if (item.title && item.content) {
+              if (!this.data.announcements.some(a => a.id === item.id)) {
+                this.data.announcements.push(item);
+              }
+            } else if (item.subject && item.message) {
+              if (!this.data.support_messages.some(m => m.id === item.id)) {
+                this.data.support_messages.push(item);
+              }
+            } else if (item.accountNumber && item.bank) {
+              if (!this.data.recharge_accounts.some(r => r.id === item.id)) {
+                this.data.recharge_accounts.push(item);
+              }
+            }
+          }
+          this.save();
+        }
+        console.log('[MockDB] Loaded and normalized data from mock_db.json');
       } else {
         console.log('[MockDB] No mock_db.json found, starting with empty tables');
       }
@@ -114,6 +174,10 @@ class MockDrizzle {
     }
   }
 
+  async transaction(callback: (txDb: any) => Promise<any>) {
+    return await callback(this);
+  }
+
   private matchesCondition(item: any, cond: any): boolean {
     const pairs = parseCondition(cond);
     if (!pairs || pairs.length === 0) return true;
@@ -127,7 +191,7 @@ class MockDrizzle {
   select() {
     return {
       from: (table: any) => {
-        const tableName = table.tableName || (table && table._?.name) || 'unknown';
+        const tableName = resolveTableName(table);
         let results = [...(this.data[tableName] || [])];
 
         const builder = {
@@ -174,7 +238,7 @@ class MockDrizzle {
   }
 
   insert(table: any) {
-    const tableName = table.tableName || (table && table._?.name) || 'unknown';
+    const tableName = resolveTableName(table);
     return {
       values: (data: any) => {
         const records = Array.isArray(data) ? data : [data];
@@ -196,7 +260,7 @@ class MockDrizzle {
   }
 
   update(table: any) {
-    const tableName = table.tableName || (table && table._?.name) || 'unknown';
+    const tableName = resolveTableName(table);
     return {
       set: (data: any) => {
         const builder = {
@@ -224,7 +288,7 @@ class MockDrizzle {
   }
 
   delete(table: any) {
-    const tableName = table.tableName || (table && table._?.name) || 'unknown';
+    const tableName = resolveTableName(table);
     return {
       where: (condition: any) => {
         let deletedCount = 0;
