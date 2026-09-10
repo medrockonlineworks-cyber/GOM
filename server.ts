@@ -787,6 +787,7 @@ app.post('/api/users', async (req, res) => {
       claimedGiftCodes: userToSave.claimedGiftCodes ?? [],
       lockedOrderCosts: userToSave.lockedOrderCosts ?? {},
       nextRoundLocked: userToSave.nextRoundLocked ?? false,
+      profileImage: userToSave.profileImage ?? null,
     };
 
     if (existing.length > 0) {
@@ -840,6 +841,7 @@ app.post('/api/users/sync-bulk', async (req, res) => {
         withdrawalAccName: lu.withdrawalAccName ?? null,
         claimedGiftCodes: lu.claimedGiftCodes ?? [],
         lockedOrderCosts: lu.lockedOrderCosts ?? {},
+        profileImage: lu.profileImage ?? null,
       };
 
       if (!match) {

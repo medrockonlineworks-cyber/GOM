@@ -32,6 +32,7 @@ export interface User {
   pendingGiftCodes?: { id: string; code: string; amount: number; createdAt: string; targetPhone: string }[];
   lockedOrderCosts?: { [orderId: number]: LockedOrderData }; // Locked costs once order is generated
   nextRoundLocked?: boolean; // Whether user is locked in Next Round Coming Soon mode
+  profileImage?: string; // Profile picture data URL or image URL
 }
 
 export interface LockedOrderData {

@@ -451,7 +451,8 @@ interface AppContextProps {
   login: (phoneNumber: string, passwordPlain: string) => Promise<{ success: boolean; message: string }>;
   logout: () => void;
   resetPassword: (phoneNumber: string, passwordPlain: string) => Promise<{ success: boolean; message: string }>;
-  updateAccountDetails: (phoneNumber: string, passwordPlain?: string) => Promise<{ success: boolean; message: string }>;
+  updateAccountDetails: (phoneNumber: string, passwordPlain?: string, profileImage?: string | null) => Promise<{ success: boolean; message: string }>;
+  updateProfileImage: (profileImage: string | null) => Promise<{ success: boolean; message: string }>;
   registerWithdrawalAccount: (bankName: string, accNo: string, accName: string) => Promise<{ success: boolean; message: string }>;
 
   // Wallet actions
@@ -2132,7 +2133,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
-  const updateAccountDetails = async (phoneNumber: string, passwordPlain?: string) => {
+  const updateAccountDetails = async (phoneNumber: string, passwordPlain?: string, profileImage?: string | null) => {
     if (!currentUser) {
       return { success: false, message: 'No user is currently logged in.' };
     }
@@ -2150,11 +2151,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
     }
 
-    let updatedUser = { ...currentUser, phoneNumber: trimmedPhone };
+    let updatedUser: User = { ...currentUser, phoneNumber: trimmedPhone };
 
     if (passwordPlain && passwordPlain.trim() !== '') {
       const hashed = await hashPassword(passwordPlain);
       updatedUser.passwordHash = hashed;
+    }
+
+    if (profileImage !== undefined) {
+      updatedUser.profileImage = profileImage === null ? undefined : profileImage;
     }
 
     try {
@@ -2164,6 +2169,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         body: JSON.stringify(updatedUser)
       });
       setCurrentUser(updatedUser);
+      const updatedUsers = users.map(u => u.id === currentUser.id ? updatedUser : u);
+      setUsers(updatedUsers);
+      localStorage.setItem('gom_users', JSON.stringify(updatedUsers));
       await logAudit(currentUser.id, trimmedPhone, 'UPDATE_ACCOUNT_DETAILS', 'Updated account login details.');
       return { success: true, message: 'Account details updated successfully.' };
     } catch (e) {
@@ -2173,6 +2181,38 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       localStorage.setItem('gom_users', JSON.stringify(updatedUsers));
       setCurrentUser(updatedUser);
       return { success: true, message: 'Account details updated successfully (Offline Fallback).' };
+    }
+  };
+
+  const updateProfileImage = async (profileImage: string | null) => {
+    if (!currentUser) {
+      return { success: false, message: 'No user is currently logged in.' };
+    }
+
+    const updatedUser: User = { 
+      ...currentUser, 
+      profileImage: profileImage === null ? undefined : profileImage 
+    };
+
+    try {
+      await fetch('/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedUser)
+      });
+      setCurrentUser(updatedUser);
+      const updatedUsers = users.map(u => u.id === currentUser.id ? updatedUser : u);
+      setUsers(updatedUsers);
+      localStorage.setItem('gom_users', JSON.stringify(updatedUsers));
+      await logAudit(currentUser.id, currentUser.phoneNumber, 'UPDATE_PROFILE_IMAGE', profileImage ? 'Updated profile picture.' : 'Removed profile picture.');
+      return { success: true, message: 'Profile picture updated successfully.' };
+    } catch (e) {
+      console.error("Error updating profile image, falling back to local storage:", e);
+      const updatedUsers = users.map(u => u.id === currentUser.id ? updatedUser : u);
+      setUsers(updatedUsers);
+      localStorage.setItem('gom_users', JSON.stringify(updatedUsers));
+      setCurrentUser(updatedUser);
+      return { success: true, message: 'Profile picture updated successfully (Offline Fallback).' };
     }
   };
 
@@ -4694,6 +4734,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       logout,
       resetPassword,
       updateAccountDetails,
+      updateProfileImage,
       registerWithdrawalAccount,
       deposit,
       withdraw,

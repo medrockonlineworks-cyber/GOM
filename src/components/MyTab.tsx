@@ -36,7 +36,10 @@ import {
   Users,
   ShieldCheck,
   Check,
-  UploadCloud
+  UploadCloud,
+  Camera,
+  Trash2,
+  Image as ImageIcon
 } from 'lucide-react';
 
 interface MyTabProps {
@@ -231,6 +234,7 @@ export const MyTab: React.FC<MyTabProps> = ({
     factoryReset,
     language,
     updateAccountDetails,
+    updateProfileImage,
     registerWithdrawalAccount,
     formatPrice,
     currency,
@@ -250,6 +254,11 @@ export const MyTab: React.FC<MyTabProps> = ({
       phoneNumberLabel: 'Phone Number',
       newPasswordLabel: 'New Password',
       newPasswordPlaceholder: 'Leave blank to keep current password',
+      profilePicture: 'Profile Photo',
+      uploadPhoto: 'Upload Photo',
+      changePhoto: 'Change Photo',
+      removePhoto: 'Remove',
+      photoHint: 'Click or drop JPG, PNG, or WebP',
       saveChanges: 'Save Changes',
       updating: 'Updating...',
       successUpdate: 'Account updated successfully!',
@@ -281,6 +290,11 @@ export const MyTab: React.FC<MyTabProps> = ({
       phoneNumberLabel: 'የስልክ ቁጥር',
       newPasswordLabel: 'አዲስ የይለፍ ቃል',
       newPasswordPlaceholder: 'ያለውን የይለፍ ቃል ለማቆየት ባዶ ይተውት',
+      profilePicture: 'የመገለጫ ፎቶ',
+      uploadPhoto: 'ፎቶ ስቀል',
+      changePhoto: 'ፎቶ ቀይር',
+      removePhoto: 'አስወግድ',
+      photoHint: 'JPG፣ PNG ወይም WebP ይጫኑ',
       saveChanges: 'ለውጦችን አስቀምጥ',
       updating: 'በማዘመን ላይ...',
       successUpdate: 'መለያዎ በተሳካ ሁኔታ ተዘምኗል!',
@@ -312,6 +326,11 @@ export const MyTab: React.FC<MyTabProps> = ({
       phoneNumberLabel: 'رقم الهاتف',
       newPasswordLabel: 'كلمة المرور الجديدة',
       newPasswordPlaceholder: 'اتركه فارغاً للاحتفاظ بكلمة المرور الحالية',
+      profilePicture: 'صورة الملف الشخصي',
+      uploadPhoto: 'تحميل صورة',
+      changePhoto: 'تغيير الصورة',
+      removePhoto: 'إزالة',
+      photoHint: 'انقر أو اسحب صورة JPG أو PNG أو WebP',
       saveChanges: 'حفظ التغييرات',
       updating: 'جاري التحديث...',
       successUpdate: 'تم تحديث الحساب بنجاح!',
@@ -343,6 +362,11 @@ export const MyTab: React.FC<MyTabProps> = ({
       phoneNumberLabel: '手机号码',
       newPasswordLabel: '新密码',
       newPasswordPlaceholder: '留空以保持当前密码',
+      profilePicture: '个人头像',
+      uploadPhoto: '上传头像',
+      changePhoto: '更改头像',
+      removePhoto: '移除',
+      photoHint: '点击或拖拽上传 JPG、PNG 或 WebP',
       saveChanges: '保存更改',
       updating: '更新中...',
       successUpdate: '账户更新成功！',
@@ -374,6 +398,11 @@ export const MyTab: React.FC<MyTabProps> = ({
       phoneNumberLabel: 'Número de Teléfono',
       newPasswordLabel: 'Nueva Contraseña',
       newPasswordPlaceholder: 'Dejar en blanco para mantener la contraseña actual',
+      profilePicture: 'Foto de Perfil',
+      uploadPhoto: 'Subir Foto',
+      changePhoto: 'Cambiar Foto',
+      removePhoto: 'Eliminar',
+      photoHint: 'Haz clic o arrastra JPG, PNG o WebP',
       saveChanges: 'Guardar Cambios',
       updating: 'Actualizando...',
       successUpdate: '¡Cuenta actualizada con éxito!',
@@ -405,6 +434,11 @@ export const MyTab: React.FC<MyTabProps> = ({
       phoneNumberLabel: 'Numéro de Téléphone',
       newPasswordLabel: 'Nouveau Mot de Passe',
       newPasswordPlaceholder: 'Laisser vide pour conserver le mot de passe actuel',
+      profilePicture: 'Photo de Profil',
+      uploadPhoto: 'Télécharger une photo',
+      changePhoto: 'Changer la photo',
+      removePhoto: 'Supprimer',
+      photoHint: 'Cliquez ou glissez une image JPG, PNG ou WebP',
       saveChanges: 'Enregistrer les Modifications',
       updating: 'Mise à jour...',
       successUpdate: 'Compte mis à jour avec succès !',
@@ -436,6 +470,11 @@ export const MyTab: React.FC<MyTabProps> = ({
       phoneNumberLabel: 'Nambari ya Simu',
       newPasswordLabel: 'Nenosiri Jipya',
       newPasswordPlaceholder: 'Acha tupu ili kuweka nenosiri la sasa',
+      profilePicture: 'Picha ya Wasifu',
+      uploadPhoto: 'Pakia Picha',
+      changePhoto: 'Badilisha Picha',
+      removePhoto: 'Ondoa',
+      photoHint: 'Bofya au kokota JPG, PNG au WebP',
       saveChanges: 'Hifadhi Mabadiliko',
       updating: 'Inasasisha...',
       successUpdate: 'Akaunti imesasishwa kikamilifu!',
@@ -467,6 +506,11 @@ export const MyTab: React.FC<MyTabProps> = ({
       phoneNumberLabel: 'Lambarka Taleefanka',
       newPasswordLabel: 'Erayga Sirta ah ee Cusub',
       newPasswordPlaceholder: 'Ku dhaaf maran si aad u haysato erayga sirta ah ee hadda',
+      profilePicture: 'Sawirka Profile-ka',
+      uploadPhoto: 'Soo geli Sawir',
+      changePhoto: 'Beddel Sawirka',
+      removePhoto: 'Ka saar',
+      photoHint: 'Guji ama soo jiid JPG, PNG ama WebP',
       saveChanges: 'Keydi Isbeddelada',
       updating: 'La cusbooneysiinayo...',
       successUpdate: 'Koontada si guul leh ayaa loo cusbooneysiiyay!',
@@ -498,6 +542,11 @@ export const MyTab: React.FC<MyTabProps> = ({
       phoneNumberLabel: 'Número de Telefone',
       newPasswordLabel: 'Nova Senha',
       newPasswordPlaceholder: 'Deixe em branco para manter a senha atual',
+      profilePicture: 'Foto do Perfil',
+      uploadPhoto: 'Carregar Foto',
+      changePhoto: 'Alterar Foto',
+      removePhoto: 'Remover',
+      photoHint: 'Clique ou arraste JPG, PNG ou WebP',
       saveChanges: 'Salvar Alterações',
       updating: 'Atualizando...',
       successUpdate: 'Conta atualizada com sucesso!',
@@ -576,9 +625,13 @@ export const MyTab: React.FC<MyTabProps> = ({
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [settingsPhone, setSettingsPhone] = useState('');
   const [settingsPassword, setSettingsPassword] = useState('');
+  const [settingsProfileImage, setSettingsProfileImage] = useState<string | null | undefined>(undefined);
   const [settingsError, setSettingsError] = useState('');
   const [settingsSuccess, setSettingsSuccess] = useState('');
   const [settingsLoading, setSettingsLoading] = useState('');
+  const [profileImageUploading, setProfileImageUploading] = useState(false);
+  const [profileDragActive, setProfileDragActive] = useState(false);
+  const profileFileInputRef = React.useRef<HTMLInputElement | null>(null);
 
   // Withdrawal Account state
   const [showWithdrawalAccountModal, setShowWithdrawalAccountModal] = useState(false);
@@ -728,9 +781,45 @@ export const MyTab: React.FC<MyTabProps> = ({
   const openSettings = () => {
     setSettingsPhone(currentUser.phoneNumber);
     setSettingsPassword('');
+    setSettingsProfileImage(currentUser.profileImage || null);
     setSettingsError('');
     setSettingsSuccess('');
     setShowSettingsModal(true);
+  };
+
+  const handleProfileImageFile = async (file: File) => {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      setSettingsError('Please select a valid image file (JPG, PNG, or WebP).');
+      return;
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      setSettingsError('Image file is too large (max 8MB).');
+      return;
+    }
+
+    setProfileImageUploading(true);
+    setSettingsError('');
+    try {
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        if (e.target?.result) {
+          const rawDataUrl = e.target.result as string;
+          const compressed = await compressImage(rawDataUrl, 400, 400);
+          setSettingsProfileImage(compressed);
+        }
+        setProfileImageUploading(false);
+      };
+      reader.onerror = () => {
+        setSettingsError('Failed to read image file.');
+        setProfileImageUploading(false);
+      };
+      reader.readAsDataURL(file);
+    } catch (err) {
+      console.error(err);
+      setSettingsError('Failed to process image.');
+      setProfileImageUploading(false);
+    }
   };
 
   const handleUpdateSettings = async (e: React.FormEvent) => {
@@ -746,13 +835,13 @@ export const MyTab: React.FC<MyTabProps> = ({
 
     setSettingsLoading('true');
     try {
-      const res = await updateAccountDetails(trimmedPhone, settingsPassword);
+      const res = await updateAccountDetails(trimmedPhone, settingsPassword, settingsProfileImage);
       if (res.success) {
         setSettingsSuccess(localT[language].successUpdate);
         setSettingsPassword('');
         setTimeout(() => {
           setShowSettingsModal(false);
-        }, 1500);
+        }, 1200);
       } else {
         setSettingsError(res.message);
       }
@@ -770,8 +859,28 @@ export const MyTab: React.FC<MyTabProps> = ({
       {/* 1. PROFESSIONAL HEADER PROFILE CARD */}
       <div className="bg-white rounded-3xl p-5 shadow-xs border border-slate-200/50 flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 bg-gradient-to-br from-deep-forest to-deep-forest-light text-white rounded-2xl flex items-center justify-center shadow-md shrink-0 border border-slate-700/10">
-            <UserIcon size={20} className="text-amber-400" />
+          <div 
+            onClick={openSettings}
+            className="relative w-12 h-12 bg-gradient-to-br from-deep-forest to-deep-forest-light text-white rounded-2xl flex items-center justify-center shadow-md shrink-0 border border-slate-700/10 overflow-hidden cursor-pointer group"
+            title="Profile photo (click to update)"
+          >
+            {currentUser.profileImage ? (
+              <img
+                src={currentUser.profileImage}
+                alt="Profile"
+                className="w-full h-full object-cover"
+                referrerPolicy="no-referrer"
+              />
+            ) : (
+              <UserIcon size={20} className="text-amber-400" />
+            )}
+            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
+              <Camera size={16} />
+            </div>
+            {/* Small camera badge */}
+            <div className="absolute bottom-0 right-0 bg-amber-500 text-white rounded-full p-0.5 shadow-xs border border-white">
+              <Camera size={8} />
+            </div>
           </div>
           <div>
             <div className="flex items-center gap-2">
@@ -785,10 +894,11 @@ export const MyTab: React.FC<MyTabProps> = ({
         </div>
         <button 
           onClick={openSettings}
-          className="bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 transition-all p-2 rounded-xl border border-slate-200/50 cursor-pointer active:scale-95 flex items-center justify-center shadow-2xs"
+          className="bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 transition-all p-2.5 rounded-xl border border-slate-200/50 cursor-pointer active:scale-95 flex items-center justify-center shadow-2xs group"
           aria-label="Settings"
+          title="Account & Profile Settings"
         >
-          <Settings size={16} />
+          <Settings size={18} className="group-hover:rotate-45 transition-transform duration-300" />
         </button>
       </div>
 
@@ -1457,7 +1567,7 @@ export const MyTab: React.FC<MyTabProps> = ({
               </div>
 
               {/* Form Content */}
-              <form onSubmit={handleUpdateSettings} className="p-6 space-y-4">
+              <form onSubmit={handleUpdateSettings} className="p-6 space-y-4 max-h-[75vh] overflow-y-auto">
                 {settingsError && (
                   <div className="bg-red-50 text-red-600 border border-red-100 text-[10px] font-black p-3 rounded-xl flex items-center gap-2">
                     <ShieldAlert size={14} className="shrink-0" />
@@ -1471,6 +1581,105 @@ export const MyTab: React.FC<MyTabProps> = ({
                     <span>{settingsSuccess}</span>
                   </div>
                 )}
+
+                {/* PROFILE PICTURE UPLOADER SECTION */}
+                <div className="bg-slate-50/80 border border-slate-200/80 rounded-2xl p-4 flex flex-col items-center text-center space-y-3">
+                  <div className="flex items-center justify-between w-full px-1">
+                    <label className="block text-[9px] font-black uppercase tracking-wider text-slate-500">
+                      {localT[language].profilePicture}
+                    </label>
+                    {settingsProfileImage && (
+                      <button
+                        type="button"
+                        onClick={() => setSettingsProfileImage(null)}
+                        className="text-[9px] font-bold text-red-500 hover:text-red-700 inline-flex items-center gap-1 cursor-pointer transition-colors"
+                      >
+                        <Trash2 size={10} />
+                        <span>{localT[language].removePhoto}</span>
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Avatar Upload Drop Zone */}
+                  <div 
+                    onClick={() => profileFileInputRef.current?.click()}
+                    onDragOver={(e) => { e.preventDefault(); setProfileDragActive(true); }}
+                    onDragLeave={() => setProfileDragActive(false)}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      setProfileDragActive(false);
+                      if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                        handleProfileImageFile(e.dataTransfer.files[0]);
+                      }
+                    }}
+                    className={`relative w-24 h-24 rounded-2xl overflow-hidden cursor-pointer group border-2 transition-all shadow-sm flex items-center justify-center ${
+                      profileDragActive 
+                        ? 'border-amber-500 bg-amber-50 ring-4 ring-amber-500/20 scale-105' 
+                        : 'border-slate-200 bg-white hover:border-amber-400'
+                    }`}
+                    title="Click or drag an image to upload"
+                  >
+                    {profileImageUploading ? (
+                      <div className="flex flex-col items-center justify-center text-amber-600 gap-1">
+                        <RefreshCw size={24} className="animate-spin" />
+                        <span className="text-[8px] font-bold uppercase">Processing</span>
+                      </div>
+                    ) : settingsProfileImage ? (
+                      <img
+                        src={settingsProfileImage}
+                        alt="Profile Preview"
+                        className="w-full h-full object-cover"
+                        referrerPolicy="no-referrer"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-br from-deep-forest to-deep-forest-light flex items-center justify-center text-amber-400">
+                        <UserIcon size={36} />
+                      </div>
+                    )}
+
+                    {/* Hover Camera Overlay */}
+                    <div className="absolute inset-0 bg-black/45 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white gap-1">
+                      <Camera size={20} />
+                      <span className="text-[8px] font-black uppercase tracking-wider">
+                        {settingsProfileImage ? localT[language].changePhoto : localT[language].uploadPhoto}
+                      </span>
+                    </div>
+
+                    {/* Camera Floating Badge */}
+                    <div className="absolute bottom-1 right-1 bg-amber-500 text-white rounded-lg p-1 shadow-md border border-white">
+                      <Camera size={11} />
+                    </div>
+                  </div>
+
+                  {/* Hidden File Input */}
+                  <input
+                    ref={profileFileInputRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp,image/jpg"
+                    className="hidden"
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files[0]) {
+                        handleProfileImageFile(e.target.files[0]);
+                      }
+                    }}
+                  />
+
+                  {/* Action Buttons */}
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => profileFileInputRef.current?.click()}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200/80 rounded-xl text-[10px] font-black uppercase tracking-wide transition-all cursor-pointer active:scale-95 shadow-2xs"
+                    >
+                      <UploadCloud size={12} className="text-amber-600" />
+                      <span>{settingsProfileImage ? localT[language].changePhoto : localT[language].uploadPhoto}</span>
+                    </button>
+                  </div>
+
+                  <p className="text-[9px] text-slate-400 font-medium">
+                    {localT[language].photoHint}
+                  </p>
+                </div>
 
                 {/* Phone Input */}
                 <div className="space-y-1.5">

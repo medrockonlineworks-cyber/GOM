@@ -304,10 +304,19 @@ export const HomeTab: React.FC<HomeTabProps> = ({
       {/* HEADER SECTION */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-full bg-amber-50 flex items-center justify-center border border-amber-200/50">
-            <span className="text-bronze font-black text-xs">
-              {String(currentUser.phoneNumber || currentUser.id || '').slice(-2)}
-            </span>
+          <div className="w-9 h-9 rounded-full bg-amber-50 flex items-center justify-center border border-amber-200/50 overflow-hidden shrink-0">
+            {currentUser.profileImage ? (
+              <img
+                src={currentUser.profileImage}
+                alt="Profile"
+                className="w-full h-full object-cover"
+                referrerPolicy="no-referrer"
+              />
+            ) : (
+              <span className="text-bronze font-black text-xs">
+                {String(currentUser.phoneNumber || currentUser.id || '').slice(-2)}
+              </span>
+            )}
           </div>
           <div>
             <span className="block text-[10px] text-slate-400 font-bold uppercase tracking-wider">{t('welcome')},</span>
