@@ -39,7 +39,10 @@ import {
   UploadCloud,
   Camera,
   Trash2,
-  Image as ImageIcon
+  AlertTriangle,
+  Image as ImageIcon,
+  Edit3,
+  Plus
 } from 'lucide-react';
 
 interface MyTabProps {
@@ -236,6 +239,7 @@ export const MyTab: React.FC<MyTabProps> = ({
     updateAccountDetails,
     updateProfileImage,
     registerWithdrawalAccount,
+    removeWithdrawalAccount,
     formatPrice,
     currency,
     verifyRechargeOffline,
@@ -275,7 +279,14 @@ export const MyTab: React.FC<MyTabProps> = ({
       withdrawalAccNo: 'Withdrawal Account Number',
       withdrawalAccName: 'Account Holder Name',
       saveAccount: 'Save Account',
+      updateAccount: 'Update Account',
+      changeWithdrawalAccount: 'Change Withdrawal Account',
       withdrawalAccountRegistered: 'Withdrawal account registered successfully!',
+      withdrawalAccountUpdated: 'Withdrawal account updated successfully!',
+      removeAccount: 'Remove Account',
+      withdrawalAccountRemoved: 'Withdrawal account removed successfully.',
+      currentRegisteredAccount: 'Current Registered Account',
+      confirmRemoveAccount: 'Are you sure you want to remove your registered withdrawal account?',
       comingSoon: 'Coming Soon',
       giftBoxTitle: 'Gift Box & Promo Rewards',
       claimBadge: 'CLAIM',
@@ -311,7 +322,14 @@ export const MyTab: React.FC<MyTabProps> = ({
       withdrawalAccNo: 'የመውጫ ሂሳብ ቁጥር',
       withdrawalAccName: 'የአካውንት ባለቤት ስም',
       saveAccount: 'ሂሳብ አስቀምጥ',
+      updateAccount: 'ሂሳብ አዘምን',
+      changeWithdrawalAccount: 'የመውጫ ሂሳብ ቀይር',
       withdrawalAccountRegistered: 'የመውጫ ሂሳብዎ በተሳካ ሁኔታ ተመዝግቧል!',
+      withdrawalAccountUpdated: 'የመውጫ ሂሳብዎ በተሳካ ሁኔታ ተዘምኗል!',
+      removeAccount: 'ሂሳብ አስወግድ',
+      withdrawalAccountRemoved: 'የመውጫ ሂሳብ በተሳካ ሁኔታ ተወግዷል።',
+      currentRegisteredAccount: 'አሁን የተመዘገበ ሂሳብ',
+      confirmRemoveAccount: 'የተመዘገበውን የመውጫ ሂሳብ ማስወገድ እርግጠኛ ነዎት?',
       comingSoon: 'በቅርቡ የሚመጣ',
       giftBoxTitle: 'የስጦታ ሣጥን እና ማስተዋወቂያ ሽልማቶች',
       claimBadge: 'ተቀበል',
@@ -347,7 +365,14 @@ export const MyTab: React.FC<MyTabProps> = ({
       withdrawalAccNo: 'رقم حساب السحب',
       withdrawalAccName: 'اسم صاحب الحساب',
       saveAccount: 'حفظ الحساب',
+      updateAccount: 'تحديث الحساب',
+      changeWithdrawalAccount: 'تغيير حساب السحب',
       withdrawalAccountRegistered: 'تم تسجيل حساب السحب بنجاح!',
+      withdrawalAccountUpdated: 'تم تحديث حساب السحب بنجاح!',
+      removeAccount: 'إزالة الحساب',
+      withdrawalAccountRemoved: 'تمت إزالة حساب السحب بنجاح.',
+      currentRegisteredAccount: 'الحساب المسجل الحالي',
+      confirmRemoveAccount: 'هل أنت متأكد من رغبتك في إزالة حساب السحب المسجل؟',
       comingSoon: 'قريباً',
       giftBoxTitle: 'صندوق الهدايا والمكافآت الترويجية',
       claimBadge: 'مطالبة',
@@ -383,7 +408,14 @@ export const MyTab: React.FC<MyTabProps> = ({
       withdrawalAccNo: '提现账号',
       withdrawalAccName: '账户持有人姓名',
       saveAccount: '保存账户',
+      updateAccount: '更新账户',
+      changeWithdrawalAccount: '更改提现账户',
       withdrawalAccountRegistered: '提现账户注册成功！',
+      withdrawalAccountUpdated: '提现账户更新成功！',
+      removeAccount: '移除账户',
+      withdrawalAccountRemoved: '提现账户已成功移除。',
+      currentRegisteredAccount: '当前已绑定账户',
+      confirmRemoveAccount: '您确定要移除已绑定的提现账户吗？',
       comingSoon: '即将推出',
       giftBoxTitle: '礼品盒与促销奖励',
       claimBadge: '领取',
@@ -419,7 +451,14 @@ export const MyTab: React.FC<MyTabProps> = ({
       withdrawalAccNo: 'Número de cuenta de retiro',
       withdrawalAccName: 'Nombre del titular de la cuenta',
       saveAccount: 'Guardar cuenta',
+      updateAccount: 'Actualizar cuenta',
+      changeWithdrawalAccount: 'Cambiar cuenta de retiro',
       withdrawalAccountRegistered: '¡Cuenta de retiro registrada con éxito!',
+      withdrawalAccountUpdated: '¡Cuenta de retiro actualizada con éxito!',
+      removeAccount: 'Eliminar cuenta',
+      withdrawalAccountRemoved: 'Cuenta de retiro eliminada con éxito.',
+      currentRegisteredAccount: 'Cuenta actualmente registrada',
+      confirmRemoveAccount: '¿Está seguro de que desea eliminar su cuenta de retiro registrada?',
       comingSoon: 'Próximamente',
       giftBoxTitle: 'Caja de Regalos y Recompensas',
       claimBadge: 'RECLAMAR',
@@ -455,7 +494,14 @@ export const MyTab: React.FC<MyTabProps> = ({
       withdrawalAccNo: 'Numéro de compte de retrait',
       withdrawalAccName: 'Nom du titulaire du compte',
       saveAccount: 'Enregistrer le compte',
+      updateAccount: 'Mettre à jour le compte',
+      changeWithdrawalAccount: 'Changer le compte de retrait',
       withdrawalAccountRegistered: 'Compte de retrait enregistré avec succès !',
+      withdrawalAccountUpdated: 'Compte de retrait mis à jour avec succès !',
+      removeAccount: 'Supprimer le compte',
+      withdrawalAccountRemoved: 'Compte de retrait supprimé avec succès.',
+      currentRegisteredAccount: 'Compte actuellement enregistré',
+      confirmRemoveAccount: 'Êtes-vous sûr de vouloir supprimer votre compte de retrait enregistré ?',
       comingSoon: 'Bientôt disponible',
       giftBoxTitle: 'Boîte Cadeau & Récompenses',
       claimBadge: 'RÉCLAMER',
@@ -491,7 +537,14 @@ export const MyTab: React.FC<MyTabProps> = ({
       withdrawalAccNo: 'Nambari ya Akaunti ya Kutoa Pesa',
       withdrawalAccName: 'Jina la Mmiliki wa Akaunti',
       saveAccount: 'Hifadhi Akaunti',
+      updateAccount: 'Sasisha Akaunti',
+      changeWithdrawalAccount: 'Badilisha Akaunti ya Kutoa Pesa',
       withdrawalAccountRegistered: 'Akaunti ya kutoa pesa imesajiliwa kikamilifu!',
+      withdrawalAccountUpdated: 'Akaunti ya kutoa pesa imesasishwa kikamilifu!',
+      removeAccount: 'Ondoa Akaunti',
+      withdrawalAccountRemoved: 'Akaunti ya kutoa pesa imeondolewa.',
+      currentRegisteredAccount: 'Akaunti Iliyosajiliwa Sasa',
+      confirmRemoveAccount: 'Je, una uhakika unataka kuondoa akaunti yako ya kutoa pesa iliyosajiliwa?',
       comingSoon: 'Inakuja Hivi Karibuni',
       giftBoxTitle: 'Sanduku la Zawadi na Tuzo',
       claimBadge: 'DAI',
@@ -527,7 +580,14 @@ export const MyTab: React.FC<MyTabProps> = ({
       withdrawalAccNo: 'Lambarka Koontada Lacag Bixinta',
       withdrawalAccName: 'Magaca Lahaa Koontada',
       saveAccount: 'Keydi Koontada',
+      updateAccount: 'Cusbooneysii Koontada',
+      changeWithdrawalAccount: 'Beddel Koontada Lacag Bixinta',
       withdrawalAccountRegistered: 'Koontada lacag bixinta si guul leh ayaa loo diiwaangeliyay!',
+      withdrawalAccountUpdated: 'Koontada lacag bixinta si guul leh ayaa loo cusbooneysiiyay!',
+      removeAccount: 'Ka saar Koontada',
+      withdrawalAccountRemoved: 'Koontada lacag bixinta waa la saaray.',
+      currentRegisteredAccount: 'Koontada Hadda Diiwaangashan',
+      confirmRemoveAccount: 'Ma hubtaa inaad rabto inaad ka saarto koontadaada lacag bixinta ee diiwaangashan?',
       comingSoon: 'Dhawaan Filo',
       giftBoxTitle: 'Sanduuqa Hadiyadda & Abaalmarinta',
       claimBadge: 'SHEEGO',
@@ -563,7 +623,14 @@ export const MyTab: React.FC<MyTabProps> = ({
       withdrawalAccNo: 'Número da Conta de Retirada',
       withdrawalAccName: 'Nome do Titular da Conta',
       saveAccount: 'Salvar Conta',
+      updateAccount: 'Atualizar Conta',
+      changeWithdrawalAccount: 'Alterar Conta de Retirada',
       withdrawalAccountRegistered: 'Conta de retirada registrada com sucesso!',
+      withdrawalAccountUpdated: 'Conta de retirada atualizada com sucesso!',
+      removeAccount: 'Remover Conta',
+      withdrawalAccountRemoved: 'Conta de retirada removida com sucesso.',
+      currentRegisteredAccount: 'Conta Atualmente Registrada',
+      confirmRemoveAccount: 'Tem certeza de que deseja remover sua conta de retirada registrada?',
       comingSoon: 'Em breve',
       giftBoxTitle: 'Caixa de Presentes e Recompensas',
       claimBadge: 'RESGATAR',
@@ -642,15 +709,16 @@ export const MyTab: React.FC<MyTabProps> = ({
   const [withdrawalAccError, setWithdrawalAccError] = useState('');
   const [withdrawalAccSuccess, setWithdrawalAccSuccess] = useState('');
   const [withdrawalAccLoading, setWithdrawalAccLoading] = useState(false);
+  const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
 
   // Sync state if currentUser changes
   React.useEffect(() => {
     if (currentUser) {
-      if (currentUser.withdrawalBank) setWithdrawalBank(currentUser.withdrawalBank);
-      if (currentUser.withdrawalAccNo) setWithdrawalAccNo(currentUser.withdrawalAccNo);
-      if (currentUser.withdrawalAccName) setWithdrawalAccName(currentUser.withdrawalAccName);
+      setWithdrawalBank(currentUser.withdrawalBank || (isEth ? 'Commercial Bank of Ethiopia (CBE)' : 'Telebirr'));
+      setWithdrawalAccNo(currentUser.withdrawalAccNo || '');
+      setWithdrawalAccName(currentUser.withdrawalAccName || '');
     }
-  }, [currentUser]);
+  }, [currentUser?.withdrawalBank, currentUser?.withdrawalAccNo, currentUser?.withdrawalAccName]);
 
   const isEthiopianUser = !!(
     currentUser && (
@@ -717,6 +785,41 @@ export const MyTab: React.FC<MyTabProps> = ({
 
   const isEth = isEthiopianUser || currency === 'ETB';
 
+  const openWithdrawalAccountModal = () => {
+    setWithdrawalBank(currentUser?.withdrawalBank || (isEth ? 'Commercial Bank of Ethiopia (CBE)' : 'Telebirr'));
+    setWithdrawalAccNo(currentUser?.withdrawalAccNo || '');
+    setWithdrawalAccName(currentUser?.withdrawalAccName || '');
+    setWithdrawalAccError('');
+    setWithdrawalAccSuccess('');
+    setShowRemoveConfirm(false);
+    setShowBankDropdown(false);
+    setShowWithdrawalAccountModal(true);
+  };
+
+  const handleConfirmRemoveWithdrawalAccount = async () => {
+    setWithdrawalAccLoading(true);
+    setWithdrawalAccError('');
+    setShowRemoveConfirm(false);
+    try {
+      const res = await removeWithdrawalAccount();
+      if (res.success) {
+        setWithdrawalAccNo('');
+        setWithdrawalAccName('');
+        setWithdrawalAccSuccess(localT[language].withdrawalAccountRemoved || res.message);
+        setTimeout(() => {
+          setShowWithdrawalAccountModal(false);
+          setWithdrawalAccSuccess('');
+        }, 1200);
+      } else {
+        setWithdrawalAccError(res.message);
+      }
+    } catch (err: any) {
+      setWithdrawalAccError(err.message || 'Error removing account.');
+    } finally {
+      setWithdrawalAccLoading(false);
+    }
+  };
+
   const handleWithdrawalAccountSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setWithdrawalAccError('');
@@ -724,9 +827,14 @@ export const MyTab: React.FC<MyTabProps> = ({
     setWithdrawalAccLoading(true);
 
     try {
+      const isAlreadyRegistered = !!(currentUser?.withdrawalBank || currentUser?.withdrawalAccNo);
       const res = await registerWithdrawalAccount(withdrawalBank, withdrawalAccNo, withdrawalAccName);
       if (res.success) {
-        setWithdrawalAccSuccess(localT[language].withdrawalAccountRegistered || res.message);
+        setWithdrawalAccSuccess(
+          isAlreadyRegistered
+            ? (localT[language].withdrawalAccountUpdated || 'Withdrawal account updated successfully!')
+            : (localT[language].withdrawalAccountRegistered || res.message)
+        );
         setTimeout(() => {
           setShowWithdrawalAccountModal(false);
           setWithdrawalAccSuccess('');
@@ -1075,21 +1183,22 @@ export const MyTab: React.FC<MyTabProps> = ({
             </div>
           </button>
 
-          {/* Register Withdrawal Account */}
-          <button 
-            onClick={() => setShowWithdrawalAccountModal(true)}
-            className="w-full py-3 flex items-center justify-between group text-left cursor-pointer transition-colors hover:bg-slate-50/50 -mx-2 px-2 rounded-xl"
-          >
-            <div className="flex items-center gap-3">
+          {/* Register / Change Withdrawal Account */}
+          <div className="w-full py-3 flex items-center justify-between group text-left transition-colors hover:bg-slate-50/50 -mx-2 px-2 rounded-xl">
+            <button 
+              type="button"
+              onClick={openWithdrawalAccountModal}
+              className="flex items-center gap-3 flex-1 min-w-0 text-left cursor-pointer"
+            >
               <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center shrink-0 border border-amber-100/50">
                 <Landmark size={14} />
               </div>
-              <div>
+              <div className="min-w-0 flex-1">
                 <span className="text-xs font-black text-slate-800 block">
                   {currentUser.withdrawalAccNo ? localT[language].currentlyRegistered : localT[language].registerWithdrawal}
                 </span>
                 {currentUser.withdrawalAccNo ? (
-                  <span className="text-[10px] text-emerald-600 font-bold block mt-0.5">
+                  <span className="text-[10px] text-emerald-600 font-bold block mt-0.5 truncate">
                     {currentUser.withdrawalBank}: {maskAccountNumber(currentUser.withdrawalAccNo)} {currentUser.withdrawalAccName && `(${currentUser.withdrawalAccName})`}
                   </span>
                 ) : (
@@ -1098,11 +1207,30 @@ export const MyTab: React.FC<MyTabProps> = ({
                   </span>
                 )}
               </div>
+            </button>
+            <div className="flex items-center gap-1.5 shrink-0">
+              {currentUser.withdrawalAccNo ? (
+                <button
+                  type="button"
+                  onClick={openWithdrawalAccountModal}
+                  className="bg-amber-50 hover:bg-amber-100 active:scale-95 text-amber-800 font-black text-[9px] uppercase tracking-wider px-2.5 py-1.5 rounded-lg border border-amber-200/80 flex items-center gap-1 transition-all cursor-pointer shadow-2xs"
+                  title="Change registered withdrawal account"
+                >
+                  <Edit3 size={11} className="text-amber-700" />
+                  <span>{localT[language].changeWithdrawalAccount || 'Change'}</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={openWithdrawalAccountModal}
+                  className="bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-700 font-black text-[9px] uppercase tracking-wider px-2.5 py-1.5 rounded-lg border border-slate-200 flex items-center gap-1 transition-all cursor-pointer"
+                >
+                  <Plus size={11} />
+                  <span>{localT[language].saveAccount || 'Register'}</span>
+                </button>
+              )}
             </div>
-            <div className="flex items-center gap-1.5">
-              <ChevronRight size={14} className="text-slate-300 group-hover:text-slate-500 transition-colors" />
-            </div>
-          </button>
+          </div>
 
         </div>
 
@@ -1713,6 +1841,34 @@ export const MyTab: React.FC<MyTabProps> = ({
                   </p>
                 </div>
 
+                {/* Registered Withdrawal Account Shortcut */}
+                <div className="pt-2 border-t border-slate-100 space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-[9px] font-black uppercase tracking-wider text-slate-400">
+                      {localT[language].currentlyRegistered || 'Withdrawal Account'}
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowSettingsModal(false);
+                        openWithdrawalAccountModal();
+                      }}
+                      className="text-[9px] font-black text-amber-600 hover:text-amber-700 flex items-center gap-1 cursor-pointer"
+                    >
+                      <Edit3 size={10} />
+                      <span>{currentUser.withdrawalAccNo ? (localT[language].changeWithdrawalAccount || 'Change') : (localT[language].saveAccount || 'Register')}</span>
+                    </button>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200/80 flex items-center justify-between">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Landmark size={14} className="text-amber-600 shrink-0" />
+                      <span className="text-xs font-semibold text-slate-700 truncate">
+                        {currentUser.withdrawalAccNo ? `${currentUser.withdrawalBank} • ${maskAccountNumber(currentUser.withdrawalAccNo)}` : localT[language].noRegisteredAccount}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Buttons */}
                 <div className="flex gap-2 pt-2">
                   <button
@@ -1745,194 +1901,274 @@ export const MyTab: React.FC<MyTabProps> = ({
               className="bg-white rounded-[28px] w-full max-w-sm overflow-hidden shadow-2xl border border-slate-100 flex flex-col"
             >
               {/* Header */}
-              <div className="px-6 pt-6 pb-4 flex justify-between items-center bg-slate-50 border-b border-slate-100">
-                <div className="flex items-center gap-2">
-                  <Landmark className="text-amber-500" size={18} />
-                  <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest">
-                    {localT[language].registerWithdrawal}
-                  </h3>
-                </div>
-                <button
-                  onClick={() => setShowWithdrawalAccountModal(false)}
-                  className="w-7 h-7 rounded-full bg-slate-200/50 hover:bg-slate-200 flex items-center justify-center text-slate-500 hover:text-slate-800 transition-all cursor-pointer"
-                >
-                  <X size={14} />
-                </button>
-              </div>
-
-              {/* Form Content */}
-              <form onSubmit={handleWithdrawalAccountSubmit} className="p-6 space-y-4">
-                {withdrawalAccError && (
-                  <div className="bg-red-50 text-red-600 border border-red-100 text-[10px] font-black p-3 rounded-xl flex items-center gap-2">
-                    <ShieldAlert size={14} className="shrink-0" />
-                    <span>{withdrawalAccError}</span>
-                  </div>
-                )}
-
-                {withdrawalAccSuccess && (
-                  <div className="bg-emerald-50 text-emerald-600 border border-emerald-100 text-[10px] font-black p-3 rounded-xl flex items-center gap-2">
-                    <CheckCircle2 size={14} className="shrink-0" />
-                    <span>{withdrawalAccSuccess}</span>
-                  </div>
-                )}
-
-                {/* Bank / Method Selection */}
-                <div className="relative space-y-1.5">
-                  <label className="block text-[9px] font-black uppercase tracking-wider text-slate-400">
-                    {localT[language].payoutBank}
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => setShowBankDropdown(!showBankDropdown)}
-                    className="w-full bg-slate-50 border border-slate-200 hover:border-slate-300 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 rounded-xl px-4 py-2.5 text-xs text-slate-800 font-semibold flex items-center justify-between transition-all cursor-pointer"
-                  >
-                    <span className="truncate">
-                      {withdrawalBank || 'Select Bank / Method'}
-                    </span>
-                    {showBankDropdown ? (
-                      <ChevronUp size={14} className="text-slate-400 shrink-0" />
-                    ) : (
-                      <ChevronDown size={14} className="text-slate-400 shrink-0" />
-                    )}
-                  </button>
-
-                  {showBankDropdown && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -8 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="absolute left-0 right-0 mt-1 bg-white border border-slate-200/80 rounded-2xl shadow-xl z-30 max-h-52 overflow-y-auto p-1.5 space-y-1"
-                    >
-                      {/* LOCAL METHODS */}
-                      <div className="px-2.5 py-1 text-[8px] font-extrabold text-slate-400 uppercase tracking-widest bg-slate-50 rounded-lg">
-                        📍 Local Methods
+              {(() => {
+                const isAccountRegistered = !!(currentUser.withdrawalBank || currentUser.withdrawalAccNo);
+                return (
+                  <>
+                    <div className="px-6 pt-6 pb-4 flex justify-between items-center bg-slate-50 border-b border-slate-100">
+                      <div className="flex items-center gap-2">
+                        <Landmark className="text-amber-500" size={18} />
+                        <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest">
+                          {isAccountRegistered ? (localT[language].changeWithdrawalAccount || 'CHANGE WITHDRAWAL ACCOUNT') : localT[language].registerWithdrawal}
+                        </h3>
                       </div>
-                      
-                      {isEth ? (
-                        ETH_BANKS.map((bank, index) => {
-                          const isComingSoon = ['United Bank (Hibret Bank)', 'Nib International Bank', 'Wegagen Bank'].includes(bank);
-                          if (isComingSoon) {
-                            return (
+                      <button
+                        onClick={() => setShowWithdrawalAccountModal(false)}
+                        className="w-7 h-7 rounded-full bg-slate-200/50 hover:bg-slate-200 flex items-center justify-center text-slate-500 hover:text-slate-800 transition-all cursor-pointer"
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+
+                    {/* Form Content */}
+                    <form onSubmit={handleWithdrawalAccountSubmit} className="p-6 space-y-4">
+                      {isAccountRegistered && (
+                        <div className="bg-amber-50/70 border border-amber-200/80 rounded-2xl p-3.5 space-y-2.5 transition-all">
+                          <div className="flex items-center justify-between">
+                            <div className="min-w-0 pr-2">
+                              <span className="text-[9px] font-black uppercase tracking-wider text-amber-800 block">
+                                {localT[language].currentRegisteredAccount || 'Current Registered Account'}
+                              </span>
+                              <span className="text-xs font-bold text-slate-800 block mt-0.5 truncate">
+                                {currentUser.withdrawalBank}
+                              </span>
+                              <span className="text-[10px] font-mono text-slate-600 block truncate">
+                                {maskAccountNumber(currentUser.withdrawalAccNo || '')} {currentUser.withdrawalAccName ? `• ${currentUser.withdrawalAccName}` : ''}
+                              </span>
+                            </div>
+                            {!showRemoveConfirm && (
+                              <button
+                                type="button"
+                                onClick={() => setShowRemoveConfirm(true)}
+                                disabled={withdrawalAccLoading}
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white hover:bg-rose-50 border border-slate-200 hover:border-rose-200 text-rose-600 font-black text-[9px] uppercase tracking-wider transition-all cursor-pointer shadow-2xs active:scale-95 shrink-0"
+                                title={localT[language].removeAccount || 'Remove account'}
+                              >
+                                <Trash2 size={12} />
+                                <span>{localT[language].removeAccount || 'Remove Account'}</span>
+                              </button>
+                            )}
+                          </div>
+
+                          {showRemoveConfirm && (
+                            <motion.div
+                              initial={{ opacity: 0, height: 0 }}
+                              animate={{ opacity: 1, height: 'auto' }}
+                              exit={{ opacity: 0, height: 0 }}
+                              className="pt-2.5 border-t border-amber-200/70 space-y-2"
+                            >
+                              <div className="flex items-start gap-1.5 text-rose-700 bg-rose-50/80 p-2 rounded-xl border border-rose-200/60">
+                                <AlertTriangle size={14} className="shrink-0 text-rose-600 mt-0.5" />
+                                <span className="text-[10px] font-bold leading-tight">
+                                  {localT[language].confirmRemoveAccount || 'Are you sure you want to remove your registered withdrawal account?'}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={handleConfirmRemoveWithdrawalAccount}
+                                  disabled={withdrawalAccLoading}
+                                  className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-black text-[10px] uppercase tracking-wider shadow-xs active:scale-95 transition-all cursor-pointer disabled:opacity-50"
+                                >
+                                  {withdrawalAccLoading ? (
+                                    <RefreshCw size={12} className="animate-spin" />
+                                  ) : (
+                                    <Trash2 size={12} />
+                                  )}
+                                  <span>{withdrawalAccLoading ? (localT[language].updating || 'Removing...') : (localT[language].removeAccount || 'Confirm Remove')}</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setShowRemoveConfirm(false)}
+                                  disabled={withdrawalAccLoading}
+                                  className="py-2 px-3 rounded-xl bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 font-black text-[10px] uppercase tracking-wider transition-all cursor-pointer active:scale-95"
+                                >
+                                  {t('cancel')}
+                                </button>
+                              </div>
+                            </motion.div>
+                          )}
+                        </div>
+                      )}
+
+                      {withdrawalAccError && (
+                        <div className="bg-red-50 text-red-600 border border-red-100 text-[10px] font-black p-3 rounded-xl flex items-center gap-2">
+                          <ShieldAlert size={14} className="shrink-0" />
+                          <span>{withdrawalAccError}</span>
+                        </div>
+                      )}
+
+                      {withdrawalAccSuccess && (
+                        <div className="bg-emerald-50 text-emerald-600 border border-emerald-100 text-[10px] font-black p-3 rounded-xl flex items-center gap-2">
+                          <CheckCircle2 size={14} className="shrink-0" />
+                          <span>{withdrawalAccSuccess}</span>
+                        </div>
+                      )}
+
+                      {/* Bank / Method Selection */}
+                      <div className="relative space-y-1.5">
+                        <label className="block text-[9px] font-black uppercase tracking-wider text-slate-400">
+                          {localT[language].payoutBank}
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => setShowBankDropdown(!showBankDropdown)}
+                          className="w-full bg-slate-50 border border-slate-200 hover:border-slate-300 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 rounded-xl px-4 py-2.5 text-xs text-slate-800 font-semibold flex items-center justify-between transition-all cursor-pointer"
+                        >
+                          <span className="truncate">
+                            {withdrawalBank || 'Select Bank / Method'}
+                          </span>
+                          {showBankDropdown ? (
+                            <ChevronUp size={14} className="text-slate-400 shrink-0" />
+                          ) : (
+                            <ChevronDown size={14} className="text-slate-400 shrink-0" />
+                          )}
+                        </button>
+
+                        {showBankDropdown && (
+                          <motion.div
+                            initial={{ opacity: 0, y: -8 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="absolute left-0 right-0 mt-1 bg-white border border-slate-200/80 rounded-2xl shadow-xl z-30 max-h-52 overflow-y-auto p-1.5 space-y-1"
+                          >
+                            {/* LOCAL METHODS */}
+                            <div className="px-2.5 py-1 text-[8px] font-extrabold text-slate-400 uppercase tracking-widest bg-slate-50 rounded-lg">
+                              📍 Local Methods
+                            </div>
+                            
+                            {isEth ? (
+                              ETH_BANKS.map((bank, index) => {
+                                const isComingSoon = ['United Bank (Hibret Bank)', 'Nib International Bank', 'Wegagen Bank'].includes(bank);
+                                if (isComingSoon) {
+                                  return (
+                                    <div
+                                      key={`eth-${index}`}
+                                      className="w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center justify-between opacity-60 bg-slate-50/30 cursor-not-allowed select-none"
+                                    >
+                                      <span className="text-slate-400">🇪🇹 {bank}</span>
+                                      <span className="text-[8px] bg-amber-100 text-amber-800 font-extrabold uppercase px-1.5 py-0.5 rounded tracking-wider shrink-0">
+                                        {localT[language].comingSoon}
+                                      </span>
+                                    </div>
+                                  );
+                                }
+                                return (
+                                  <button
+                                    key={`eth-${index}`}
+                                    type="button"
+                                    onClick={() => {
+                                      setWithdrawalBank(bank);
+                                      setShowBankDropdown(false);
+                                    }}
+                                    className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center justify-between hover:bg-slate-50 ${
+                                      withdrawalBank === bank ? 'text-amber-600 bg-amber-50/40 font-black' : 'text-slate-600'
+                                    }`}
+                                  >
+                                    <span>🇪🇹 {bank}</span>
+                                    {withdrawalBank === bank && <Check size={12} className="text-amber-600 shrink-0" />}
+                                  </button>
+                                );
+                              })
+                            ) : (
+                              (() => {
+                                const code = getUserCountryCode(currentUser.phoneNumber);
+                                const matchedMethods = COUNTRY_LOCAL_METHODS.filter(m => m.countryCode === code);
+                                if (matchedMethods.length === 0) {
+                                  return <div className="px-3 py-1.5 text-[10px] text-slate-400 font-semibold">No local methods available</div>;
+                                }
+                                return matchedMethods.map((method, index) => (
+                                  <button
+                                    key={`other-${index}`}
+                                    type="button"
+                                    onClick={() => {
+                                      setWithdrawalBank(method.bank);
+                                      setShowBankDropdown(false);
+                                    }}
+                                    className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center justify-between hover:bg-slate-50 ${
+                                      withdrawalBank === method.bank ? 'text-amber-600 bg-amber-50/40 font-black' : 'text-slate-600'
+                                    }`}
+                                  >
+                                    <span>{method.flag} {method.bank}</span>
+                                    {withdrawalBank === method.bank && <Check size={12} className="text-amber-600 shrink-0" />}
+                                  </button>
+                                ));
+                              })()
+                            )}
+
+                            {/* INTERNATIONAL METHODS */}
+                            <div className="px-2.5 py-1 text-[8px] font-extrabold text-slate-400 uppercase tracking-widest bg-slate-50 rounded-lg mt-1">
+                              🌐 International / Crypto
+                            </div>
+                            {INT_WITHDRAW_METHODS.map((bank, index) => (
                               <div
-                                key={`eth-${index}`}
+                                key={`int-${index}`}
                                 className="w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center justify-between opacity-60 bg-slate-50/30 cursor-not-allowed select-none"
                               >
-                                <span className="text-slate-400">🇪🇹 {bank}</span>
+                                <span className="text-slate-400">💳 {bank}</span>
                                 <span className="text-[8px] bg-amber-100 text-amber-800 font-extrabold uppercase px-1.5 py-0.5 rounded tracking-wider shrink-0">
                                   {localT[language].comingSoon}
                                 </span>
                               </div>
-                            );
-                          }
-                          return (
-                            <button
-                              key={`eth-${index}`}
-                              type="button"
-                              onClick={() => {
-                                setWithdrawalBank(bank);
-                                setShowBankDropdown(false);
-                              }}
-                              className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center justify-between hover:bg-slate-50 ${
-                                withdrawalBank === bank ? 'text-amber-600 bg-amber-50/40 font-black' : 'text-slate-600'
-                              }`}
-                            >
-                              <span>🇪🇹 {bank}</span>
-                              {withdrawalBank === bank && <Check size={12} className="text-amber-600 shrink-0" />}
-                            </button>
-                          );
-                        })
-                      ) : (
-                        (() => {
-                          const code = getUserCountryCode(currentUser.phoneNumber);
-                          const matchedMethods = COUNTRY_LOCAL_METHODS.filter(m => m.countryCode === code);
-                          if (matchedMethods.length === 0) {
-                            return <div className="px-3 py-1.5 text-[10px] text-slate-400 font-semibold">No local methods available</div>;
-                          }
-                          return matchedMethods.map((method, index) => (
-                            <button
-                              key={`other-${index}`}
-                              type="button"
-                              onClick={() => {
-                                setWithdrawalBank(method.bank);
-                                setShowBankDropdown(false);
-                              }}
-                              className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center justify-between hover:bg-slate-50 ${
-                                withdrawalBank === method.bank ? 'text-amber-600 bg-amber-50/40 font-black' : 'text-slate-600'
-                              }`}
-                            >
-                              <span>{method.flag} {method.bank}</span>
-                              {withdrawalBank === method.bank && <Check size={12} className="text-amber-600 shrink-0" />}
-                            </button>
-                          ));
-                        })()
-                      )}
-
-                      {/* INTERNATIONAL METHODS */}
-                      <div className="px-2.5 py-1 text-[8px] font-extrabold text-slate-400 uppercase tracking-widest bg-slate-50 rounded-lg mt-1">
-                        🌐 International / Crypto
+                            ))}
+                          </motion.div>
+                        )}
                       </div>
-                      {INT_WITHDRAW_METHODS.map((bank, index) => (
-                        <div
-                          key={`int-${index}`}
-                          className="w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center justify-between opacity-60 bg-slate-50/30 cursor-not-allowed select-none"
+
+                      {/* Account Holder Name Input */}
+                      <div className="space-y-1.5">
+                        <label className="block text-[9px] font-black uppercase tracking-wider text-slate-400">
+                          {localT[language].withdrawalAccName}
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={withdrawalAccName}
+                          onChange={(e) => setWithdrawalAccName(e.target.value)}
+                          placeholder="e.g. John Doe"
+                          className="w-full bg-slate-50 border border-slate-200 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 focus:outline-none transition-all font-semibold"
+                        />
+                      </div>
+
+                      {/* Account Number Input */}
+                      <div className="space-y-1.5">
+                        <label className="block text-[9px] font-black uppercase tracking-wider text-slate-400">
+                          {localT[language].withdrawalAccNo}
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={withdrawalAccNo}
+                          onChange={(e) => setWithdrawalAccNo(e.target.value)}
+                          placeholder="e.g. Bank Account or Wallet number"
+                          className="w-full bg-slate-50 border border-slate-200 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 focus:outline-none transition-all font-semibold"
+                        />
+                      </div>
+
+                      {/* Save / Update Button */}
+                      <div className="flex gap-2 pt-2">
+                        <button
+                          type="button"
+                          onClick={() => setShowWithdrawalAccountModal(false)}
+                          className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 font-black text-[10px] uppercase tracking-wider py-3 rounded-xl text-center cursor-pointer transition-all active:scale-[0.98]"
                         >
-                          <span className="text-slate-400">💳 {bank}</span>
-                          <span className="text-[8px] bg-amber-100 text-amber-800 font-extrabold uppercase px-1.5 py-0.5 rounded tracking-wider shrink-0">
-                            {localT[language].comingSoon}
-                          </span>
-                        </div>
-                      ))}
-                    </motion.div>
-                  )}
-                </div>
-
-                {/* Account Holder Name Input */}
-                <div className="space-y-1.5">
-                  <label className="block text-[9px] font-black uppercase tracking-wider text-slate-400">
-                    {localT[language].withdrawalAccName}
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={withdrawalAccName}
-                    onChange={(e) => setWithdrawalAccName(e.target.value)}
-                    placeholder="e.g. John Doe"
-                    className="w-full bg-slate-50 border border-slate-200 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 focus:outline-none transition-all font-semibold"
-                  />
-                </div>
-
-                {/* Account Number Input */}
-                <div className="space-y-1.5">
-                  <label className="block text-[9px] font-black uppercase tracking-wider text-slate-400">
-                    {localT[language].withdrawalAccNo}
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={withdrawalAccNo}
-                    onChange={(e) => setWithdrawalAccNo(e.target.value)}
-                    placeholder="e.g. Bank Account or Wallet number"
-                    className="w-full bg-slate-50 border border-slate-200 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 focus:outline-none transition-all font-semibold"
-                  />
-                </div>
-
-                {/* Save Button */}
-                <div className="flex gap-2 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => setShowWithdrawalAccountModal(false)}
-                    className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 font-black text-[10px] uppercase tracking-wider py-3 rounded-xl text-center cursor-pointer transition-all active:scale-[0.98]"
-                  >
-                    {t('cancel')}
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={withdrawalAccLoading}
-                    className="flex-1 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 disabled:from-slate-300 disabled:to-slate-300 disabled:text-slate-400 text-white font-black text-[10px] uppercase tracking-wider py-3 rounded-xl text-center cursor-pointer transition-all active:scale-[0.98] shadow-sm flex items-center justify-center gap-1.5"
-                  >
-                    {withdrawalAccLoading ? localT[language].updating : localT[language].saveAccount}
-                  </button>
-                </div>
-              </form>
+                          {t('cancel')}
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={withdrawalAccLoading}
+                          className="flex-1 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 disabled:from-slate-300 disabled:to-slate-300 disabled:text-slate-400 text-white font-black text-[10px] uppercase tracking-wider py-3 rounded-xl text-center cursor-pointer transition-all active:scale-[0.98] shadow-sm flex items-center justify-center gap-1.5"
+                        >
+                          {withdrawalAccLoading
+                            ? localT[language].updating
+                            : isAccountRegistered
+                              ? (localT[language].updateAccount || 'Update Account')
+                              : localT[language].saveAccount}
+                        </button>
+                      </div>
+                    </form>
+                  </>
+                );
+              })()}
             </motion.div>
           </div>
         )}

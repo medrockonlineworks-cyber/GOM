@@ -806,6 +806,31 @@ app.post('/api/users', async (req, res) => {
   }
 });
 
+// Explicitly remove registered withdrawal account for a user
+app.post('/api/users/:id/remove-withdrawal-account', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const existing = await db.select().from(users).where(eq(users.id, id));
+    if (existing.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    await db.update(users).set({
+      withdrawalBank: null,
+      withdrawalAccNo: null,
+      withdrawalAccName: null
+    }).where(eq(users.id, id));
+
+    await dbLogAudit(id, existing[0].phoneNumber, 'REMOVE_WITHDRAWAL_ACCOUNT', `User removed registered withdrawal account (${existing[0].withdrawalBank} - ${existing[0].withdrawalAccNo})`);
+
+    const [updatedUser] = await db.select().from(users).where(eq(users.id, id));
+    const allUsers = await db.select().from(users);
+    res.json({ success: true, message: 'Withdrawal account removed successfully.', user: updatedUser, users: allUsers });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Bulk sync users (client-side offline conflict resolution)
 app.post('/api/users/sync-bulk', async (req, res) => {
   try {

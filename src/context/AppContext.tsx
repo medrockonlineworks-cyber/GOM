@@ -454,6 +454,8 @@ interface AppContextProps {
   updateAccountDetails: (phoneNumber: string, passwordPlain?: string, profileImage?: string | null) => Promise<{ success: boolean; message: string }>;
   updateProfileImage: (profileImage: string | null) => Promise<{ success: boolean; message: string }>;
   registerWithdrawalAccount: (bankName: string, accNo: string, accName: string) => Promise<{ success: boolean; message: string }>;
+  updateWithdrawalAccount: (bankName: string, accNo: string, accName: string) => Promise<{ success: boolean; message: string }>;
+  removeWithdrawalAccount: () => Promise<{ success: boolean; message: string }>;
 
   // Wallet actions
   deposit: (amount: number, bankName: string, refCode: string, screenshot?: string) => Promise<{ success: boolean; message: string }>;
@@ -2228,6 +2230,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return { success: false, message: 'Bank name, account number, and account holder name cannot be empty.' };
     }
 
+    const isUpdate = !!(currentUser.withdrawalBank || currentUser.withdrawalAccNo);
+
     const updatedUser = { 
       ...currentUser, 
       withdrawalBank: trimmedBank, 
@@ -2245,15 +2249,78 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const updatedUsers = users.map(u => u.id === currentUser.id ? updatedUser : u);
       setUsers(updatedUsers);
       localStorage.setItem('gom_users', JSON.stringify(updatedUsers));
-      await logAudit(currentUser.id, currentUser.phoneNumber, 'REGISTER_WITHDRAWAL_ACCOUNT', `Registered withdrawal account: ${trimmedBank} (${trimmedAccNo}) - Name: ${trimmedAccName}`);
-      return { success: true, message: 'Withdrawal account registered successfully.' };
+      await logAudit(
+        currentUser.id, 
+        currentUser.phoneNumber, 
+        isUpdate ? 'UPDATE_WITHDRAWAL_ACCOUNT' : 'REGISTER_WITHDRAWAL_ACCOUNT', 
+        `${isUpdate ? 'Updated' : 'Registered'} withdrawal account: ${trimmedBank} (${trimmedAccNo}) - Name: ${trimmedAccName}`
+      );
+      return { 
+        success: true, 
+        message: isUpdate ? 'Withdrawal account updated successfully.' : 'Withdrawal account registered successfully.' 
+      };
     } catch (e) {
-      console.error("Error registering withdrawal account, falling back to local storage:", e);
+      console.error("Error registering/updating withdrawal account, falling back to local storage:", e);
       const updatedUsers = users.map(u => u.id === currentUser.id ? updatedUser : u);
       setUsers(updatedUsers);
       localStorage.setItem('gom_users', JSON.stringify(updatedUsers));
       setCurrentUser(updatedUser);
-      return { success: true, message: 'Withdrawal account registered successfully (Offline Fallback).' };
+      return { 
+        success: true, 
+        message: isUpdate ? 'Withdrawal account updated successfully (Offline Fallback).' : 'Withdrawal account registered successfully (Offline Fallback).' 
+      };
+    }
+  };
+
+  const removeWithdrawalAccount = async () => {
+    if (!currentUser) {
+      return { success: false, message: 'No user is currently logged in.' };
+    }
+
+    const updatedUser: User = { 
+      ...currentUser, 
+      withdrawalBank: undefined, 
+      withdrawalAccNo: undefined,
+      withdrawalAccName: undefined
+    };
+
+    try {
+      const res = await fetch(`/api/users/${currentUser.id}/remove-withdrawal-account`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+
+      if (!res.ok) {
+        // Fallback to standard user update with explicit nulls
+        await fetch('/api/users', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ...updatedUser,
+            withdrawalBank: null,
+            withdrawalAccNo: null,
+            withdrawalAccName: null
+          })
+        });
+      }
+
+      setCurrentUser(updatedUser);
+      setRawCurrentUser(updatedUser);
+      const updatedUsers = users.map(u => u.id === currentUser.id ? updatedUser : u);
+      setUsers(updatedUsers);
+      localStorage.setItem('gom_users', JSON.stringify(updatedUsers));
+      localStorage.setItem('gom_current_user', JSON.stringify(updatedUser));
+      await logAudit(currentUser.id, currentUser.phoneNumber, 'REMOVE_WITHDRAWAL_ACCOUNT', 'Removed registered withdrawal account');
+      return { success: true, message: 'Withdrawal account removed successfully.' };
+    } catch (e) {
+      console.error("Error removing withdrawal account, falling back to local storage:", e);
+      setCurrentUser(updatedUser);
+      setRawCurrentUser(updatedUser);
+      const updatedUsers = users.map(u => u.id === currentUser.id ? updatedUser : u);
+      setUsers(updatedUsers);
+      localStorage.setItem('gom_users', JSON.stringify(updatedUsers));
+      localStorage.setItem('gom_current_user', JSON.stringify(updatedUser));
+      return { success: true, message: 'Withdrawal account removed successfully (Offline Fallback).' };
     }
   };
 
@@ -4736,6 +4803,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       updateAccountDetails,
       updateProfileImage,
       registerWithdrawalAccount,
+      updateWithdrawalAccount: registerWithdrawalAccount,
+      removeWithdrawalAccount,
       deposit,
       withdraw,
       adminGiftCodes,

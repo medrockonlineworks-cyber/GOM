@@ -20,7 +20,13 @@ import {
   RefreshCw,
   ShoppingBag,
   X,
-  Info
+  Info,
+  Zap,
+  Clock,
+  Check,
+  ShieldCheck,
+  TrendingUp,
+  Wallet
 } from 'lucide-react';
 
 interface OrdersTabProps {
@@ -577,94 +583,108 @@ export const OrdersTab: React.FC<OrdersTabProps> = ({ onOpenRechargeModal }) => 
       <AnimatePresence>
         {selectedOrderForGuide && (
           <div 
-            className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50 backdrop-blur-xs"
+            className="fixed inset-0 bg-slate-950/70 flex items-center justify-center p-3 sm:p-4 z-50 backdrop-blur-sm"
             onClick={() => setSelectedOrderForGuide(null)}
           >
             <motion.div
-              initial={{ scale: 0.95, opacity: 0, y: 10 }}
+              initial={{ scale: 0.94, opacity: 0, y: 12 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.95, opacity: 0, y: 10 }}
+              exit={{ scale: 0.94, opacity: 0, y: 12 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 350 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-white rounded-3xl p-5 sm:p-6 max-w-sm w-full shadow-2xl border border-slate-200 relative max-h-[90vh] overflow-y-auto"
+              className="bg-white rounded-3xl p-5 sm:p-6 max-w-md w-full shadow-2xl border border-slate-200/90 relative max-h-[92vh] overflow-y-auto"
             >
               {(() => {
-                const orderCost = Number(selectedOrderForGuide.materialCost);
-                const userBalance = Number(currentUser.walletBalance);
-                const shortfall = Math.max(0, orderCost - userBalance);
-                const isOrderCompleted = selectedOrderForGuide.status === 'completed';
-                const isNonRechargeable = shortfall <= 0;
+                // Determine current open order (in_cart or next available)
+                const currentOpenOrder = orders.find(o => o.status === 'in_cart') || orders.find(o => o.status === 'available') || null;
+                const isViewingOpenOrder = Boolean(currentOpenOrder && selectedOrderForGuide.id === currentOpenOrder.id);
+                const isViewedOrderCompleted = selectedOrderForGuide.status === 'completed';
 
-                // Check pending recharges specifically for this user right now
-                const activePendingRecharge = transactions.find(
-                  t => t.userId === currentUser.id && t.type === 'recharge' && t.status === 'pending'
-                );
+                // Recharge status specifically reads the current open order
+                const activeOrderToEvaluate = currentOpenOrder;
 
-                // Recent approved recharge
-                const lastCompletedTime = currentUser.lastOrderCompletedAt ? new Date(currentUser.lastOrderCompletedAt).getTime() : 0;
-                const recentApprovedRecharge = transactions.find(
-                  t => t.userId === currentUser.id &&
-                       t.type === 'recharge' &&
-                       (t.status === 'approved' || t.status === 'completed') &&
-                       new Date(t.createdAt).getTime() > lastCompletedTime
-                );
+                let openOrderShortfall = 0;
+                let isNonRechargeable = true;
+                let rechargeStatusType: 'recharge_free' | 'complete' | 'pending' | 'ready' = 'recharge_free';
+                let minRechargeDisplay = 'Recharge Free';
 
-                let rechargeStatusType: 'recharge_free' | 'complete' | 'pending' | 'ready';
-                let rechargeStatusLabel = '';
-                let minRechargeLabel = '';
+                if (activeOrderToEvaluate) {
+                  const activeOrderCost = Number(activeOrderToEvaluate.materialCost);
+                  const userBalance = Number(currentUser.walletBalance);
+                  openOrderShortfall = Math.max(0, activeOrderCost - userBalance);
+                  isNonRechargeable = openOrderShortfall <= 0;
 
-                if (isOrderCompleted) {
-                  rechargeStatusType = 'complete';
-                  rechargeStatusLabel = 'Complete';
-                  minRechargeLabel = 'Recharge Free';
-                } else if (isNonRechargeable) {
+                  // Check pending recharges specifically for this user right now
+                  const activePendingRecharge = transactions.find(
+                    t => t.userId === currentUser.id && t.type === 'recharge' && t.status === 'pending'
+                  );
+
+                  // Recent approved recharge since the last completed order
+                  const lastCompletedTime = currentUser.lastOrderCompletedAt ? new Date(currentUser.lastOrderCompletedAt).getTime() : 0;
+                  const recentApprovedRecharge = transactions.find(
+                    t => t.userId === currentUser.id &&
+                         t.type === 'recharge' &&
+                         (t.status === 'approved' || t.status === 'completed') &&
+                         new Date(t.createdAt).getTime() > lastCompletedTime
+                  );
+
                   if (recentApprovedRecharge) {
                     rechargeStatusType = 'complete';
-                    rechargeStatusLabel = 'Complete';
-                    minRechargeLabel = 'Recharge Free';
-                  } else {
-                    rechargeStatusType = 'recharge_free';
-                    rechargeStatusLabel = 'Recharge Free';
-                    minRechargeLabel = 'Recharge Free';
-                  }
-                } else {
-                  // Rechargeable order
-                  minRechargeLabel = formatPrice(shortfall);
-                  if (activePendingRecharge) {
+                    minRechargeDisplay = 'Recharge Free';
+                  } else if (activePendingRecharge) {
                     rechargeStatusType = 'pending';
-                    rechargeStatusLabel = 'Pending';
+                    minRechargeDisplay = formatPrice(openOrderShortfall > 0 ? openOrderShortfall : activePendingRecharge.amount);
+                  } else if (isNonRechargeable) {
+                    rechargeStatusType = 'recharge_free';
+                    minRechargeDisplay = 'Recharge Free';
                   } else {
                     rechargeStatusType = 'ready';
-                    rechargeStatusLabel = 'Ready to recharge';
+                    minRechargeDisplay = formatPrice(openOrderShortfall);
                   }
+                } else {
+                  // All orders completed
+                  rechargeStatusType = 'complete';
+                  minRechargeDisplay = 'Recharge Free';
                 }
 
                 const marketplace = ORDER_MARKETPLACES[selectedOrderForGuide.id] || 'Amazon';
+                const totalReturn = Number(selectedOrderForGuide.materialCost) + Number(selectedOrderForGuide.reward);
 
                 return (
                   <div className="space-y-4">
                     {/* Header Bar */}
                     <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <span className="bg-slate-900 text-white text-[11px] font-black uppercase tracking-wider px-2.5 py-1 rounded-lg">
-                          ORDER {selectedOrderForGuide.id}
+                          ORDER #{selectedOrderForGuide.id}
                         </span>
-                        <span className="bg-amber-100/80 text-amber-900 border border-amber-200/80 text-[10px] font-extrabold uppercase px-2.5 py-1 rounded-lg">
+                        <span className="bg-amber-100/90 text-amber-950 border border-amber-300/80 text-[10px] font-extrabold uppercase px-2.5 py-1 rounded-lg">
                           {marketplace}
                         </span>
+                        {isViewingOpenOrder ? (
+                          <span className="bg-blue-50 text-blue-700 border border-blue-200 text-[10px] font-bold px-2 py-0.5 rounded-md">
+                            Current Open Order
+                          </span>
+                        ) : isViewedOrderCompleted ? (
+                          <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold px-2 py-0.5 rounded-md">
+                            Completed Stage
+                          </span>
+                        ) : null}
                       </div>
                       <button
+                        type="button"
                         onClick={() => setSelectedOrderForGuide(null)}
-                        className="text-slate-400 hover:text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-full p-1.5 transition-colors cursor-pointer"
+                        className="text-slate-400 hover:text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-full p-1.5 transition-colors cursor-pointer shrink-0"
                         aria-label="Close"
                       >
                         <X size={16} />
                       </button>
                     </div>
 
-                    {/* Product & Order Specs Card */}
-                    <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-3.5 space-y-2.5">
+                    {/* Product & Material Overview Card */}
+                    <div className="bg-slate-50/80 border border-slate-200/80 rounded-2xl p-3.5 space-y-3">
                       <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-xl overflow-hidden bg-white border border-slate-200 shrink-0 flex items-center justify-center shadow-xs">
+                        <div className="w-14 h-14 rounded-xl overflow-hidden bg-white border border-slate-200/90 shrink-0 flex items-center justify-center shadow-xs">
                           {selectedOrderForGuide.productImage ? (
                             <img
                               src={selectedOrderForGuide.productImage}
@@ -673,128 +693,170 @@ export const OrdersTab: React.FC<OrdersTabProps> = ({ onOpenRechargeModal }) => 
                               referrerPolicy="no-referrer"
                             />
                           ) : (
-                            <span className="text-2xl">📦</span>
+                            <span className="text-3xl">📦</span>
                           )}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Assigned Material</p>
-                          <h3 className="text-xs font-black text-slate-900 truncate">
+                          <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Assigned Task Material</p>
+                          <h3 className="text-sm font-black text-slate-900 truncate">
                             {selectedOrderForGuide.productName || 'Premium Leather Bag'}
                           </h3>
-                          <p className="text-[10px] text-slate-500 font-semibold mt-0.5">
-                            Marketplace: <span className="font-bold text-slate-800">{marketplace}</span>
-                          </p>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <span className="text-[11px] text-slate-500 font-medium">Platform:</span>
+                            <span className="text-[11px] font-extrabold text-slate-800">{marketplace}</span>
+                            <span className="text-slate-300">•</span>
+                            <span className="text-[11px] text-slate-500">{getOrderSellsCount(selectedOrderForGuide.id)} sells</span>
+                          </div>
                         </div>
                       </div>
 
-                      {/* Specs Row */}
-                      <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-200/60 text-center">
-                        <div className="bg-white rounded-xl p-2 border border-slate-200/60 shadow-xs">
-                          <span className="block text-[9px] font-bold text-slate-400 uppercase">Material Cost</span>
-                          <span className="block text-[11px] font-black text-slate-900 mt-0.5">{formatPrice(selectedOrderForGuide.materialCost)}</span>
-                        </div>
-                        <div className="bg-emerald-50/50 rounded-xl p-2 border border-emerald-200/60 shadow-xs">
-                          <span className="block text-[9px] font-bold text-emerald-700 uppercase">Reward</span>
-                          <span className="block text-[11px] font-black text-emerald-600 mt-0.5">+{formatPrice(selectedOrderForGuide.reward)}</span>
-                        </div>
-                        <div className="bg-white rounded-xl p-2 border border-slate-200/60 shadow-xs">
-                          <span className="block text-[9px] font-bold text-slate-400 uppercase">Balance</span>
-                          <span className="block text-[11px] font-black text-slate-900 mt-0.5">{formatPrice(currentUser.walletBalance)}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Guide Narrative */}
-                    <div className="space-y-2.5">
-                      <div className="flex items-center gap-1.5">
-                        <span className="w-2 h-2 rounded-full bg-amber-500"></span>
-                        <h3 className="text-xs font-black uppercase tracking-wider text-slate-900">
-                          ORDER DETAILS GUIDE
-                        </h3>
-                      </div>
-
-                      <div className="space-y-2 text-xs text-slate-600 leading-relaxed font-normal">
-                        <p>
-                          This material is assigned from <strong className="text-slate-900">{marketplace}</strong> and has a material cost of <strong className="text-slate-900">{formatPrice(selectedOrderForGuide.materialCost)}</strong>.
-                        </p>
-
-                        <p>
-                          After completing the order and adding the material to the cart, a <strong className="text-emerald-700">+{formatPrice(selectedOrderForGuide.reward)}</strong> reward will be credited for completing the order.
-                        </p>
-
-                        <p>
-                          Once the order is completed, the resulting balance will be
-                        </p>
-
-                        <div className="bg-amber-50/50 border border-amber-200/80 rounded-xl p-3 text-center">
-                          <span className="block text-[10px] font-extrabold uppercase tracking-wider text-amber-800">
-                            Total Credited Return
-                          </span>
+                      {/* 3-Column Financial Metrics */}
+                      <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-200/70 text-center">
+                        <div className="bg-white rounded-xl p-2.5 border border-slate-200/70 shadow-2xs">
+                          <span className="block text-[9px] font-bold text-slate-400 uppercase tracking-wide">Material Cost</span>
                           <span className="block text-xs font-black text-slate-900 mt-0.5">
-                            The material cost plus the reward = {formatPrice(selectedOrderForGuide.materialCost + selectedOrderForGuide.reward)}
+                            {formatPrice(selectedOrderForGuide.materialCost)}
+                          </span>
+                        </div>
+                        <div className="bg-emerald-50/60 rounded-xl p-2.5 border border-emerald-200/70 shadow-2xs">
+                          <span className="block text-[9px] font-bold text-emerald-700 uppercase tracking-wide">Task Reward</span>
+                          <span className="block text-xs font-black text-emerald-600 mt-0.5">
+                            +{formatPrice(selectedOrderForGuide.reward)}
+                          </span>
+                        </div>
+                        <div className="bg-white rounded-xl p-2.5 border border-slate-200/70 shadow-2xs">
+                          <span className="block text-[9px] font-bold text-slate-400 uppercase tracking-wide">Your Balance</span>
+                          <span className="block text-xs font-black text-slate-900 mt-0.5">
+                            {formatPrice(currentUser.walletBalance)}
                           </span>
                         </div>
                       </div>
                     </div>
 
-                    {/* Current Order Status & Recharge Section */}
-                    <div className="bg-slate-50 rounded-2xl p-3.5 border border-slate-200/80 space-y-2">
+                    {/* Return Settlement Breakdown */}
+                    <div className="bg-amber-50/60 border border-amber-200/80 rounded-2xl p-3.5 space-y-1.5 text-xs text-slate-700">
+                      <div className="flex items-center justify-between font-bold text-slate-900">
+                        <span className="flex items-center gap-1 text-[11px] uppercase tracking-wider text-amber-900 font-extrabold">
+                          <TrendingUp size={13} className="text-amber-700" /> Total Credited Return
+                        </span>
+                        <span className="font-mono text-sm font-black text-amber-950">
+                          {formatPrice(totalReturn)}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-600 leading-relaxed">
+                        The material cost of <strong className="text-slate-900">{formatPrice(selectedOrderForGuide.materialCost)}</strong> plus the commission reward of <strong className="text-emerald-700">+{formatPrice(selectedOrderForGuide.reward)}</strong> will be credited to your wallet balance immediately upon order submission.
+                      </p>
+                    </div>
+
+                    {/* Order & Live Recharge Verification Status (Always reading current open order) */}
+                    <div className="bg-white rounded-2xl p-3.5 border border-slate-200 shadow-xs space-y-2.5">
+                      <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                        <div className="flex items-center gap-1.5">
+                          <span className={`w-2 h-2 rounded-full ${isViewingOpenOrder ? 'bg-blue-500 animate-pulse' : 'bg-slate-400'}`}></span>
+                          <span className="text-[11px] font-black uppercase tracking-wider text-slate-800">
+                            Live Order & Recharge Status
+                          </span>
+                        </div>
+                        {activeOrderToEvaluate && (
+                          <span className="text-[10px] font-bold text-slate-500">
+                            Reading Open Order #{activeOrderToEvaluate.id}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Viewed Order Status */}
                       <div className="flex justify-between items-center text-xs">
-                        <span className="text-slate-500 font-medium">Order Status:</span>
+                        <span className="text-slate-500 font-medium">
+                          {isViewingOpenOrder ? 'Open Order Status:' : `Order #${selectedOrderForGuide.id} Status:`}
+                        </span>
                         <span className={`font-black text-[10px] uppercase px-2.5 py-0.5 rounded-full ${
                           selectedOrderForGuide.status === 'completed'
-                            ? 'bg-emerald-100 text-emerald-800'
+                            ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
                             : selectedOrderForGuide.status === 'in_cart'
-                            ? 'bg-amber-100 text-amber-900'
-                            : 'bg-slate-200 text-slate-800'
+                            ? 'bg-amber-100 text-amber-950 border border-amber-300'
+                            : 'bg-slate-100 text-slate-800 border border-slate-200'
                         }`}>
                           {selectedOrderForGuide.status === 'completed'
                             ? 'COMPLETED'
                             : selectedOrderForGuide.status === 'in_cart'
                             ? 'IN CART'
-                            : 'READY'}
+                            : 'AVAILABLE'}
                         </span>
                       </div>
 
-                      <div className="flex justify-between items-center text-xs">
-                        <span className="text-slate-500 font-medium">Minimum Recharge:</span>
-                        <span className={`font-black ${rechargeStatusType === 'recharge_free' || rechargeStatusType === 'complete' ? 'text-emerald-700' : 'text-slate-900'}`}>
-                          {minRechargeLabel}
+                      {/* Minimum Recharge (Reading current open order) */}
+                      <div className="flex justify-between items-center text-xs pt-1 border-t border-slate-100">
+                        <div className="flex items-center gap-1">
+                          <span className="text-slate-500 font-medium">Minimum Recharge:</span>
+                          {!isViewingOpenOrder && activeOrderToEvaluate && (
+                            <span className="text-[10px] text-slate-400">(Order #{activeOrderToEvaluate.id})</span>
+                          )}
+                        </div>
+                        <span className={`font-black text-xs ${
+                          rechargeStatusType === 'recharge_free' || rechargeStatusType === 'complete'
+                            ? 'text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-2 py-0.5 rounded-md'
+                            : 'text-slate-950 font-mono font-bold'
+                        }`}>
+                          {minRechargeDisplay}
                         </span>
                       </div>
 
-                      <div className="flex justify-between items-center text-xs pt-1.5 border-t border-slate-200/60">
-                        <span className="text-slate-500 font-medium">Recharge Status:</span>
+                      {/* Recharge Status (Reading current open order) */}
+                      <div className="flex justify-between items-center text-xs pt-1 border-t border-slate-100">
+                        <div className="flex items-center gap-1">
+                          <span className="text-slate-500 font-medium">Recharge Status:</span>
+                          {!isViewingOpenOrder && activeOrderToEvaluate && (
+                            <span className="text-[10px] text-slate-400">(Order #{activeOrderToEvaluate.id})</span>
+                          )}
+                        </div>
+
                         {rechargeStatusType === 'recharge_free' && (
-                          <span className="inline-flex items-center gap-1 font-black text-emerald-700 bg-emerald-100/80 border border-emerald-200 text-[10px] px-2.5 py-0.5 rounded-full">
-                            ✓ Recharge Free
+                          <span className="inline-flex items-center gap-1 font-black text-emerald-700 bg-emerald-50 border border-emerald-200 text-[11px] px-2.5 py-0.5 rounded-full">
+                            <CheckCircle2 size={12} className="text-emerald-600" /> Recharge Free
                           </span>
                         )}
+
                         {rechargeStatusType === 'complete' && (
-                          <span className="inline-flex items-center gap-1 font-black text-emerald-700 bg-emerald-100/80 border border-emerald-200 text-[10px] px-2.5 py-0.5 rounded-full">
-                            ✓ Complete
+                          <span className="inline-flex items-center gap-1 font-black text-emerald-700 bg-emerald-50 border border-emerald-200 text-[11px] px-2.5 py-0.5 rounded-full">
+                            <CheckCircle2 size={12} className="text-emerald-600" /> Complete
                           </span>
                         )}
+
                         {rechargeStatusType === 'pending' && (
-                          <span className="inline-flex items-center gap-1 font-black text-amber-800 bg-amber-100 border border-amber-300 text-[10px] px-2.5 py-0.5 rounded-full animate-pulse">
-                            ⏳ Pending
+                          <span className="inline-flex items-center gap-1 font-black text-amber-800 bg-amber-50 border border-amber-300 text-[11px] px-2.5 py-0.5 rounded-full animate-pulse">
+                            <Clock size={12} className="text-amber-700" /> Pending
                           </span>
                         )}
+
                         {rechargeStatusType === 'ready' && (
-                          <span className="inline-flex items-center gap-1 font-black text-amber-900 bg-amber-200/80 border border-amber-300 text-[10px] px-2.5 py-0.5 rounded-full">
-                            ⚡ Ready to recharge
+                          <span className="inline-flex items-center gap-1 font-black text-amber-950 bg-amber-100 border border-amber-300 text-[11px] px-2.5 py-0.5 rounded-full">
+                            <Zap size={12} className="text-amber-600 fill-amber-500" /> Ready to recharge
                           </span>
                         )}
                       </div>
+
+                      {/* Helpful switcher note if viewing a past completed order */}
+                      {!isViewingOpenOrder && activeOrderToEvaluate && (
+                        <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
+                          <span>Active open order is <strong>Order #{activeOrderToEvaluate.id}</strong></span>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedOrderForGuide(activeOrderToEvaluate)}
+                            className="text-amber-700 hover:text-amber-800 font-bold underline cursor-pointer"
+                          >
+                            Switch to Open Order
+                          </button>
+                        </div>
+                      )}
                     </div>
 
                     <p className="text-[11px] text-slate-500 font-medium text-center">
-                      Please follow the instructions displayed in the app to complete the assigned order.
+                      Please follow the task instructions to proceed with the assigned order sequence.
                     </p>
 
                     {/* Action Buttons */}
-                    <div className="pt-2 flex gap-2">
-                      {rechargeStatusType === 'ready' ? (
+                    <div className="pt-1 flex gap-2">
+                      {isViewingOpenOrder && rechargeStatusType === 'ready' ? (
                         <>
                           <button
                             type="button"
@@ -807,11 +869,54 @@ export const OrdersTab: React.FC<OrdersTabProps> = ({ onOpenRechargeModal }) => 
                             type="button"
                             onClick={() => {
                               setSelectedOrderForGuide(null);
-                              onOpenRechargeModal(shortfall);
+                              onOpenRechargeModal(openOrderShortfall);
                             }}
                             className="flex-2 bg-bronze hover:bg-bronze-hover active:scale-98 text-white text-xs font-black py-3 px-4 rounded-xl shadow-md transition-all cursor-pointer flex items-center justify-center gap-1.5"
                           >
-                            <span>Recharge {formatPrice(shortfall)}</span>
+                            <Zap size={14} className="fill-white" />
+                            <span>Recharge {formatPrice(openOrderShortfall)}</span>
+                          </button>
+                        </>
+                      ) : isViewingOpenOrder && selectedOrderForGuide.status === 'in_cart' ? (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedOrderForGuide(null)}
+                            className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold py-3 px-3 rounded-xl transition-colors cursor-pointer"
+                          >
+                            Close
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedOrderForGuide(null);
+                              handleCompleteOrder(selectedOrderForGuide.id, selectedOrderForGuide.reward);
+                            }}
+                            className="flex-2 bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white text-xs font-black py-3 px-4 rounded-xl shadow-md transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                          >
+                            <Check size={14} />
+                            <span>Submit Order</span>
+                          </button>
+                        </>
+                      ) : isViewingOpenOrder && selectedOrderForGuide.status === 'available' && openOrderShortfall <= 0 ? (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedOrderForGuide(null)}
+                            className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold py-3 px-3 rounded-xl transition-colors cursor-pointer"
+                          >
+                            Close
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedOrderForGuide(null);
+                              handleAddToCart(selectedOrderForGuide.id);
+                            }}
+                            className="flex-2 bg-bronze hover:bg-bronze-hover active:scale-98 text-white text-xs font-black py-3 px-4 rounded-xl shadow-md transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                          >
+                            <ShoppingCart size={14} />
+                            <span>Add to Cart</span>
                           </button>
                         </>
                       ) : (
