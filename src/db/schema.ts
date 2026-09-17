@@ -25,6 +25,7 @@ export const users = pgTable('users', {
   claimedGiftCodes: jsonb('claimed_gift_codes').default([]),
   lockedOrderCosts: jsonb('locked_order_costs').default({}),
   nextRoundLocked: jsonb('next_round_locked').default(false),
+  whiteScreenLocked: jsonb('white_screen_locked').default(false),
   profileImage: text('profile_image'),
 });
 

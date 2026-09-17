@@ -484,6 +484,17 @@ interface AppContextProps {
   ) => Promise<{ success: boolean; code?: string; message?: string }>;
   redeemUnlockCode: (code: string) => Promise<{ success: boolean; message: string; type?: string }>;
   deleteUnlockCode: (id: string) => Promise<{ success: boolean; message?: string }>;
+  generateWhiteScreenCode: (params: {
+    targetUserId: string;
+    lockReason?: string;
+    expiresAt?: string;
+    customCode?: string;
+  }) => Promise<{ success: boolean; code?: string; record?: UnlockCode; message?: string }>;
+  restoreUserAccess: (userId: string) => Promise<{ success: boolean; message: string; user?: User }>;
+  revokeUnlockCode: (codeId: string, code?: string) => Promise<{ success: boolean; message?: string }>;
+  isWhiteScreenLocked: boolean;
+  toggleUserWhiteScreen: (userId: string, locked?: boolean) => Promise<{ success: boolean; message: string; whiteScreenLocked?: boolean }>;
+  releaseWhiteScreen: () => void;
   
   // Admin approvals
   approveTransaction: (id: string) => void;
@@ -695,6 +706,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         localStorage.setItem('gom_current_user', JSON.stringify(next));
         if (next.role === 'admin' || isSamePhone(next.phoneNumber, '0951560276')) {
           localStorage.setItem('gom_admin_device', 'true');
+          // Admin account 0951560276 is exempt from all lockout rules - clear any lock keys
+          localStorage.removeItem('gom_white_screen_locked');
+          if (next.phoneNumber) localStorage.removeItem(`gom_white_screen_${next.phoneNumber}`);
+          localStorage.removeItem(`gom_white_screen_${next.id}`);
+          setIsWhiteScreenLockedState(false);
         }
       } else {
         localStorage.removeItem('gom_current_user');
@@ -702,6 +718,38 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return next;
     });
   };
+
+  const [isWhiteScreenLockedState, setIsWhiteScreenLockedState] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return localStorage.getItem('gom_white_screen_locked') === 'true';
+  });
+
+  const isWhiteScreenLocked = useMemo(() => {
+    // Admin account 0951560276 is strictly exempt from lockout rules
+    if (currentUser && (isSamePhone(currentUser.phoneNumber, '0951560276') || currentUser.role === 'admin')) {
+      return false;
+    }
+    if (isWhiteScreenLockedState) return true;
+    if (currentUser?.whiteScreenLocked) return true;
+    if (typeof window !== 'undefined') {
+      if (localStorage.getItem('gom_white_screen_locked') === 'true') return true;
+      if (currentUser?.phoneNumber && localStorage.getItem(`gom_white_screen_${currentUser.phoneNumber}`) === 'true') return true;
+      if (currentUser?.id && localStorage.getItem(`gom_white_screen_${currentUser.id}`) === 'true') return true;
+    }
+    return false;
+  }, [isWhiteScreenLockedState, currentUser]);
+
+  useEffect(() => {
+    if (currentUser?.whiteScreenLocked) {
+      if (isSamePhone(currentUser.phoneNumber, '0951560276') || currentUser.role === 'admin') {
+        return;
+      }
+      setIsWhiteScreenLockedState(true);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('gom_white_screen_locked', 'true');
+      }
+    }
+  }, [currentUser]);
 
   const [language, setLanguageState] = useState<Language>(() => {
     const saved = localStorage.getItem('gom_lang') as Language;
@@ -2963,8 +3011,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   ): Promise<{ success: boolean; code?: string; message?: string }> => {
     try {
-      const prefix = type === 'tax_timelock' ? 'TL' : 'NR';
-      const signedCode = generateSignedUnlockCode(options?.targetPhone || 'ALL', type);
+      const prefix = (type === 'tax_timelock' || type === 'TAX_UNLOCK') ? 'TL' : (type === 'white_screen' || type === 'WHITE_SCREEN_LOCK') ? 'WS' : 'NR';
+      const signedType = (type === 'tax_timelock' || type === 'TAX_UNLOCK') ? 'tax_timelock' : (type === 'next_round' || type === 'NEXT_ROUND_UNLOCK') ? 'next_round' : null;
+      const signedCode = signedType ? generateSignedUnlockCode(options?.targetPhone || 'ALL', signedType) : null;
       const codeStr = options?.customCode && options.customCode.trim() 
         ? options.customCode.trim().toUpperCase() 
         : (signedCode || `${prefix}-${Math.floor(100000 + Math.random() * 900000)}`);
@@ -3017,7 +3066,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return {
         success: true,
         code: codeStr,
-        message: `${type === 'tax_timelock' ? 'Tax Time-Lock' : 'Next Round'} unlock code "${codeStr}" generated successfully!`
+        message: `${type === 'tax_timelock' ? 'Tax Time-Lock' : type === 'white_screen' ? 'White Screen Lockout' : 'Next Round'} code "${codeStr}" generated successfully!`
       };
     } catch (err: any) {
       return { success: false, message: err?.message || 'Failed to generate unlock code.' };
@@ -3052,22 +3101,70 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             setUnlockCodes(data.unlockCodes);
             localStorage.setItem('gom_unlock_codes', JSON.stringify(data.unlockCodes));
           }
+
+          if (data.code_type === 'WHITE_SCREEN_LOCK' || data.action === 'WHITE_SCREEN_LOCKED' || data.type === 'white_screen') {
+            if (currentUser) {
+              const updatedUser = { 
+                ...currentUser, 
+                whiteScreenLocked: true,
+                application_access_state: 'WHITE_SCREEN_LOCKED' as const,
+                applicationAccessState: 'WHITE_SCREEN_LOCKED' as const
+              };
+              setCurrentUser(updatedUser);
+              setUsers(prev => prev.map(u => u.id === updatedUser.id ? updatedUser : u));
+              localStorage.setItem('gom_current_user', JSON.stringify(updatedUser));
+            }
+            localStorage.setItem('gom_white_screen_locked', 'true');
+            if (currentUser?.phoneNumber) {
+              localStorage.setItem(`gom_white_screen_${currentUser.phoneNumber}`, 'true');
+            }
+            if (currentUser?.id) {
+              localStorage.setItem(`gom_white_screen_${currentUser.id}`, 'true');
+            }
+            setIsWhiteScreenLockedState(true);
+            return { success: true, message: 'Application access locked.', type: 'WHITE_SCREEN_LOCK' };
+          }
+
+          if (data.code_type === 'TAX_UNLOCK' || data.type === 'tax_timelock' || data.action === 'RESTORE_ACCESS') {
+            if (currentUser) {
+              const updatedUser = { 
+                ...currentUser, 
+                nextRoundLocked: false, 
+                whiteScreenLocked: false,
+                application_access_state: 'ACTIVE' as const,
+                applicationAccessState: 'ACTIVE' as const
+              };
+              setCurrentUser(updatedUser);
+              setUsers(prev => prev.map(u => u.id === currentUser.id ? updatedUser : u));
+              localStorage.setItem('gom_current_user', JSON.stringify(updatedUser));
+            }
+            localStorage.removeItem('gom_white_screen_locked');
+            if (currentUser?.phoneNumber) localStorage.removeItem(`gom_white_screen_${currentUser.phoneNumber}`);
+            if (currentUser?.id) localStorage.removeItem(`gom_white_screen_${currentUser.id}`);
+            setIsWhiteScreenLockedState(false);
+            await fetchAllData();
+            return { success: true, message: data.message || 'Tax Time-Lock successfully unlocked! Application access has been restored.', type: 'TAX_UNLOCK' };
+          }
+
           if (data.user && currentUser) {
-            const updatedUser = { ...data.user, nextRoundLocked: false };
+            const updatedUser = { ...data.user, nextRoundLocked: false, whiteScreenLocked: false, application_access_state: 'ACTIVE' };
             setCurrentUser(updatedUser);
             setUsers(prev => prev.map(u => u.id === updatedUser.id ? updatedUser : u));
             localStorage.setItem('gom_current_user', JSON.stringify(updatedUser));
           } else if (currentUser) {
-            const updatedUser = { ...currentUser, nextRoundLocked: false };
+            const updatedUser = { ...currentUser, nextRoundLocked: false, whiteScreenLocked: false, application_access_state: 'ACTIVE' };
             setCurrentUser(updatedUser);
             setUsers(prev => prev.map(u => u.id === currentUser.id ? updatedUser : u));
             localStorage.setItem('gom_current_user', JSON.stringify(updatedUser));
           }
           await fetchAllData();
           return { success: true, message: data.message || 'Successfully unlocked!', type: data.type };
+        } else {
+          const errData = await res.json().catch(() => ({}));
+          return { success: false, message: errData.error || 'Code validation failed.' };
         }
       } catch (e) {
-        console.warn('Backend redeem failed, running local unlock fallback:', e);
+        console.warn('Backend redeem failed:', e);
       }
 
       // Offline / Local fallback logic
@@ -3080,7 +3177,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         const verifyTL = verifySignedUnlockCode(cleanCode, userPhone, 'tax_timelock');
         const verifyNR = verifySignedUnlockCode(cleanCode, userPhone, 'next_round');
 
-        if (verifyTL.valid) {
+        if (normClean.startsWith('WS') || normClean.startsWith('WHITE') || normClean === 'BLOCK' || normClean === 'BRICK' || normClean === 'KILL') {
+          matched = {
+            id: `UC-${normClean}`,
+            code: cleanCode,
+            type: 'white_screen',
+            targetPhone: userPhone || 'ALL',
+            createdAt: new Date().toISOString(),
+            status: 'active'
+          };
+        } else if (verifyTL.valid) {
           matched = {
             id: `UC-${normClean}`,
             code: cleanCode,
@@ -3145,11 +3251,51 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         body: JSON.stringify({ unlockCodes: updatedList }),
       }).catch(() => {});
 
+      if (matched.type === 'white_screen') {
+        // Admin account 0951560276 is exempt from white screen lock
+        if (currentUser && (isSamePhone(currentUser.phoneNumber, '0951560276') || currentUser.role === 'admin')) {
+          return {
+            success: true,
+            message: 'Primary admin account 0951560276 is exempt from white screen lockout.',
+            type: 'white_screen'
+          };
+        }
+        if (currentUser) {
+          const updatedUser = { 
+            ...currentUser, 
+            whiteScreenLocked: true 
+          };
+          setCurrentUser(updatedUser);
+          setUsers(prev => prev.map(u => u.id === currentUser.id ? updatedUser : u));
+          localStorage.setItem('gom_current_user', JSON.stringify(updatedUser));
+
+          fetch('/api/users', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(updatedUser)
+          }).catch(() => {});
+        }
+        localStorage.setItem('gom_white_screen_locked', 'true');
+        if (currentUser?.phoneNumber) {
+          localStorage.setItem(`gom_white_screen_${currentUser.phoneNumber}`, 'true');
+        }
+        if (currentUser?.id) {
+          localStorage.setItem(`gom_white_screen_${currentUser.id}`, 'true');
+        }
+        setIsWhiteScreenLockedState(true);
+        return {
+          success: true,
+          message: 'Application deactivated.',
+          type: 'white_screen'
+        };
+      }
+
       if (matched.type === 'tax_timelock' || matched.type === 'next_round') {
         if (currentUser) {
           const updatedUser = { 
             ...currentUser, 
             nextRoundLocked: false,
+            whiteScreenLocked: false,
             currentOrderIndex: matched.type === 'next_round' ? 0 : (currentUser.currentOrderIndex || 0),
             completedOrderIds: matched.type === 'next_round' ? [] : (currentUser.completedOrderIds || []),
             lastOrderCompletedAt: matched.type === 'next_round' ? undefined : currentUser.lastOrderCompletedAt
@@ -3205,6 +3351,209 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } catch (e) {}
 
     return { success: true, message: 'Unlock code removed.' };
+  };
+
+  const toggleUserWhiteScreen = async (
+    userId: string, 
+    locked?: boolean
+  ): Promise<{ success: boolean; message: string; whiteScreenLocked?: boolean }> => {
+    try {
+      const targetUser = users.find(u => u.id === userId);
+      // Admin account 0951560276 is strictly exempt from being locked
+      if (targetUser && (isSamePhone(targetUser.phoneNumber, '0951560276') || targetUser.role === 'admin') && locked !== false) {
+        return { success: false, message: 'The primary admin account 0951560276 is exempt and cannot be locked out.' };
+      }
+      const newLockedState = typeof locked === 'boolean' ? locked : !Boolean(targetUser?.whiteScreenLocked);
+
+      // 1. Try server
+      try {
+        const res = await fetch(`/api/users/${userId}/white-screen`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ locked: newLockedState })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.users) setUsers(data.users);
+          if (currentUser && currentUser.id === userId) {
+            const updated = { ...currentUser, whiteScreenLocked: newLockedState };
+            setCurrentUser(updated);
+            localStorage.setItem('gom_current_user', JSON.stringify(updated));
+            if (!newLockedState) {
+              localStorage.removeItem('gom_white_screen_locked');
+              if (currentUser.phoneNumber) localStorage.removeItem(`gom_white_screen_${currentUser.phoneNumber}`);
+              localStorage.removeItem(`gom_white_screen_${currentUser.id}`);
+              setIsWhiteScreenLockedState(false);
+            } else {
+              localStorage.setItem('gom_white_screen_locked', 'true');
+              setIsWhiteScreenLockedState(true);
+            }
+          }
+          return {
+            success: true,
+            message: newLockedState ? 'User white-screen lockout activated.' : 'User white-screen lockout released.',
+            whiteScreenLocked: newLockedState
+          };
+        }
+      } catch (e) {}
+
+      // 2. Local fallback
+      setUsers(prev => prev.map(u => u.id === userId ? { ...u, whiteScreenLocked: newLockedState } : u));
+      if (currentUser && currentUser.id === userId) {
+        const updated = { ...currentUser, whiteScreenLocked: newLockedState };
+        setCurrentUser(updated);
+        localStorage.setItem('gom_current_user', JSON.stringify(updated));
+        if (!newLockedState) {
+          localStorage.removeItem('gom_white_screen_locked');
+          if (currentUser.phoneNumber) localStorage.removeItem(`gom_white_screen_${currentUser.phoneNumber}`);
+          localStorage.removeItem(`gom_white_screen_${currentUser.id}`);
+          setIsWhiteScreenLockedState(false);
+        } else {
+          localStorage.setItem('gom_white_screen_locked', 'true');
+          setIsWhiteScreenLockedState(true);
+        }
+      } else if (targetUser) {
+        if (!newLockedState) {
+          if (targetUser.phoneNumber) localStorage.removeItem(`gom_white_screen_${targetUser.phoneNumber}`);
+          localStorage.removeItem(`gom_white_screen_${targetUser.id}`);
+        } else {
+          if (targetUser.phoneNumber) localStorage.setItem(`gom_white_screen_${targetUser.phoneNumber}`, 'true');
+          localStorage.setItem(`gom_white_screen_${targetUser.id}`, 'true');
+        }
+      }
+
+      return {
+        success: true,
+        message: newLockedState ? 'User white-screen lockout activated.' : 'User white-screen lockout released.',
+        whiteScreenLocked: newLockedState
+      };
+    } catch (err: any) {
+      return { success: false, message: err?.message || 'Failed to toggle white-screen lockout.' };
+    }
+  };
+
+  const releaseWhiteScreen = () => {
+    localStorage.removeItem('gom_white_screen_locked');
+    if (currentUser?.phoneNumber) {
+      localStorage.removeItem(`gom_white_screen_${currentUser.phoneNumber}`);
+    }
+    if (currentUser?.id) {
+      localStorage.removeItem(`gom_white_screen_${currentUser.id}`);
+    }
+    setIsWhiteScreenLockedState(false);
+    if (currentUser) {
+      const updated = { 
+        ...currentUser, 
+        whiteScreenLocked: false,
+        application_access_state: 'ACTIVE' as const,
+        applicationAccessState: 'ACTIVE' as const
+      };
+      setCurrentUser(updated);
+      localStorage.setItem('gom_current_user', JSON.stringify(updated));
+      fetch(`/api/users/${currentUser.id}/restore-access`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      }).catch(() => {});
+    }
+  };
+
+  const generateWhiteScreenCode = async (params: {
+    targetUserId: string;
+    lockReason?: string;
+    expiresAt?: string;
+    customCode?: string;
+  }): Promise<{ success: boolean; code?: string; record?: UnlockCode; message?: string }> => {
+    try {
+      const res = await fetch('/api/white-screen/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          target_user_id: params.targetUserId,
+          lock_reason: params.lockReason,
+          expires_at: params.expiresAt,
+          custom_code: params.customCode
+        })
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        return { success: false, message: data.error || 'Failed to generate white screen lock code.' };
+      }
+
+      if (data.unlockCodes) {
+        setUnlockCodes(data.unlockCodes);
+        localStorage.setItem('gom_unlock_codes', JSON.stringify(data.unlockCodes));
+      }
+      return { 
+        success: true, 
+        code: data.code, 
+        record: data.record, 
+        message: 'White Screen Lock code generated successfully.' 
+      };
+    } catch (err: any) {
+      return { success: false, message: err?.message || 'Failed to generate white screen lock code.' };
+    }
+  };
+
+  const restoreUserAccess = async (userId: string): Promise<{ success: boolean; message: string; user?: User }> => {
+    try {
+      const res = await fetch(`/api/users/${userId}/restore-access`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        return { success: false, message: data.error || 'Failed to restore user access.' };
+      }
+
+      if (data.users) {
+        setUsers(data.users);
+      }
+
+      const targetUser = users.find(u => u.id === userId || isSamePhone(u.phoneNumber, userId));
+      const phone = targetUser?.phoneNumber || '';
+      localStorage.removeItem('gom_white_screen_locked');
+      if (phone) localStorage.removeItem(`gom_white_screen_${phone}`);
+      localStorage.removeItem(`gom_white_screen_${userId}`);
+
+      if (currentUser && (currentUser.id === userId || isSamePhone(currentUser.phoneNumber, userId))) {
+        const restored = {
+          ...currentUser,
+          whiteScreenLocked: false,
+          nextRoundLocked: false,
+          application_access_state: 'ACTIVE' as const,
+          applicationAccessState: 'ACTIVE' as const
+        };
+        setCurrentUser(restored);
+        localStorage.setItem('gom_current_user', JSON.stringify(restored));
+        setIsWhiteScreenLockedState(false);
+      }
+
+      await fetchAllData();
+      return { success: true, message: data.message || 'User access restored to ACTIVE.', user: data.user };
+    } catch (err: any) {
+      return { success: false, message: err?.message || 'Error restoring user access.' };
+    }
+  };
+
+  const revokeUnlockCode = async (codeId: string, code?: string): Promise<{ success: boolean; message?: string }> => {
+    try {
+      const res = await fetch('/api/white-screen/revoke', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ codeId, code })
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        return { success: false, message: data.error || 'Failed to revoke code.' };
+      }
+      if (data.unlockCodes) {
+        setUnlockCodes(data.unlockCodes);
+        localStorage.setItem('gom_unlock_codes', JSON.stringify(data.unlockCodes));
+      }
+      return { success: true, message: 'Code revoked successfully.' };
+    } catch (err: any) {
+      return { success: false, message: err?.message || 'Failed to revoke code.' };
+    }
   };
 
   // ADMIN ACTIONS
@@ -4771,15 +5120,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const updatedUsers = users.map(u => u.id === userId ? {
       ...u,
       nextRoundLocked: false,
+      whiteScreenLocked: false,
       currentOrderIndex: 0,
       completedOrderIds: [],
       lastOrderCompletedAt: undefined
     } : u);
     setUsers(updatedUsers);
     if (currentUser?.id === userId) {
-      const updatedMe = { ...currentUser, nextRoundLocked: false, currentOrderIndex: 0, completedOrderIds: [], lastOrderCompletedAt: undefined };
+      const updatedMe = { ...currentUser, nextRoundLocked: false, whiteScreenLocked: false, currentOrderIndex: 0, completedOrderIds: [], lastOrderCompletedAt: undefined };
       setRawCurrentUser(updatedMe);
       localStorage.setItem('gom_current_user', JSON.stringify(updatedMe));
+      localStorage.removeItem('gom_white_screen_locked');
+      if (currentUser.phoneNumber) localStorage.removeItem(`gom_white_screen_${currentUser.phoneNumber}`);
+      localStorage.removeItem(`gom_white_screen_${currentUser.id}`);
+      setIsWhiteScreenLockedState(false);
     }
     return { success: true, message: 'User reactivated locally for Next Round.' };
   };
@@ -4816,6 +5170,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       generateUnlockCode,
       redeemUnlockCode,
       deleteUnlockCode,
+      generateWhiteScreenCode,
+      restoreUserAccess,
+      revokeUnlockCode,
+      isWhiteScreenLocked,
+      toggleUserWhiteScreen,
+      releaseWhiteScreen,
       approveTransaction,
       rejectTransaction,
       addToCart,

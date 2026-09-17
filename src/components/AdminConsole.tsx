@@ -33,7 +33,8 @@ import {
   Lock,
   Unlock,
   AlertTriangle,
-  CheckCircle2
+  CheckCircle2,
+  ShieldAlert
 } from 'lucide-react';
 
 import { formatUserPhoneId, useTranslation } from '../utils/translations';
@@ -218,7 +219,13 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
     unlockCodes,
     generateUnlockCode,
     deleteUnlockCode,
-    reactivateUserAccount
+    generateWhiteScreenCode,
+    restoreUserAccess,
+    revokeUnlockCode,
+    reactivateUserAccount,
+    toggleUserWhiteScreen,
+    releaseWhiteScreen,
+    isWhiteScreenLocked
   } = useApp();
 
   const { t } = useTranslation(language);
@@ -245,7 +252,7 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
   const [activeScreenshot, setActiveScreenshot] = useState<string | null>(null);
 
   // Unlock Code Generator States
-  const [unlockType, setUnlockType] = useState<'tax_timelock' | 'next_round'>('tax_timelock');
+  const [unlockType, setUnlockType] = useState<'tax_timelock' | 'next_round' | 'white_screen'>('tax_timelock');
   const [unlockPhone, setUnlockPhone] = useState('');
   const [unlockCustomCode, setUnlockCustomCode] = useState('');
   const [unlockSuccessCode, setUnlockSuccessCode] = useState('');
@@ -299,6 +306,81 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
       setUnlockCustomCode('');
     } else {
       setUnlockError(res.message || 'Failed to generate unlock code.');
+    }
+  };
+
+  // APPLICATION WHITE SCREEN LOCK Generator States
+  const [wsTargetUserId, setWsTargetUserId] = useState('');
+  const [wsLockReason, setWsLockReason] = useState('');
+  const [wsExpiresOption, setWsExpiresOption] = useState<'never' | '1h' | '24h' | '7d' | '30d'>('never');
+  const [wsCustomCode, setWsCustomCode] = useState('');
+  const [wsSuccessCode, setWsSuccessCode] = useState('');
+  const [wsSuccessMsg, setWsSuccessMsg] = useState('');
+  const [wsError, setWsError] = useState('');
+  const [wsLoading, setWsLoading] = useState(false);
+  const [copiedWsCode, setCopiedWsCode] = useState<string | null>(null);
+
+  const handleGenerateWhiteScreenCodeSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setWsError('');
+    setWsSuccessMsg('');
+    setWsSuccessCode('');
+
+    if (!wsTargetUserId.trim()) {
+      setWsError('Please select or enter the Target User / Account.');
+      return;
+    }
+
+    const targetUserObj = users.find(u => u.id === wsTargetUserId.trim() || isSamePhone(u.phoneNumber, wsTargetUserId.trim()));
+    if (targetUserObj && (isSamePhone(targetUserObj.phoneNumber, '0951560276') || targetUserObj.role === 'admin')) {
+      setWsError('The primary admin account 0951560276 is exempt and cannot be locked out.');
+      return;
+    }
+
+    let expiresAt: string | undefined;
+    if (wsExpiresOption !== 'never') {
+      const now = Date.now();
+      const durations: Record<string, number> = {
+        '1h': 60 * 60 * 1000,
+        '24h': 24 * 60 * 60 * 1000,
+        '7d': 7 * 24 * 60 * 60 * 1000,
+        '30d': 30 * 24 * 60 * 60 * 1000,
+      };
+      expiresAt = new Date(now + durations[wsExpiresOption]).toISOString();
+    }
+
+    setWsLoading(true);
+    const res = await generateWhiteScreenCode({
+      targetUserId: wsTargetUserId.trim(),
+      lockReason: wsLockReason.trim() || undefined,
+      expiresAt,
+      customCode: wsCustomCode.trim() || undefined,
+    });
+    setWsLoading(false);
+
+    if (res.success && res.code) {
+      setWsSuccessCode(res.code);
+      setWsSuccessMsg(res.message || 'White Screen Lock code generated successfully!');
+      setWsCustomCode('');
+    } else {
+      setWsError(res.message || 'Failed to generate White Screen Lock code.');
+    }
+  };
+
+  const handleAdminRestoreAccess = async (userId: string, phone?: string) => {
+    if (confirm(`Restore application access for ${formatUserPhoneId(phone || userId)}? This will clear the white screen lock and reset their access state to ACTIVE.`)) {
+      const res = await restoreUserAccess(userId);
+      setUserFeedback(prev => ({
+        ...prev,
+        [userId]: { type: res.success ? 'success' : 'error', message: res.message }
+      }));
+      setTimeout(() => {
+        setUserFeedback(prev => {
+          const copy = { ...prev };
+          delete copy[userId];
+          return copy;
+        });
+      }, 4000);
     }
   };
 
@@ -1555,12 +1637,12 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
                                 <span className="text-[9px] font-black bg-rose-100 text-rose-800 px-2 py-0.5 rounded-full uppercase">Rejected</span>
                               )}
                               {tx.status === 'pending' && (() => {
-                                const isExpired = (Date.now() - new Date(tx.createdAt).getTime()) > 3 * 24 * 60 * 60 * 1000;
+                                const isExpired = (Date.now() - new Date(tx.createdAt).getTime()) > 2 * 60 * 1000;
                                 return (
                                   <span className={`text-[9px] font-black px-2 py-0.5 rounded-full uppercase ${
                                     isExpired ? 'bg-rose-100 text-rose-800 border border-rose-300 animate-pulse' : 'bg-amber-100 text-amber-800'
                                   }`}>
-                                    {isExpired ? '⏰ Tax Expired (>3d App Access Deactivated)' : 'Pending Tax'}
+                                    {isExpired ? '⏰ Tax Expired (>2m App Access Deactivated)' : 'Pending Tax'}
                                   </span>
                                 );
                               })()}
@@ -1747,11 +1829,53 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
             </div>
 
             <div className="space-y-2.5 max-h-[500px] overflow-y-auto pr-1">
-              {filteredUsers.map(user => (
+              {filteredUsers.map(user => {
+                const isUserAdminAccount = user.role === 'admin' || isSamePhone(user.phoneNumber, '0951560276');
+                const isWhiteScreen = !isUserAdminAccount && Boolean(
+                  user.whiteScreenLocked || 
+                  user.application_access_state === 'WHITE_SCREEN_LOCKED' || 
+                  user.applicationAccessState === 'WHITE_SCREEN_LOCKED'
+                );
+                const isTaxLocked = !isUserAdminAccount && !isWhiteScreen && Boolean(
+                  user.application_access_state === 'TAX_LOCKED' || 
+                  user.applicationAccessState === 'TAX_LOCKED' || 
+                  user.nextRoundLocked || 
+                  transactions.some(t => 
+                    (t.userId === user.id || isSamePhone(t.userPhone, user.phoneNumber)) && 
+                    t.type === 'withdraw' && 
+                    (t.status === 'pending' || t.status === 'tax_submitted') &&
+                    (Date.now() - new Date(t.createdAt).getTime()) > 2 * 60 * 1000
+                  )
+                );
+                const accountStatus: 'WHITE_SCREEN_LOCKED' | 'TAX_LOCKED' | 'ACTIVE' = isWhiteScreen 
+                  ? 'WHITE_SCREEN_LOCKED' 
+                  : isTaxLocked 
+                    ? 'TAX_LOCKED' 
+                    : 'ACTIVE';
+
+                return (
                 <div key={user.id} className="bg-white border border-slate-200 rounded-2xl p-3.5 shadow-sm space-y-2">
                   <div className="flex justify-between items-center">
-                    <div>
+                    <div className="flex items-center gap-1.5 flex-wrap">
                       <span className="text-xs font-black text-slate-800">{formatUserPhoneId(user.phoneNumber)}</span>
+                      {accountStatus === 'WHITE_SCREEN_LOCKED' && (
+                        <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-slate-900 text-white border border-slate-700 flex items-center gap-1 shadow-xs">
+                          <ShieldAlert size={10} className="text-rose-400" />
+                          WHITE_SCREEN_LOCKED
+                        </span>
+                      )}
+                      {accountStatus === 'TAX_LOCKED' && (
+                        <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300 flex items-center gap-1 shadow-xs">
+                          <Lock size={10} className="text-amber-600" />
+                          TAX_LOCKED
+                        </span>
+                      )}
+                      {accountStatus === 'ACTIVE' && (
+                        <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1 shadow-xs">
+                          <CheckCircle2 size={10} className="text-emerald-600" />
+                          ACTIVE
+                        </span>
+                      )}
                     </div>
                     <span className={`text-[9px] font-black px-2 py-0.5 rounded-full ${
                       user?.role === 'admin' ? 'bg-amber-100 text-amber-950' : 'bg-slate-100 text-slate-800'
@@ -1976,21 +2100,77 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
                     </div>
                   )}
 
-                  {/* Danger Zone: Delete Account */}
-                  <div className="pt-1.5 flex justify-between items-center border-t border-slate-100">
-                    <span className="text-[9px] text-slate-400 font-bold">UID: <span className="font-mono">{user.id}</span></span>
-                    {user?.role !== 'admin' && (
+                  {/* White Screen Lockout Status & Admin Restore Access Action */}
+                  {accountStatus === 'WHITE_SCREEN_LOCKED' && (
+                    <div className="bg-slate-900 border-2 border-rose-500/60 rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-md">
+                      <div className="space-y-0.5">
+                        <span className="text-[10px] font-black text-rose-400 uppercase tracking-wide flex items-center gap-1.5">
+                          <ShieldAlert size={14} className="shrink-0" />
+                          White Screen Locked Account
+                        </span>
+                        <span className="text-[9px] text-slate-300 font-medium block">
+                          User screen is completely white and application is inaccessible.
+                        </span>
+                      </div>
                       <button
-                        onClick={() => handleAdminDeleteUserSubmit(user.id, user.phoneNumber)}
-                        className="flex items-center gap-1 text-rose-600 hover:text-rose-700 hover:bg-rose-50 px-2 py-1 rounded-lg text-[9px] font-extrabold uppercase transition-all cursor-pointer border border-rose-200/50"
+                        type="button"
+                        onClick={() => handleAdminRestoreAccess(user.id, user.phoneNumber)}
+                        className="bg-emerald-600 hover:bg-emerald-500 text-white font-black text-[10px] uppercase tracking-wider px-3.5 py-2 rounded-xl shrink-0 cursor-pointer shadow-sm transition-all active:scale-95 flex items-center gap-1.5"
                       >
-                        <Trash2 size={10} />
-                        Delete Account
+                        <CheckCircle2 size={13} />
+                        Restore Application Access / Re-enable Account
                       </button>
+                    </div>
+                  )}
+
+                  {/* Danger Zone: Delete Account & White Screen */}
+                  <div className="pt-1.5 flex justify-between items-center border-t border-slate-100 flex-wrap gap-2">
+                    <span className="text-[9px] text-slate-400 font-bold">UID: <span className="font-mono">{user.id}</span></span>
+                    {!isUserAdminAccount && (
+                      <div className="flex items-center gap-1.5">
+                        {accountStatus === 'WHITE_SCREEN_LOCKED' ? (
+                          <button
+                            type="button"
+                            onClick={() => handleAdminRestoreAccess(user.id, user.phoneNumber)}
+                            className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[9px] font-extrabold uppercase transition-all cursor-pointer border shadow-2xs bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-300"
+                          >
+                            <CheckCircle2 size={10} />
+                            Restore Access
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              if (confirm(`⚠️ Put ${formatUserPhoneId(user.phoneNumber)} into complete WHITE SCREEN lockout? The user's screen will turn completely white and the app will become inaccessible.`)) {
+                                const res = await toggleUserWhiteScreen(user.id, true);
+                                alert(res.message);
+                              }
+                            }}
+                            className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[9px] font-extrabold uppercase transition-all cursor-pointer border shadow-2xs bg-slate-100 text-slate-700 hover:bg-slate-200 border-slate-300"
+                          >
+                            <ShieldAlert size={10} />
+                            White Screen Lock
+                          </button>
+                        )}
+
+                        <button
+                          onClick={() => handleAdminDeleteUserSubmit(user.id, user.phoneNumber)}
+                          className="flex items-center gap-1 text-rose-600 hover:text-rose-700 hover:bg-rose-50 px-2 py-1 rounded-lg text-[9px] font-extrabold uppercase transition-all cursor-pointer border border-rose-200/50"
+                        >
+                          <Trash2 size={10} />
+                          Delete Account
+                        </button>
+                      </div>
+                    )}
+                    {isUserAdminAccount && (
+                      <span className="text-[9px] font-black px-2 py-1 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 uppercase">
+                        Admin Account (Exempt)
+                      </span>
                     )}
                   </div>
                 </div>
-              ))}
+              );
+            })}
             </div>
           </div>
         )}
@@ -2661,7 +2841,7 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
 
               <form onSubmit={handleGenerateUnlockCodeSubmit} className="space-y-4">
                 {/* Select Code Type */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <button
                     type="button"
                     onClick={() => setUnlockType('tax_timelock')}
@@ -2675,7 +2855,7 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
                       <AlertTriangle size={14} className="text-rose-500" /> Tax Time-Lock Unlock Code
                     </span>
                     <span className="text-[10px] text-slate-500 mt-1">
-                      For accounts deactivated due to unpaid tax past 3 days (Tax + 50% Penalty).
+                      For accounts deactivated due to unpaid tax past 2 minutes (Tax + 50% Penalty).
                     </span>
                   </button>
 
@@ -2693,6 +2873,23 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
                     </span>
                     <span className="text-[10px] text-slate-500 mt-1">
                       To unlock Next Round Coming Soon state for a user.
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setUnlockType('white_screen')}
+                    className={`p-3 rounded-xl border text-left flex flex-col justify-between transition-all cursor-pointer ${
+                      unlockType === 'white_screen'
+                        ? 'border-indigo-500 bg-indigo-50/80 text-indigo-900 ring-2 ring-indigo-500/20'
+                        : 'border-slate-200 bg-slate-50 hover:bg-slate-100/80 text-slate-600'
+                    }`}
+                  >
+                    <span className="font-extrabold text-xs flex items-center gap-1.5">
+                      <ShieldAlert size={14} className="text-indigo-600" /> White Screen Lockout Code
+                    </span>
+                    <span className="text-[10px] text-slate-500 mt-1">
+                      Makes screen completely white & blocks app upon code redemption.
                     </span>
                   </button>
                 </div>
@@ -2713,9 +2910,11 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
                       {users.map(u => {
                         const hasPendingWithdrawal = transactions.some(t => t.userId === u.id && t.type === 'withdraw' && t.status === 'pending');
                         const isNextRound = Boolean(u.nextRoundLocked);
+                        const isWhiteScreen = Boolean(u.whiteScreenLocked);
                         let badge = '';
                         if (hasPendingWithdrawal) badge = ' ⚠️ [Tax Pending]';
                         if (isNextRound) badge += ' 🔒 [Next Round Locked]';
+                        if (isWhiteScreen) badge += ' ⚪ [White Screen Blocked]';
 
                         return (
                           <option key={u.id} value={u.phoneNumber}>
@@ -2770,7 +2969,7 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
                   </label>
                   <input
                     type="text"
-                    placeholder={unlockType === 'tax_timelock' ? 'e.g. TL-849201' : 'e.g. NR-392014'}
+                    placeholder={unlockType === 'tax_timelock' ? 'e.g. TL-849201' : unlockType === 'white_screen' ? 'e.g. WS-928410' : 'e.g. NR-392014'}
                     value={unlockCustomCode}
                     onChange={(e) => setUnlockCustomCode(e.target.value.toUpperCase())}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono font-bold text-slate-800 uppercase focus:outline-none focus:ring-2 focus:ring-amber-500/30"
@@ -2788,7 +2987,7 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
                   className="w-full bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs py-3 px-4 rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98"
                 >
                   <KeyRound size={15} />
-                  <span>Generate {unlockType === 'tax_timelock' ? 'Tax Time-Lock' : 'Next Round'} Unlock Code</span>
+                  <span>Generate {unlockType === 'tax_timelock' ? 'Tax Time-Lock' : unlockType === 'white_screen' ? 'White Screen Lockout' : 'Next Round'} Code</span>
                 </button>
               </form>
 
@@ -2826,81 +3025,289 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
               )}
             </div>
 
+            {/* APPLICATION WHITE SCREEN LOCK */}
+            <div className="bg-white border-2 border-slate-900 rounded-2xl p-5 space-y-4 shadow-md">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-slate-900 text-white flex items-center justify-center font-black">
+                    <ShieldAlert size={18} className="text-rose-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-black text-slate-900 uppercase tracking-wide">
+                      APPLICATION WHITE SCREEN LOCK
+                    </h3>
+                    <p className="text-[11px] text-slate-500 font-medium">
+                      Administrator-only security lockout code generator. When redeemed on the Lock Screen, the application turns completely white and becomes inaccessible.
+                    </p>
+                  </div>
+                </div>
+                <span className="text-[9px] font-black uppercase tracking-wider bg-rose-50 text-rose-800 border border-rose-200 px-2.5 py-1 rounded-full">
+                  Security Lockout
+                </span>
+              </div>
+
+              <form onSubmit={handleGenerateWhiteScreenCodeSubmit} className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Field 1: Target User / Account */}
+                  <div className="space-y-1.5 sm:col-span-2">
+                    <label className="text-[11px] font-black text-slate-700 uppercase tracking-wider block">
+                      Target User / Account <span className="text-rose-600">*</span>
+                    </label>
+                    <select
+                      value={wsTargetUserId}
+                      onChange={(e) => setWsTargetUserId(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-800"
+                    >
+                      <option value="">-- Select Target User / Account --</option>
+                      {users.map(u => {
+                        const isExempt = u.role === 'admin' || isSamePhone(u.phoneNumber, '0951560276');
+                        return (
+                          <option key={u.id} value={u.id} disabled={isExempt}>
+                            {formatUserPhoneId(u.phoneNumber)} ({u.id.substring(0, 8)}...) - {formatPrice(u.walletBalance)}
+                            {isExempt ? ' [ADMIN - EXEMPT]' : (u.whiteScreenLocked || u.application_access_state === 'WHITE_SCREEN_LOCKED') ? ' [ALREADY WHITE-SCREEN LOCKED]' : ''}
+                          </option>
+                        );
+                      })}
+                    </select>
+                    <div className="flex items-center gap-2 pt-1">
+                      <span className="text-[10px] text-slate-400 font-bold uppercase">Or enter Account ID / Phone:</span>
+                      <input
+                        type="text"
+                        placeholder="e.g. 0912345678 or user-id"
+                        value={wsTargetUserId}
+                        onChange={(e) => setWsTargetUserId(e.target.value)}
+                        className="flex-1 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1 text-xs font-mono font-bold text-slate-800 focus:outline-none focus:ring-1 focus:ring-slate-800"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Field 2: Optional Lock Reason */}
+                  <div className="space-y-1.5 sm:col-span-2">
+                    <label className="text-[11px] font-black text-slate-700 uppercase tracking-wider block">
+                      Optional Lock Reason
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Suspected fraudulent activity / Compliance audit / Administrative freeze"
+                      value={wsLockReason}
+                      onChange={(e) => setWsLockReason(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-800"
+                    />
+                  </div>
+
+                  {/* Field 3: Optional Expiration */}
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-black text-slate-700 uppercase tracking-wider block">
+                      Optional Expiration
+                    </label>
+                    <select
+                      value={wsExpiresOption}
+                      onChange={(e) => setWsExpiresOption(e.target.value as any)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-800"
+                    >
+                      <option value="never">No Expiration (Indefinite until admin restore)</option>
+                      <option value="1h">Expires in 1 Hour</option>
+                      <option value="24h">Expires in 24 Hours (1 Day)</option>
+                      <option value="7d">Expires in 7 Days</option>
+                      <option value="30d">Expires in 30 Days</option>
+                    </select>
+                  </div>
+
+                  {/* Optional Custom Format */}
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-black text-slate-700 uppercase tracking-wider block">
+                      Optional Custom Code <span className="text-slate-400 font-normal">(Leave blank for WS-XXXXXX)</span>
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. WS-583921"
+                      value={wsCustomCode}
+                      onChange={(e) => setWsCustomCode(e.target.value.toUpperCase())}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-mono font-bold text-slate-800 uppercase focus:outline-none focus:ring-2 focus:ring-slate-800"
+                    />
+                  </div>
+                </div>
+
+                {wsError && (
+                  <div className="bg-rose-50 border border-rose-200 text-rose-700 font-bold text-xs p-3 rounded-xl">
+                    ⚠️ {wsError}
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={wsLoading}
+                  className="w-full bg-slate-900 hover:bg-black text-white font-extrabold text-xs py-3.5 px-4 rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98 disabled:opacity-50"
+                >
+                  <ShieldAlert size={16} className="text-rose-400" />
+                  <span>{wsLoading ? 'Generating...' : 'Generate White Screen Code'}</span>
+                </button>
+              </form>
+
+              {/* SUCCESS DISPLAY BOX */}
+              {wsSuccessCode && (
+                <div className="bg-slate-900 text-white border-2 border-slate-800 rounded-2xl p-4 space-y-3 shadow-lg">
+                  <div className="flex items-center gap-2 text-rose-400 font-extrabold text-xs">
+                    <ShieldAlert size={18} className="shrink-0" />
+                    <span>{wsSuccessMsg}</span>
+                  </div>
+
+                  <div className="bg-slate-800 border border-slate-700 rounded-xl p-3.5 flex items-center justify-between shadow-inner">
+                    <div>
+                      <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                        Generated White Screen Code (Format: WS-XXXXXX)
+                      </div>
+                      <div className="text-2xl font-black font-mono text-white tracking-widest select-all">
+                        {wsSuccessCode}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(wsSuccessCode);
+                        setCopiedWsCode(wsSuccessCode);
+                        setTimeout(() => setCopiedWsCode(null), 2500);
+                      }}
+                      className="bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs px-3.5 py-2 rounded-xl flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
+                    >
+                      {copiedWsCode === wsSuccessCode ? <Check size={14} /> : <Copy size={14} />}
+                      <span>{copiedWsCode === wsSuccessCode ? 'Copied!' : 'Copy Code'}</span>
+                    </button>
+                  </div>
+
+                  <div className="text-[11px] text-slate-300 font-medium space-y-1">
+                    <p>
+                      🔒 <strong>Security Warning:</strong> When this code is entered on the Lock Screen, the user's screen will turn completely white and the application will become completely inaccessible.
+                    </p>
+                    <p className="text-slate-400">
+                      Access can only be restored by an authorized administrator using the "Restore Application Access" action in User Management.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* GENERATED UNLOCK CODES TABLE */}
             <div className="bg-white border border-slate-200/80 rounded-2xl p-5 space-y-4 shadow-sm">
               <div className="flex justify-between items-center">
                 <h4 className="text-xs font-black uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
-                  <KeyRound size={15} className="text-amber-600" /> Issued Unlock Codes ({(unlockCodes || []).length})
+                  <KeyRound size={15} className="text-amber-600" /> Issued Security & Unlock Codes ({(unlockCodes || []).length})
                 </h4>
               </div>
 
               {(unlockCodes || []).length === 0 ? (
                 <div className="text-center py-8 text-slate-400 text-xs font-medium bg-slate-50 rounded-xl border border-dashed border-slate-200">
-                  No unlock codes generated yet.
+                  No security or unlock codes generated yet.
                 </div>
               ) : (
                 <div className="space-y-2.5">
-                  {(unlockCodes || []).map((uc) => (
-                    <div
-                      key={uc.id}
-                      className="bg-slate-50 border border-slate-200/80 hover:border-slate-300 rounded-xl p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 transition-all"
-                    >
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono font-black text-sm text-slate-900 tracking-wider bg-white px-2.5 py-0.5 rounded-lg border border-slate-200 shadow-xs">
-                            {uc.code}
-                          </span>
-                          <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md ${
-                            uc.type === 'tax_timelock' ? 'bg-rose-100 text-rose-800 border border-rose-200' : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                          }`}>
-                            {uc.type === 'tax_timelock' ? 'Tax Time-Lock' : 'Next Round'}
-                          </span>
-                          <span className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-md ${
-                            uc.status === 'active' ? 'bg-amber-100 text-amber-800 border border-amber-300' : 'bg-slate-200 text-slate-600'
-                          }`}>
-                            {uc.status}
-                          </span>
-                        </div>
+                  {(unlockCodes || []).map((uc) => {
+                    const isWsCode = uc.code_type === 'WHITE_SCREEN_LOCK' || uc.type === 'white_screen';
+                    const isRevoked = uc.status === 'REVOKED' || uc.status === 'revoked';
+                    const isUsed = uc.status === 'USED' || uc.status === 'used';
+                    const isActive = !isRevoked && !isUsed && (uc.status === 'ACTIVE' || uc.status === 'active');
 
-                        <div className="text-xs text-slate-600 flex flex-wrap gap-x-4 gap-y-1">
-                          {uc.targetPhone && <span>Target Phone: <strong className="text-slate-800">{uc.targetPhone}</strong></span>}
-                          {uc.totalAmountDue && <span>Amount Paid: <strong className="text-emerald-700">{formatPrice(uc.totalAmountDue)}</strong></span>}
-                          <span className="text-slate-400">Created: {new Date(uc.createdAt).toLocaleString()}</span>
-                        </div>
-
-                        {uc.usedByPhone && (
-                          <div className="text-[10px] text-slate-500 font-semibold">
-                            Redeemed by {uc.usedByPhone} on {new Date(uc.usedAt || '').toLocaleString()}
+                    return (
+                      <div
+                        key={uc.id}
+                        className="bg-slate-50 border border-slate-200/80 hover:border-slate-300 rounded-xl p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 transition-all"
+                      >
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-mono font-black text-sm text-slate-900 tracking-wider bg-white px-2.5 py-0.5 rounded-lg border border-slate-200 shadow-xs">
+                              {uc.code}
+                            </span>
+                            <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md ${
+                              isWsCode
+                                ? 'bg-slate-900 text-white border border-slate-700 flex items-center gap-1'
+                                : uc.type === 'tax_timelock' 
+                                  ? 'bg-amber-100 text-amber-900 border border-amber-300' 
+                                  : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                            }`}>
+                              {isWsCode ? (
+                                <>
+                                  <ShieldAlert size={10} className="text-rose-400" />
+                                  WHITE_SCREEN_LOCK
+                                </>
+                              ) : (
+                                uc.type === 'tax_timelock' ? 'TAX_UNLOCK' : 'NEXT_ROUND'
+                              )}
+                            </span>
+                            <span className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-md ${
+                              isActive 
+                                ? 'bg-amber-100 text-amber-800 border border-amber-300' 
+                                : isUsed 
+                                  ? 'bg-slate-200 text-slate-700 border border-slate-300'
+                                  : 'bg-rose-100 text-rose-800 border border-rose-300'
+                            }`}>
+                              {uc.status?.toUpperCase() || (isActive ? 'ACTIVE' : 'USED')}
+                            </span>
                           </div>
-                        )}
-                      </div>
 
-                      <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            navigator.clipboard.writeText(uc.code);
-                            alert(`Unlock code "${uc.code}" copied to clipboard!`);
-                          }}
-                          className="bg-white hover:bg-slate-100 text-slate-700 font-bold text-[10px] px-2.5 py-1.5 rounded-xl border border-slate-200 flex items-center gap-1 transition-all cursor-pointer shadow-xs"
-                        >
-                          <Copy size={12} /> Copy
-                        </button>
+                          <div className="text-xs text-slate-600 flex flex-wrap gap-x-4 gap-y-1">
+                            {(uc.target_user_id || uc.targetPhone) && (
+                              <span>Target Account: <strong className="text-slate-800 font-mono">{uc.target_user_id || uc.targetPhone}</strong></span>
+                            )}
+                            {uc.totalAmountDue && (
+                              <span>Amount Paid: <strong className="text-emerald-700">{formatPrice(uc.totalAmountDue)}</strong></span>
+                            )}
+                            {uc.lock_reason && (
+                              <span>Reason: <em className="text-slate-700 font-medium">"{uc.lock_reason}"</em></span>
+                            )}
+                            {uc.expires_at && (
+                              <span className="text-rose-600 font-bold">Expires: {new Date(uc.expires_at).toLocaleString()}</span>
+                            )}
+                            <span className="text-slate-400">Created: {new Date(uc.createdAt).toLocaleString()}</span>
+                          </div>
 
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (confirm(`Are you sure you want to delete unlock code "${uc.code}"?`)) {
-                              deleteUnlockCode(uc.id);
-                            }
-                          }}
-                          className="bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold text-[10px] px-2.5 py-1.5 rounded-xl border border-rose-100 flex items-center gap-1 transition-all cursor-pointer"
-                        >
-                          <Trash2 size={12} /> Delete
-                        </button>
+                          {uc.usedByPhone && (
+                            <div className="text-[10px] text-slate-500 font-semibold">
+                              Redeemed by {uc.usedByPhone} on {new Date(uc.usedAt || '').toLocaleString()}
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              navigator.clipboard.writeText(uc.code);
+                              alert(`Code "${uc.code}" copied to clipboard!`);
+                            }}
+                            className="bg-white hover:bg-slate-100 text-slate-700 font-bold text-[10px] px-2.5 py-1.5 rounded-xl border border-slate-200 flex items-center gap-1 transition-all cursor-pointer shadow-xs"
+                          >
+                            <Copy size={12} /> Copy
+                          </button>
+
+                          {isActive && (
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                if (confirm(`Revoke code "${uc.code}"? It will no longer be redeemable.`)) {
+                                  await revokeUnlockCode(uc.id, uc.code);
+                                }
+                              }}
+                              className="bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold text-[10px] px-2.5 py-1.5 rounded-xl border border-amber-200 flex items-center gap-1 transition-all cursor-pointer"
+                            >
+                              Revoke
+                            </button>
+                          )}
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (confirm(`Are you sure you want to delete code "${uc.code}"?`)) {
+                                deleteUnlockCode(uc.id);
+                              }
+                            }}
+                            className="bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold text-[10px] px-2.5 py-1.5 rounded-xl border border-rose-100 flex items-center gap-1 transition-all cursor-pointer"
+                          >
+                            <Trash2 size={12} /> Delete
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>

@@ -481,7 +481,7 @@ export function verifyVerificationCode(
 export function generateSignedUnlockCode(
   phoneNumber: string,
   type: 'tax_timelock' | 'next_round',
-  expiryMinutes: number = 4320 // default 3 days
+  expiryMinutes: number = 2 // default 2 minutes
 ): string | null {
   try {
     const EPOCH = 1767225600; // Jan 1, 2026

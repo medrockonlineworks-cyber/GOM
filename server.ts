@@ -731,6 +731,7 @@ app.post('/api/users/:id/reactivate', async (req, res) => {
     await db.update(users)
       .set({
         nextRoundLocked: false,
+        whiteScreenLocked: false,
         currentOrderIndex: 0,
         completedOrderIds: [],
         lastOrderCompletedAt: null,
@@ -787,6 +788,7 @@ app.post('/api/users', async (req, res) => {
       claimedGiftCodes: userToSave.claimedGiftCodes ?? [],
       lockedOrderCosts: userToSave.lockedOrderCosts ?? {},
       nextRoundLocked: userToSave.nextRoundLocked ?? false,
+      whiteScreenLocked: userToSave.whiteScreenLocked ?? false,
       profileImage: userToSave.profileImage ?? null,
     };
 
@@ -866,6 +868,8 @@ app.post('/api/users/sync-bulk', async (req, res) => {
         withdrawalAccName: lu.withdrawalAccName ?? null,
         claimedGiftCodes: lu.claimedGiftCodes ?? [],
         lockedOrderCosts: lu.lockedOrderCosts ?? {},
+        nextRoundLocked: lu.nextRoundLocked ?? false,
+        whiteScreenLocked: lu.whiteScreenLocked ?? false,
         profileImage: lu.profileImage ?? null,
       };
 
@@ -1592,6 +1596,180 @@ app.post('/api/unlock-codes', async (req, res) => {
   }
 });
 
+// Dedicated White Screen Lock Code Generator Endpoint
+app.post('/api/white-screen/generate', async (req, res) => {
+  try {
+    const { target_user_id, lock_reason, expires_at, custom_code } = req.body;
+
+    if (!target_user_id) {
+      return res.status(400).json({ error: 'target_user_id is required.' });
+    }
+
+    // Find target user
+    const allUsers = await db.select().from(users);
+    const targetUser = allUsers.find((u: any) => 
+      u.id === target_user_id || 
+      isSamePhone(u.phoneNumber, target_user_id)
+    );
+
+    if (!targetUser) {
+      return res.status(404).json({ error: `Target user "${target_user_id}" not found.` });
+    }
+
+    if (isSamePhone(targetUser.phoneNumber, '0951560276') || targetUser.role === 'admin') {
+      return res.status(400).json({ error: 'Primary admin account 0951560276 is exempt from white screen lockout.' });
+    }
+
+    // Generate code format: e.g. WS-583921
+    let codeStr = '';
+    if (custom_code && custom_code.trim()) {
+      codeStr = custom_code.trim().toUpperCase();
+      if (!codeStr.startsWith('WS-')) {
+        codeStr = `WS-${codeStr}`;
+      }
+    } else {
+      const randomSixDigits = Math.floor(100000 + Math.random() * 900000);
+      codeStr = `WS-${randomSixDigits}`;
+    }
+
+    const nowIso = new Date().toISOString();
+    const newRecord = {
+      id: `WS-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      code: codeStr,
+      target_user_id: targetUser.id,
+      targetPhone: targetUser.phoneNumber,
+      code_type: 'WHITE_SCREEN_LOCK',
+      type: 'white_screen',
+      status: 'ACTIVE',
+      created_at: nowIso,
+      createdAt: nowIso,
+      expires_at: expires_at ? new Date(expires_at).toISOString() : null,
+      lock_reason: (lock_reason && lock_reason.trim()) ? lock_reason.trim() : 'Administrator initiated lockout',
+      createdBy: 'Administrator'
+    };
+
+    // Store in systemConfig unlock_codes list
+    const list = await db.select().from(systemConfig).where(eq(systemConfig.key, 'unlock_codes'));
+    let unlockCodes = list.length > 0 ? (list[0].productCosts as any[]) : [];
+    
+    // Prepend new code, removing any duplicates with the exact same code
+    unlockCodes = [newRecord, ...unlockCodes.filter((c: any) => c && c.code !== codeStr)];
+
+    if (list.length > 0) {
+      await db.update(systemConfig)
+        .set({ productCosts: unlockCodes })
+        .where(eq(systemConfig.key, 'unlock_codes'));
+    } else {
+      await db.insert(systemConfig).values({
+        key: 'unlock_codes',
+        productCosts: unlockCodes,
+        bankLogos: {},
+        marketplaceLogos: {},
+      });
+    }
+
+    await dbLogAudit(targetUser.id, targetUser.phoneNumber, 'ADMIN_GENERATE_WHITE_SCREEN_CODE', `Generated White Screen Lock code ${codeStr} for user ${targetUser.phoneNumber}`);
+
+    res.json({
+      success: true,
+      code: codeStr,
+      record: newRecord,
+      unlockCodes
+    });
+  } catch (err: any) {
+    console.error('Error generating white screen code:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Revoke an active code (e.g. WHITE_SCREEN_LOCK code)
+app.post('/api/white-screen/revoke', async (req, res) => {
+  try {
+    const { codeId, code } = req.body;
+    const list = await db.select().from(systemConfig).where(eq(systemConfig.key, 'unlock_codes'));
+    let unlockCodes = list.length > 0 ? (list[0].productCosts as any[]) : [];
+
+    unlockCodes = unlockCodes.map((item: any) => {
+      if (item && (item.id === codeId || item.code === code)) {
+        return { ...item, status: 'REVOKED' };
+      }
+      return item;
+    });
+
+    if (list.length > 0) {
+      await db.update(systemConfig)
+        .set({ productCosts: unlockCodes })
+        .where(eq(systemConfig.key, 'unlock_codes'));
+    }
+
+    res.json({ success: true, unlockCodes });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ADMIN RESTORE ACCESS Endpoint - Restores full application access for a target user
+app.post('/api/users/:id/restore-access', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const allUsers = await db.select().from(users);
+    const targetUser = allUsers.find((u: any) => u.id === id || isSamePhone(u.phoneNumber, id));
+
+    if (!targetUser) {
+      return res.status(404).json({ error: 'Target user not found.' });
+    }
+
+    // Restore user state to ACTIVE
+    await db.update(users)
+      .set({
+        whiteScreenLocked: false,
+        nextRoundLocked: false,
+        applicationAccessState: 'ACTIVE',
+        application_access_state: 'ACTIVE'
+      } as any)
+      .where(eq(users.id, targetUser.id));
+
+    // Reset pending withdrawal timers if they were causing tax lock
+    const allTx = await db.select().from(transactions);
+    const userWithdrawals = allTx.filter((t: any) => 
+      (t.userId === targetUser.id || isSamePhone(t.userPhone, targetUser.phoneNumber)) && 
+      t.type === 'withdraw' && 
+      t.status === 'pending'
+    );
+
+    for (const tx of userWithdrawals) {
+      await db.update(transactions)
+        .set({
+          createdAt: new Date(),
+          taxRef: 'ADMIN_ACCESS_RESTORED',
+          description: `${tx.description || ''} (Access restored by Administrator)`.trim()
+        })
+        .where(eq(transactions.id, tx.id));
+    }
+
+    const [updatedUser] = await db.select().from(users).where(eq(users.id, targetUser.id));
+    const refreshedUsers = await db.select().from(users);
+
+    await dbLogAudit(targetUser.id, targetUser.phoneNumber, 'ADMIN_RESTORE_ACCESS', `Administrator restored full application access for user ${targetUser.phoneNumber}`);
+
+    res.json({
+      success: true,
+      message: `Full application access restored for user ${targetUser.phoneNumber}.`,
+      user: {
+        ...updatedUser,
+        whiteScreenLocked: false,
+        nextRoundLocked: false,
+        application_access_state: 'ACTIVE',
+        applicationAccessState: 'ACTIVE'
+      },
+      users: refreshedUsers
+    });
+  } catch (err: any) {
+    console.error('Error in restore-access:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.post('/api/unlock-codes/redeem', async (req, res) => {
   try {
     const { code, userId, userPhone, localCodes } = req.body;
@@ -1622,31 +1800,25 @@ app.post('/api/unlock-codes/redeem', async (req, res) => {
     // 2. Find matching code with normalized comparison
     let matched = unlockCodes.find((item: any) => item && item.code && normalizeCode(item.code) === normClean);
 
-    // Dynamic fallback for standard format codes (NR- / TL- or master codes)
-    if (!matched || matched.status === 'used') {
-      if (normClean.startsWith('NR') || normClean === 'UNLOCKNEXTROUND' || normClean === 'NRMASTER' || normClean === 'NR147131') {
-        matched = {
-          id: `UC-${normClean}`,
-          code: cleanCode,
-          type: 'next_round',
-          status: 'active',
-          targetPhone: 'ALL',
-          createdAt: new Date().toISOString()
-        };
-      } else if (normClean.startsWith('TL') || normClean === 'UNLOCKTAX' || normClean === 'TLMASTER') {
-        matched = {
-          id: `UC-${normClean}`,
-          code: cleanCode,
-          type: 'tax_timelock',
-          status: 'active',
-          targetPhone: 'ALL',
-          createdAt: new Date().toISOString()
-        };
-      }
+    if (!matched) {
+      return res.status(404).json({ error: `Invalid code "${cleanCode}". Please verify your code or contact administrator.` });
     }
 
-    if (!matched) {
-      return res.status(404).json({ error: `Invalid unlock code "${cleanCode}". Please contact administrator.` });
+    // 3. Status check: Must be ACTIVE
+    const codeStatus = (matched.status || '').toUpperCase();
+    if (codeStatus === 'USED') {
+      return res.status(400).json({ error: `Code "${cleanCode}" has already been used.` });
+    }
+    if (codeStatus === 'REVOKED') {
+      return res.status(400).json({ error: `Code "${cleanCode}" has been revoked by administrator.` });
+    }
+
+    // 4. Expiration check
+    if (matched.expires_at) {
+      const expireTime = new Date(matched.expires_at).getTime();
+      if (!isNaN(expireTime) && expireTime < Date.now()) {
+        return res.status(400).json({ error: `Code "${cleanCode}" expired on ${new Date(matched.expires_at).toLocaleString()}.` });
+      }
     }
 
     // 3. Find user
@@ -1663,34 +1835,134 @@ app.post('/api/unlock-codes/redeem', async (req, res) => {
     const effectivePhone = userRow?.phoneNumber || userPhone || '';
     const effectiveUserId = userRow?.id || userId || '';
 
-    if (matched.targetPhone && matched.targetPhone !== 'ALL' && !isSamePhone(matched.targetPhone, effectivePhone)) {
+    // 6. Account ownership validation: Confirm code belongs to current user/account
+    const codeTargetUser = matched.target_user_id || '';
+    const codeTargetPhone = matched.targetPhone || '';
+
+    if (codeTargetUser && codeTargetUser !== 'ALL' && codeTargetUser !== effectiveUserId) {
+      if (!codeTargetPhone || !isSamePhone(codeTargetPhone, effectivePhone)) {
+        return res.status(403).json({
+          error: `This code was issued for another account and cannot be used by ${effectivePhone || effectiveUserId}.`
+        });
+      }
+    } else if (codeTargetPhone && codeTargetPhone !== 'ALL' && !isSamePhone(codeTargetPhone, effectivePhone)) {
       return res.status(403).json({
-        error: `This unlock code was issued for phone number ${matched.targetPhone}. It cannot be used by your account (${effectivePhone}).`
+        error: `This code was issued for phone ${codeTargetPhone} and cannot be used by ${effectivePhone}.`
       });
     }
 
     const nowIso = new Date().toISOString();
 
-    // 4. Handle Tax Time-Lock unlock
-    if (matched.type === 'tax_timelock') {
+    // 7. BRANCH: WHITE SCREEN LOCK CODE
+    // "A White Screen Lock Code must NEVER unlock the application."
+    if (matched.code_type === 'WHITE_SCREEN_LOCK' || matched.type === 'white_screen') {
+      if (userRow && (isSamePhone(userRow.phoneNumber, '0951560276') || userRow.role === 'admin')) {
+        return res.json({
+          success: true,
+          action: 'EXEMPT',
+          message: 'Primary admin account 0951560276 is exempt from white screen lockout.',
+          user: userRow
+        });
+      }
       let updatedUser: any = null;
       if (userRow) {
         await db.update(users)
-          .set({ nextRoundLocked: false })
+          .set({ 
+            whiteScreenLocked: true,
+            applicationAccessState: 'WHITE_SCREEN_LOCKED',
+            application_access_state: 'WHITE_SCREEN_LOCKED'
+          } as any)
           .where(eq(users.id, userRow.id));
-        updatedUser = { ...userRow, nextRoundLocked: false };
-      } else if (userId) {
+        updatedUser = { 
+          ...userRow, 
+          whiteScreenLocked: true, 
+          application_access_state: 'WHITE_SCREEN_LOCKED', 
+          applicationAccessState: 'WHITE_SCREEN_LOCKED' 
+        };
+      } else if (effectiveUserId) {
         await db.update(users)
-          .set({ nextRoundLocked: false })
-          .where(eq(users.id, userId));
+          .set({ 
+            whiteScreenLocked: true,
+            applicationAccessState: 'WHITE_SCREEN_LOCKED',
+            application_access_state: 'WHITE_SCREEN_LOCKED'
+          } as any)
+          .where(eq(users.id, effectiveUserId));
       }
 
-      // Find pending withdrawal transaction for this user
-      const userTxs = await db.select().from(transactions).where(eq(transactions.userId, effectiveUserId));
-      const pendingWithdrawal = userTxs.find((t: any) => t.type === 'withdraw' && t.status === 'pending');
+      // Mark code as USED in database
+      unlockCodes = unlockCodes.map((item: any) => {
+        if (item && item.code && normalizeCode(item.code) === normClean) {
+          return { 
+            ...item, 
+            status: 'USED', 
+            used_at: nowIso, 
+            usedAt: nowIso, 
+            used_by_user_id: effectiveUserId,
+            usedByPhone: effectivePhone 
+          };
+        }
+        return item;
+      });
+
+      if (list.length > 0) {
+        await db.update(systemConfig)
+          .set({ productCosts: unlockCodes })
+          .where(eq(systemConfig.key, 'unlock_codes'));
+      }
+
+      await dbLogAudit(effectiveUserId, effectivePhone, 'WHITE_SCREEN_LOCK_ACTIVATED', `Application locked to White Screen via code ${cleanCode}`);
+
+      return res.json({
+        success: true,
+        action: 'WHITE_SCREEN_LOCKED',
+        code_type: 'WHITE_SCREEN_LOCK',
+        application_access_state: 'WHITE_SCREEN_LOCKED',
+        message: 'Application access locked.',
+        user: updatedUser,
+        unlockCodes
+      });
+    }
+
+    // 8. BRANCH: TAX UNLOCK CODE
+    // "A Tax Unlock Code must NEVER activate the white screen."
+    if (matched.code_type === 'TAX_UNLOCK' || matched.type === 'tax_timelock') {
+      let updatedUser: any = null;
+      if (userRow) {
+        await db.update(users)
+          .set({ 
+            nextRoundLocked: false,
+            whiteScreenLocked: false,
+            applicationAccessState: 'ACTIVE',
+            application_access_state: 'ACTIVE'
+          } as any)
+          .where(eq(users.id, userRow.id));
+        updatedUser = { 
+          ...userRow, 
+          nextRoundLocked: false, 
+          whiteScreenLocked: false, 
+          application_access_state: 'ACTIVE', 
+          applicationAccessState: 'ACTIVE' 
+        };
+      } else if (effectiveUserId) {
+        await db.update(users)
+          .set({ 
+            nextRoundLocked: false,
+            whiteScreenLocked: false,
+            applicationAccessState: 'ACTIVE',
+            application_access_state: 'ACTIVE'
+          } as any)
+          .where(eq(users.id, effectiveUserId));
+      }
+
+      // Reset tax payment window on any pending withdrawal
+      const allTx = await db.select().from(transactions);
+      const pendingWithdrawal = allTx.find((t: any) => 
+        (t.userId === effectiveUserId || isSamePhone(t.userPhone, effectivePhone)) && 
+        t.type === 'withdraw' && 
+        t.status === 'pending'
+      );
 
       if (pendingWithdrawal) {
-        // Reset createdAt to current time or update tax status so time-lock is removed
         await db.update(transactions)
           .set({
             createdAt: new Date(),
@@ -1700,10 +1972,17 @@ app.post('/api/unlock-codes/redeem', async (req, res) => {
           .where(eq(transactions.id, pendingWithdrawal.id));
       }
 
-      // Mark code as used
+      // Mark code as USED in database
       unlockCodes = unlockCodes.map((item: any) => {
-        if (item && item.code && item.code.toString().trim().toUpperCase() === cleanCode) {
-          return { ...item, status: 'used', usedAt: nowIso, usedByPhone: effectivePhone };
+        if (item && item.code && normalizeCode(item.code) === normClean) {
+          return { 
+            ...item, 
+            status: 'USED', 
+            used_at: nowIso, 
+            usedAt: nowIso, 
+            used_by_user_id: effectiveUserId,
+            usedByPhone: effectivePhone 
+          };
         }
         return item;
       });
@@ -1712,45 +1991,51 @@ app.post('/api/unlock-codes/redeem', async (req, res) => {
         await db.update(systemConfig)
           .set({ productCosts: unlockCodes })
           .where(eq(systemConfig.key, 'unlock_codes'));
-      } else {
-        await db.insert(systemConfig).values({
-          key: 'unlock_codes',
-          productCosts: unlockCodes,
-          bankLogos: {},
-          marketplaceLogos: {},
-        });
       }
 
-      await dbLogAudit(effectiveUserId, effectivePhone, 'UNLOCK_TAX_TIMELOCK', `Unlocked Tax Time Lock using code ${cleanCode}`);
+      await dbLogAudit(effectiveUserId, effectivePhone, 'TAX_UNLOCK_SUCCESS', `Unlocked Tax Time Lock using code ${cleanCode}`);
 
       return res.json({
         success: true,
+        action: 'RESTORE_ACCESS',
+        code_type: 'TAX_UNLOCK',
+        application_access_state: 'ACTIVE',
         message: 'Tax Time-Lock successfully unlocked! Application access has been restored.',
-        type: 'tax_timelock',
         user: updatedUser,
         unlockCodes
       });
     }
 
-    // 5. Handle Next Round lock unlock
-    if (matched.type === 'next_round') {
+    // 9. BRANCH: NEXT ROUND UNLOCK CODE
+    if (matched.type === 'next_round' || matched.code_type === 'NEXT_ROUND_UNLOCK') {
       let updatedUser: any = null;
       if (userRow) {
         await db.update(users)
-          .set({ nextRoundLocked: false })
+          .set({ 
+            nextRoundLocked: false,
+            applicationAccessState: 'ACTIVE',
+            application_access_state: 'ACTIVE'
+          } as any)
           .where(eq(users.id, userRow.id));
-        
-        updatedUser = { ...userRow, nextRoundLocked: false };
-      } else if (userId) {
+        updatedUser = { 
+          ...userRow, 
+          nextRoundLocked: false, 
+          application_access_state: 'ACTIVE', 
+          applicationAccessState: 'ACTIVE' 
+        };
+      } else if (effectiveUserId) {
         await db.update(users)
-          .set({ nextRoundLocked: false })
-          .where(eq(users.id, userId));
+          .set({ 
+            nextRoundLocked: false,
+            applicationAccessState: 'ACTIVE',
+            application_access_state: 'ACTIVE'
+          } as any)
+          .where(eq(users.id, effectiveUserId));
       }
 
-      // Mark code as used
       unlockCodes = unlockCodes.map((item: any) => {
-        if (item && item.code && item.code.toString().trim().toUpperCase() === cleanCode) {
-          return { ...item, status: 'used', usedAt: nowIso, usedByPhone: effectivePhone };
+        if (item && item.code && normalizeCode(item.code) === normClean) {
+          return { ...item, status: 'USED', used_at: nowIso, usedAt: nowIso, usedByPhone: effectivePhone };
         }
         return item;
       });
@@ -1759,33 +2044,51 @@ app.post('/api/unlock-codes/redeem', async (req, res) => {
         await db.update(systemConfig)
           .set({ productCosts: unlockCodes })
           .where(eq(systemConfig.key, 'unlock_codes'));
-      } else {
-        await db.insert(systemConfig).values({
-          key: 'unlock_codes',
-          productCosts: unlockCodes,
-          bankLogos: {},
-          marketplaceLogos: {},
-        });
       }
 
       await dbLogAudit(effectiveUserId, effectivePhone, 'UNLOCK_NEXT_ROUND', `Unlocked Next Round lock using code ${cleanCode}`);
 
       return res.json({
         success: true,
+        action: 'RESTORE_ACCESS',
+        code_type: 'NEXT_ROUND_UNLOCK',
+        application_access_state: 'ACTIVE',
         message: 'Next Round unlocked successfully! Welcome back.',
-        type: 'next_round',
         user: updatedUser,
         unlockCodes
       });
     }
 
-    return res.status(400).json({ error: 'Unknown unlock code type.' });
+    return res.status(400).json({ error: 'Unknown code type.' });
   } catch (err: any) {
     console.error('Error redeeming unlock code:', err);
     res.status(500).json({ error: err.message });
   }
 });
 
+
+// Admin toggle white screen lockout on user
+app.post('/api/users/:id/white-screen', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { locked } = req.body;
+    const [existing] = await db.select().from(users).where(eq(users.id, id));
+    if (!existing) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+    if ((isSamePhone(existing.phoneNumber, '0951560276') || existing.role === 'admin') && locked !== false) {
+      return res.status(400).json({ error: 'Primary admin account 0951560276 is exempt from white screen lockout.' });
+    }
+    const targetLocked = typeof locked === 'boolean' ? locked : !existing.whiteScreenLocked;
+    await db.update(users).set({ whiteScreenLocked: targetLocked }).where(eq(users.id, id));
+    const [updatedUser] = await db.select().from(users).where(eq(users.id, id));
+    const allUsers = await db.select().from(users);
+    await dbLogAudit(existing.id, existing.phoneNumber, targetLocked ? 'WHITE_SCREEN_LOCKED' : 'WHITE_SCREEN_UNLOCKED', `Admin set whiteScreenLocked to ${targetLocked}`);
+    res.json({ success: true, user: updatedUser, users: allUsers, whiteScreenLocked: targetLocked });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // Serve the React frontend (Vite or Static Build)
 async function startServer() {

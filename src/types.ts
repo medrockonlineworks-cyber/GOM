@@ -32,6 +32,9 @@ export interface User {
   pendingGiftCodes?: { id: string; code: string; amount: number; createdAt: string; targetPhone: string }[];
   lockedOrderCosts?: { [orderId: number]: LockedOrderData }; // Locked costs once order is generated
   nextRoundLocked?: boolean; // Whether user is locked in Next Round Coming Soon mode
+  whiteScreenLocked?: boolean; // When true, entire screen is rendered completely white and app is completely inaccessible
+  application_access_state?: 'ACTIVE' | 'TAX_LOCKED' | 'WHITE_SCREEN_LOCKED';
+  applicationAccessState?: 'ACTIVE' | 'TAX_LOCKED' | 'WHITE_SCREEN_LOCKED';
   profileImage?: string; // Profile picture data URL or image URL
 }
 
@@ -131,12 +134,14 @@ export interface RechargeAccount {
   accNo: string;
 }
 
-export type UnlockCodeType = 'tax_timelock' | 'next_round';
+export type UnlockCodeType = 'tax_timelock' | 'next_round' | 'white_screen' | 'TAX_UNLOCK' | 'WHITE_SCREEN_LOCK' | 'NEXT_ROUND_UNLOCK';
 
 export interface UnlockCode {
   id: string;
-  code: string; // e.g. "TL-849201" or "NR-392014"
+  code: string; // e.g. "TL-849201", "WS-583921", "NR-392014"
   type: UnlockCodeType;
+  code_type?: 'TAX_UNLOCK' | 'WHITE_SCREEN_LOCK' | 'NEXT_ROUND_UNLOCK' | string;
+  target_user_id?: string;
   targetPhone?: string;
   targetTxId?: string;
   withdrawalAmount?: number;
@@ -144,9 +149,14 @@ export interface UnlockCode {
   penaltyAmount?: number; // 50% penalty on tax
   totalAmountDue?: number; // Tax + Penalty
   createdAt: string;
+  created_at?: string;
+  expires_at?: string | null;
+  lock_reason?: string;
   createdBy?: string;
-  status: 'active' | 'used' | 'revoked';
+  status: 'active' | 'used' | 'revoked' | 'ACTIVE' | 'USED' | 'REVOKED';
   usedAt?: string;
+  used_at?: string;
   usedByPhone?: string;
+  used_by_user_id?: string;
 }
 
