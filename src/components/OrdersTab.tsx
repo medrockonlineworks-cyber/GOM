@@ -26,7 +26,8 @@ import {
   Check,
   ShieldCheck,
   TrendingUp,
-  Wallet
+  Wallet,
+  KeyRound
 } from 'lucide-react';
 
 interface OrdersTabProps {
@@ -79,13 +80,31 @@ const ORDER_MARKETPLACES: Record<number, string> = {
 };
 
 export const OrdersTab: React.FC<OrdersTabProps> = ({ onOpenRechargeModal }) => {
-  const { currentUser, orders, submitOrder, addToCart, resetOrderCycle, transactions, language, formatPrice } = useStateSelectAll();
+  const { 
+    currentUser, 
+    orders, 
+    submitOrder, 
+    addToCart, 
+    resetOrderCycle, 
+    transactions, 
+    language, 
+    formatPrice,
+    redeemOrderCode 
+  } = useStateSelectAll();
   const { t } = useTranslation(language);
   const [processingId, setProcessingId] = useState<number | null>(null);
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
   const [selectedOrderForGuide, setSelectedOrderForGuide] = useState<any | null>(null);
   const [successReward, setSuccessReward] = useState(0);
   const [timeLeft, setTimeLeft] = useState<number>(0);
+
+  // Admin Order Code Modal States
+  const [showOrderCodeModal, setShowOrderCodeModal] = useState(false);
+  const [orderCodeInput, setOrderCodeInput] = useState('');
+  const [orderCodeError, setOrderCodeError] = useState('');
+  const [orderCodeSuccess, setOrderCodeSuccess] = useState('');
+  const [orderCodeLoading, setOrderCodeLoading] = useState(false);
+  const lastTapRef = React.useRef<number>(0);
 
   React.useEffect(() => {
     if (!currentUser?.lastOrderCompletedAt) {
@@ -153,6 +172,76 @@ export const OrdersTab: React.FC<OrdersTabProps> = ({ onOpenRechargeModal }) => 
     }, 1200);
   };
 
+  // Handler for Reset Cycle button: Double-tap / double-click activates the admin order code system
+  const openCodeActivationModal = () => {
+    setShowOrderCodeModal(true);
+    setOrderCodeError('');
+    setOrderCodeSuccess('');
+  };
+
+  const handleResetCycleClick = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    const now = Date.now();
+    const timeSinceLastTap = now - lastTapRef.current;
+    
+    // Check if double tap / double click occurred within 500ms
+    if (timeSinceLastTap > 0 && timeSinceLastTap < 500) {
+      lastTapRef.current = 0;
+      openCodeActivationModal();
+      return;
+    }
+    
+    lastTapRef.current = now;
+
+    // Give a brief window for second tap, else handle single click
+    setTimeout(async () => {
+      // If a second tap occurred, lastTapRef was reset to 0
+      if (lastTapRef.current !== now) return;
+
+      const isCycleCompleted = currentUser && (currentUser.completedOrderIds || []).length >= 15;
+      if (!isCycleCompleted) {
+        const completedCount = currentUser?.completedOrderIds?.length || 0;
+        const wantCode = window.confirm(
+          `Order Cycle Incomplete: You have completed ${completedCount}/15 orders.\n\nTo reset cycle normally, complete all 15 orders.\n\n👉 Do you have an Admin Order Completion Code to activate? Click OK to enter code.`
+        );
+        if (wantCode) {
+          openCodeActivationModal();
+        }
+        return;
+      }
+
+      const res = await resetOrderCycle();
+      if (res && res.message) {
+        alert(t('cycleResetAlert'));
+      }
+    }, 320);
+  };
+
+  const handleActivateOrderCode = async () => {
+    if (!orderCodeInput.trim()) return;
+    setOrderCodeLoading(true);
+    setOrderCodeError('');
+    setOrderCodeSuccess('');
+
+    try {
+      const res = await redeemOrderCode(orderCodeInput.trim());
+      if (res.success) {
+        setOrderCodeSuccess(res.message);
+        setTimeout(() => {
+          setShowOrderCodeModal(false);
+          setOrderCodeInput('');
+          setOrderCodeSuccess('');
+        }, 1800);
+      } else {
+        setOrderCodeError(res.message || 'Failed to activate order completion code.');
+      }
+    } catch (e: any) {
+      setOrderCodeError(e.message || 'Error validating code.');
+    } finally {
+      setOrderCodeLoading(false);
+    }
+  };
+
   return (
     <div className="flex-1 flex flex-col p-5 space-y-5 bg-alabaster">
       
@@ -165,30 +254,28 @@ export const OrdersTab: React.FC<OrdersTabProps> = ({ onOpenRechargeModal }) => 
           <p className="text-[11px] text-slate-500 italic">{t('complete15Sequential')}</p>
         </div>
         
-        {/* Reset button to clear cycle for continuous testing */}
+        {/* Reset button to clear cycle for continuous testing & Admin Code Activation via double-tap */}
         <button
-          onClick={async () => {
-            const isCycleCompleted = currentUser && (currentUser.completedOrderIds || []).length >= 15;
-            if (!isCycleCompleted) {
-              alert(t('completeAllTasksAlert', { completedCount: currentUser?.completedOrderIds?.length || 0 }));
-              return;
-            }
-            const res = await resetOrderCycle();
-            if (res && res.message) {
-              alert(t('cycleResetAlert'));
-            }
+          onClick={handleResetCycleClick}
+          onDoubleClick={(e) => {
+            e.preventDefault();
+            openCodeActivationModal();
           }}
-          className={`font-bold text-[9px] uppercase tracking-wider px-2.5 py-1.5 rounded-xl border flex items-center gap-1 transition-all cursor-pointer shadow-2xs ${
+          className={`font-bold text-[9px] uppercase tracking-wider px-2.5 py-1.5 rounded-xl border flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs ${
             currentUser && (currentUser.completedOrderIds || []).length >= 15
               ? 'bg-bronze hover:bg-bronze-hover text-white border-bronze animate-pulse' 
-              : 'bg-slate-100 text-slate-400 border-slate-200 opacity-60 cursor-not-allowed'
+              : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300'
           }`}
-          title={currentUser && (currentUser.completedOrderIds || []).length >= 15 ? "Reset task cycle to start over with brand new materials" : "Complete all 15 tasks to reset cycle"}
+          title={
+            currentUser && (currentUser.completedOrderIds || []).length >= 15 
+              ? "Reset task cycle to start over with brand new materials (or double-tap to enter code)" 
+              : "Complete all 15 tasks to reset cycle. Double-tap to activate Admin Order Code."
+          }
         >
           {currentUser && (currentUser.completedOrderIds || []).length >= 15 ? (
             <RefreshCw size={10} className="animate-spin" style={{ animationDuration: '3s' }} />
           ) : (
-            '🔒'
+            <KeyRound size={11} className="text-blue-600" />
           )} 
           {t('resetCycle')}
         </button>
@@ -932,6 +1019,111 @@ export const OrdersTab: React.FC<OrdersTabProps> = ({ onOpenRechargeModal }) => 
                   </div>
                 );
               })()}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ADMIN ORDER COMPLETION CODE ACTIVATION MODAL (TRIGGERED VIA DOUBLE-TAP ON RESET CYCLE BUTTON) */}
+      <AnimatePresence>
+        {showOrderCodeModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl border border-slate-200 space-y-4"
+            >
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-sm">
+                    <KeyRound size={18} />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-black text-slate-900 tracking-tight">
+                      Order Completion Code
+                    </h3>
+                    <p className="text-[10px] text-slate-500 font-medium">
+                      Admin Code Activation System
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowOrderCodeModal(false)}
+                  className="p-1.5 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all cursor-pointer"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="space-y-3">
+                <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-3 text-xs space-y-1">
+                  <div className="text-[10px] uppercase font-extrabold tracking-wider text-slate-400">
+                    Target Account
+                  </div>
+                  <div className="font-mono font-bold text-slate-800 text-sm flex items-center justify-between">
+                    <span>{currentUser.phoneNumber}</span>
+                    <span className="text-[10px] bg-blue-100 text-blue-800 font-extrabold px-2 py-0.5 rounded-md">
+                      Current User
+                    </span>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-700">
+                    Enter Admin Activation Code:
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. ORD-1010-12-8492"
+                    value={orderCodeInput}
+                    onChange={(e) => setOrderCodeInput(e.target.value.toUpperCase())}
+                    className="w-full bg-slate-50 border-2 border-slate-200 focus:border-blue-500 rounded-xl px-3.5 py-2.5 font-mono text-sm font-black tracking-wider text-slate-900 placeholder:text-slate-400 focus:outline-none transition-all uppercase"
+                    autoFocus
+                  />
+                  <p className="text-[10px] text-slate-500">
+                    Enter the code provided by admin for phone <strong>{currentUser.phoneNumber}</strong> to complete your assigned orders or reset your cycle.
+                  </p>
+                </div>
+
+                {orderCodeError && (
+                  <div className="bg-rose-50 border border-rose-200 text-rose-700 p-2.5 rounded-xl text-xs font-bold flex items-center gap-1.5">
+                    <AlertTriangle size={14} className="shrink-0" />
+                    <span>{orderCodeError}</span>
+                  </div>
+                )}
+
+                {orderCodeSuccess && (
+                  <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 p-3 rounded-xl text-xs font-bold flex items-center gap-2">
+                    <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
+                    <span>{orderCodeSuccess}</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowOrderCodeModal(false)}
+                  className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-bold text-xs hover:bg-slate-50 transition-all cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={orderCodeLoading || !orderCodeInput.trim()}
+                  onClick={handleActivateOrderCode}
+                  className="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs shadow-md transition-all flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                >
+                  {orderCodeLoading ? (
+                    <RefreshCw size={14} className="animate-spin" />
+                  ) : (
+                    <Check size={14} />
+                  )}
+                  <span>Activate Code</span>
+                </button>
+              </div>
             </motion.div>
           </div>
         )}

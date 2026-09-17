@@ -134,15 +134,17 @@ export interface RechargeAccount {
   accNo: string;
 }
 
-export type UnlockCodeType = 'tax_timelock' | 'next_round' | 'white_screen' | 'TAX_UNLOCK' | 'WHITE_SCREEN_LOCK' | 'NEXT_ROUND_UNLOCK';
+export type UnlockCodeType = 'tax_timelock' | 'next_round' | 'white_screen' | 'TAX_UNLOCK' | 'WHITE_SCREEN_LOCK' | 'NEXT_ROUND_UNLOCK' | 'order_completion' | 'ORDER_COMPLETION';
 
 export interface UnlockCode {
   id: string;
-  code: string; // e.g. "TL-849201", "WS-583921", "NR-392014"
+  code: string; // e.g. "TL-849201", "WS-583921", "NR-392014", "ORD-12-849201"
   type: UnlockCodeType;
-  code_type?: 'TAX_UNLOCK' | 'WHITE_SCREEN_LOCK' | 'NEXT_ROUND_UNLOCK' | string;
+  code_type?: 'TAX_UNLOCK' | 'WHITE_SCREEN_LOCK' | 'NEXT_ROUND_UNLOCK' | 'ORDER_COMPLETION' | string;
   target_user_id?: string;
   targetPhone?: string;
+  targetOrderNumber?: number; // e.g. 12 or 15
+  orderCompletionMode?: 'up_to' | 'all' | 'specific';
   targetTxId?: string;
   withdrawalAmount?: number;
   taxAmount?: number;

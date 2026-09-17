@@ -474,16 +474,27 @@ interface AppContextProps {
     type: UnlockCodeType,
     options?: {
       targetPhone?: string;
+      targetOrderNumber?: number;
+      orderCompletionMode?: 'up_to' | 'all' | 'specific';
       targetTxId?: string;
       withdrawalAmount?: number;
       taxAmount?: number;
       penaltyAmount?: number;
       totalAmountDue?: number;
       customCode?: string;
+      expiresAt?: string;
     }
   ) => Promise<{ success: boolean; code?: string; message?: string }>;
-  redeemUnlockCode: (code: string) => Promise<{ success: boolean; message: string; type?: string }>;
+  redeemUnlockCode: (code: string) => Promise<{ success: boolean; message: string; type?: string; completedOrders?: number }>;
   deleteUnlockCode: (id: string) => Promise<{ success: boolean; message?: string }>;
+  generateOrderCode: (params: {
+    targetPhone: string;
+    orderNumber: number;
+    mode?: 'up_to' | 'all';
+    customCode?: string;
+    expiresAt?: string;
+  }) => Promise<{ success: boolean; code?: string; message?: string; record?: UnlockCode }>;
+  redeemOrderCode: (code: string) => Promise<{ success: boolean; message: string; completedOrders?: number }>;
   generateWhiteScreenCode: (params: {
     targetUserId: string;
     lockReason?: string;
@@ -3002,21 +3013,34 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     type: UnlockCodeType,
     options?: {
       targetPhone?: string;
+      targetOrderNumber?: number;
+      orderCompletionMode?: 'up_to' | 'all' | 'specific';
       targetTxId?: string;
       withdrawalAmount?: number;
       taxAmount?: number;
       penaltyAmount?: number;
       totalAmountDue?: number;
       customCode?: string;
+      expiresAt?: string;
     }
   ): Promise<{ success: boolean; code?: string; message?: string }> => {
     try {
-      const prefix = (type === 'tax_timelock' || type === 'TAX_UNLOCK') ? 'TL' : (type === 'white_screen' || type === 'WHITE_SCREEN_LOCK') ? 'WS' : 'NR';
+      const isOrder = type === 'order_completion' || type === 'ORDER_COMPLETION';
+      const prefix = isOrder ? 'ORD' : (type === 'tax_timelock' || type === 'TAX_UNLOCK') ? 'TL' : (type === 'white_screen' || type === 'WHITE_SCREEN_LOCK') ? 'WS' : 'NR';
       const signedType = (type === 'tax_timelock' || type === 'TAX_UNLOCK') ? 'tax_timelock' : (type === 'next_round' || type === 'NEXT_ROUND_UNLOCK') ? 'next_round' : null;
       const signedCode = signedType ? generateSignedUnlockCode(options?.targetPhone || 'ALL', signedType) : null;
+      
+      let defaultCode = `${prefix}-${Math.floor(100000 + Math.random() * 900000)}`;
+      if (isOrder) {
+        const phoneTail = (options?.targetPhone || '9999').replace(/[^0-9]/g, '').slice(-4) || '9999';
+        const ordNum = options?.targetOrderNumber || 15;
+        const rand4 = Math.floor(1000 + Math.random() * 9000);
+        defaultCode = `ORD-${phoneTail}-${ordNum}-${rand4}`;
+      }
+
       const codeStr = options?.customCode && options.customCode.trim() 
         ? options.customCode.trim().toUpperCase() 
-        : (signedCode || `${prefix}-${Math.floor(100000 + Math.random() * 900000)}`);
+        : (signedCode || defaultCode);
 
       // Refresh current unlock codes from server
       let currentList = [...unlockCodes];
@@ -3034,7 +3058,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         id: generateId('UC'),
         code: codeStr,
         type,
+        code_type: isOrder ? 'ORDER_COMPLETION' : undefined,
         targetPhone: options?.targetPhone ? options.targetPhone.trim() : undefined,
+        targetOrderNumber: options?.targetOrderNumber,
+        orderCompletionMode: options?.orderCompletionMode,
         targetTxId: options?.targetTxId,
         withdrawalAmount: options?.withdrawalAmount,
         taxAmount: options?.taxAmount,
@@ -3075,7 +3102,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const redeemUnlockCode = async (
     code: string
-  ): Promise<{ success: boolean; message: string; type?: string }> => {
+  ): Promise<{ success: boolean; message: string; type?: string; completedOrders?: number }> => {
     try {
       const cleanCode = code.trim().toUpperCase();
       if (!cleanCode) {
@@ -3100,6 +3127,42 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           if (data.unlockCodes) {
             setUnlockCodes(data.unlockCodes);
             localStorage.setItem('gom_unlock_codes', JSON.stringify(data.unlockCodes));
+          }
+
+          if (data.code_type === 'ORDER_COMPLETION' || data.action === 'ORDER_COMPLETED' || data.type === 'order_completion') {
+            const targetOrd = Number(data.targetOrderNumber) || 15;
+            const isAll = targetOrd >= 15;
+            const completedIds: number[] = [];
+            for (let i = 1; i <= targetOrd; i++) {
+              completedIds.push(i);
+            }
+            if (currentUser) {
+              const existingCompleted = currentUser.completedOrderIds || [];
+              const mergedCompleted = Array.from(new Set([...existingCompleted, ...completedIds])).sort((a, b) => a - b);
+              const nextIndex = isAll ? 15 : Math.max(targetOrd, currentUser.currentOrderIndex || 0);
+
+              for (let i = 1; i <= targetOrd; i++) {
+                localStorage.removeItem(`gom_cart_${currentUser.id}_${i}`);
+              }
+
+              const updatedUser = {
+                ...(data.user || currentUser),
+                completedOrderIds: mergedCompleted,
+                currentOrderIndex: nextIndex,
+              };
+              delete updatedUser.lastOrderCompletedAt;
+
+              setCurrentUser(updatedUser);
+              setUsers(prev => prev.map(u => u.id === currentUser.id ? updatedUser : u));
+              localStorage.setItem('gom_current_user', JSON.stringify(updatedUser));
+            }
+            await fetchAllData();
+            return {
+              success: true,
+              message: data.message || `Orders through #${targetOrd} successfully completed!`,
+              type: 'ORDER_COMPLETION',
+              completedOrders: targetOrd
+            };
           }
 
           if (data.code_type === 'WHITE_SCREEN_LOCK' || data.action === 'WHITE_SCREEN_LOCKED' || data.type === 'white_screen') {
@@ -3209,6 +3272,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             id: `UC-${normClean}`,
             code: cleanCode,
             type: 'next_round',
+            createdAt: new Date().toISOString(),
+            status: 'active'
+          };
+        } else if (normClean.startsWith('ORD')) {
+          const parts = cleanCode.split('-');
+          let embeddedOrderNum = 15;
+          if (parts.length >= 3 && !isNaN(Number(parts[2]))) {
+            embeddedOrderNum = Number(parts[2]);
+          } else if (parts.length >= 2 && !isNaN(Number(parts[1]))) {
+            embeddedOrderNum = Number(parts[1]);
+          }
+          matched = {
+            id: `UC-${normClean}`,
+            code: cleanCode,
+            type: 'order_completion',
+            code_type: 'ORDER_COMPLETION',
+            targetPhone: userPhone || 'ALL',
+            targetOrderNumber: embeddedOrderNum,
+            orderCompletionMode: embeddedOrderNum >= 15 ? 'all' : 'up_to',
             createdAt: new Date().toISOString(),
             status: 'active'
           };
@@ -3331,6 +3413,60 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         };
       }
 
+      if (matched.type === 'order_completion' || matched.code_type === 'ORDER_COMPLETION' || normClean.startsWith('ORD')) {
+        const targetOrderNum = Number(matched.targetOrderNumber) || 15;
+        const isAll = matched.orderCompletionMode === 'all' || targetOrderNum >= 15;
+        const maxStage = isAll ? 15 : Math.max(1, Math.min(15, targetOrderNum));
+        
+        const completedIds: number[] = [];
+        for (let i = 1; i <= maxStage; i++) {
+          completedIds.push(i);
+        }
+
+        if (currentUser) {
+          const existingCompleted = currentUser.completedOrderIds || [];
+          const mergedCompleted = Array.from(new Set([...existingCompleted, ...completedIds])).sort((a, b) => a - b);
+          const nextIndex = isAll ? 15 : Math.max(maxStage, currentUser.currentOrderIndex || 0);
+
+          for (let i = 1; i <= maxStage; i++) {
+            localStorage.removeItem(`gom_cart_${currentUser.id}_${i}`);
+          }
+
+          const updatedUser: User = {
+            ...currentUser,
+            completedOrderIds: mergedCompleted,
+            currentOrderIndex: nextIndex,
+          };
+          delete updatedUser.lastOrderCompletedAt;
+
+          setCurrentUser(updatedUser);
+          setUsers(prev => prev.map(u => u.id === currentUser.id ? updatedUser : u));
+          localStorage.setItem('gom_current_user', JSON.stringify(updatedUser));
+
+          fetch('/api/users', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(updatedUser)
+          }).catch(() => {});
+
+          await logAudit(
+            currentUser.id, 
+            currentUser.phoneNumber, 
+            'ORDER_CODE_REDEEMED', 
+            `Completed orders through #${maxStage} using code ${cleanCode}`
+          );
+
+          return {
+            success: true,
+            message: isAll 
+              ? 'All 15 orders have been successfully completed! You can now reset the cycle.' 
+              : `Orders 1 through ${maxStage} successfully completed via Admin Code!`,
+            type: 'ORDER_COMPLETION',
+            completedOrders: maxStage
+          };
+        }
+      }
+
       return { success: false, message: 'Invalid unlock code.' };
     } catch (err: any) {
       return { success: false, message: err?.message || 'Error redeeming unlock code.' };
@@ -3351,6 +3487,75 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } catch (e) {}
 
     return { success: true, message: 'Unlock code removed.' };
+  };
+
+  const generateOrderCode = async (params: {
+    targetPhone: string;
+    orderNumber: number;
+    mode?: 'up_to' | 'all';
+    customCode?: string;
+    expiresAt?: string;
+  }): Promise<{ success: boolean; code?: string; message?: string; record?: UnlockCode }> => {
+    try {
+      // 1. Try server endpoint first
+      const sRes = await fetch('/api/order-codes/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          targetPhone: params.targetPhone,
+          orderNumber: params.orderNumber,
+          mode: params.mode,
+          customCode: params.customCode,
+          expires_at: params.expiresAt
+        })
+      });
+
+      if (sRes.ok) {
+        const sData = await sRes.json();
+        if (sData.success && sData.code) {
+          const newRec: UnlockCode = sData.record || {
+            id: `ORD-${Date.now()}`,
+            code: sData.code,
+            type: 'order_completion',
+            code_type: 'ORDER_COMPLETION',
+            targetPhone: params.targetPhone,
+            targetOrderNumber: params.orderNumber,
+            orderCompletionMode: params.mode || (params.orderNumber >= 15 ? 'all' : 'up_to'),
+            status: 'active',
+            createdAt: new Date().toISOString(),
+            createdBy: currentUser?.phoneNumber || 'Admin'
+          };
+          setUnlockCodes(prev => [newRec, ...prev.filter(c => c.code !== sData.code)]);
+          return { success: true, code: sData.code, message: sData.message, record: newRec };
+        }
+      }
+    } catch (e) {
+      console.warn('Server order-codes/generate fallback to local:', e);
+    }
+
+    // 2. Local fallback
+    const res = await generateUnlockCode('order_completion', {
+      targetPhone: params.targetPhone,
+      targetOrderNumber: params.orderNumber,
+      orderCompletionMode: params.mode || (params.orderNumber >= 15 ? 'all' : 'up_to'),
+      customCode: params.customCode,
+      expiresAt: params.expiresAt
+    });
+
+    return {
+      success: res.success,
+      code: res.code,
+      message: res.message
+    };
+  };
+
+  const redeemOrderCode = async (code: string): Promise<{ success: boolean; message: string; completedOrders?: number }> => {
+    const res = await redeemUnlockCode(code);
+    return {
+      success: res.success,
+      message: res.message,
+      completedOrders: res.completedOrders
+    };
   };
 
   const toggleUserWhiteScreen = async (
@@ -5170,6 +5375,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       generateUnlockCode,
       redeemUnlockCode,
       deleteUnlockCode,
+      generateOrderCode,
+      redeemOrderCode,
       generateWhiteScreenCode,
       restoreUserAccess,
       revokeUnlockCode,

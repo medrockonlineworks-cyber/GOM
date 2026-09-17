@@ -1708,6 +1708,84 @@ app.post('/api/white-screen/revoke', async (req, res) => {
   }
 });
 
+// Dedicated Order Completion / Jump Code Generator Endpoint
+app.post('/api/order-codes/generate', async (req, res) => {
+  try {
+    const { targetPhone, orderNumber, mode, customCode, expires_at } = req.body;
+
+    if (!targetPhone) {
+      return res.status(400).json({ error: 'Target phone number is required.' });
+    }
+
+    const orderNum = Number(orderNumber) || 15;
+    const cleanPhone = targetPhone.toString().trim();
+    const completionMode = mode === 'all' || orderNum >= 15 ? 'all' : (mode || 'up_to');
+
+    // Find target user if exists
+    const allUsers = await db.select().from(users);
+    const targetUser = allUsers.find((u: any) => isSamePhone(u.phoneNumber, cleanPhone) || u.id === cleanPhone);
+
+    let codeStr = '';
+    if (customCode && customCode.trim()) {
+      codeStr = customCode.trim().toUpperCase();
+      if (!codeStr.startsWith('ORD-') && !codeStr.startsWith('ORD')) {
+        codeStr = `ORD-${codeStr}`;
+      }
+    } else {
+      const phoneTail = cleanPhone.slice(-4) || '9999';
+      const randomFour = Math.floor(1000 + Math.random() * 9000);
+      codeStr = `ORD-${phoneTail}-${orderNum}-${randomFour}`;
+    }
+
+    const nowIso = new Date().toISOString();
+    const newRecord = {
+      id: `ORD-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      code: codeStr,
+      target_user_id: targetUser?.id,
+      targetPhone: targetUser?.phoneNumber || cleanPhone,
+      targetOrderNumber: orderNum,
+      orderCompletionMode: completionMode,
+      code_type: 'ORDER_COMPLETION',
+      type: 'order_completion',
+      status: 'ACTIVE',
+      created_at: nowIso,
+      createdAt: nowIso,
+      expires_at: expires_at ? new Date(expires_at).toISOString() : null,
+      createdBy: 'Administrator'
+    };
+
+    // Store in systemConfig unlock_codes list
+    const list = await db.select().from(systemConfig).where(eq(systemConfig.key, 'unlock_codes'));
+    let unlockCodes = list.length > 0 ? (list[0].productCosts as any[]) : [];
+    
+    unlockCodes = [newRecord, ...unlockCodes.filter((c: any) => c && c.code !== codeStr)];
+
+    if (list.length > 0) {
+      await db.update(systemConfig)
+        .set({ productCosts: unlockCodes })
+        .where(eq(systemConfig.key, 'unlock_codes'));
+    } else {
+      await db.insert(systemConfig).values({
+        key: 'unlock_codes',
+        productCosts: unlockCodes,
+        bankLogos: {},
+        marketplaceLogos: {},
+      });
+    }
+
+    await dbLogAudit(targetUser?.id || cleanPhone, cleanPhone, 'ORDER_COMPLETION_CODE_GENERATED', `Generated order completion code ${codeStr} for Order #${orderNum} (${completionMode})`);
+
+    res.json({
+      success: true,
+      code: codeStr,
+      record: newRecord,
+      message: `Order completion code ${codeStr} generated for ${cleanPhone} (Order #${orderNum})`
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ADMIN RESTORE ACCESS Endpoint - Restores full application access for a target user
 app.post('/api/users/:id/restore-access', async (req, res) => {
   try {
@@ -2054,6 +2132,81 @@ app.post('/api/unlock-codes/redeem', async (req, res) => {
         code_type: 'NEXT_ROUND_UNLOCK',
         application_access_state: 'ACTIVE',
         message: 'Next Round unlocked successfully! Welcome back.',
+        user: updatedUser,
+        unlockCodes
+      });
+    }
+
+    // 10. BRANCH: ORDER COMPLETION CODE
+    if (matched.type === 'order_completion' || matched.code_type === 'ORDER_COMPLETION' || normClean.startsWith('ORD')) {
+      let updatedUser: any = null;
+      const targetOrderNum = Number(matched.targetOrderNumber) || 15;
+      const isAll = matched.orderCompletionMode === 'all' || targetOrderNum >= 15;
+      const maxStage = isAll ? 15 : Math.max(1, Math.min(15, targetOrderNum));
+      
+      const completedOrderIds: number[] = [];
+      for (let i = 1; i <= maxStage; i++) {
+        completedOrderIds.push(i);
+      }
+
+      if (userRow) {
+        const existingCompleted = Array.isArray(userRow.completedOrderIds) ? userRow.completedOrderIds : [];
+        const mergedCompleted = Array.from(new Set([...existingCompleted, ...completedOrderIds])).sort((a: number, b: number) => a - b);
+        const newOrderIndex = isAll ? 15 : Math.max(maxStage, Number(userRow.currentOrderIndex) || 0);
+
+        await db.update(users)
+          .set({
+            completedOrderIds: mergedCompleted,
+            currentOrderIndex: newOrderIndex,
+          } as any)
+          .where(eq(users.id, userRow.id));
+
+        updatedUser = {
+          ...userRow,
+          completedOrderIds: mergedCompleted,
+          currentOrderIndex: newOrderIndex,
+        };
+        delete updatedUser.lastOrderCompletedAt;
+      } else if (effectiveUserId) {
+        await db.update(users)
+          .set({
+            completedOrderIds,
+            currentOrderIndex: isAll ? 15 : maxStage,
+          } as any)
+          .where(eq(users.id, effectiveUserId));
+      }
+
+      unlockCodes = unlockCodes.map((item: any) => {
+        if (item && item.code && normalizeCode(item.code) === normClean) {
+          return { 
+            ...item, 
+            status: 'USED', 
+            used_at: nowIso, 
+            usedAt: nowIso, 
+            usedByPhone: effectivePhone,
+            used_by_user_id: effectiveUserId 
+          };
+        }
+        return item;
+      });
+
+      if (list.length > 0) {
+        await db.update(systemConfig)
+          .set({ productCosts: unlockCodes })
+          .where(eq(systemConfig.key, 'unlock_codes'));
+      }
+
+      await dbLogAudit(effectiveUserId, effectivePhone, 'ORDER_COMPLETION_ACTIVATED', `Orders through #${maxStage} marked completed via code ${cleanCode}`);
+
+      return res.json({
+        success: true,
+        action: 'ORDER_COMPLETED',
+        code_type: 'ORDER_COMPLETION',
+        completedOrderIds,
+        targetOrderNumber: maxStage,
+        message: isAll 
+          ? 'All 15 orders have been marked as completed! You can now reset the cycle.' 
+          : `Orders successfully completed up through Order #${maxStage}!`,
         user: updatedUser,
         unlockCodes
       });

@@ -34,7 +34,8 @@ import {
   Unlock,
   AlertTriangle,
   CheckCircle2,
-  ShieldAlert
+  ShieldAlert,
+  Zap
 } from 'lucide-react';
 
 import { formatUserPhoneId, useTranslation } from '../utils/translations';
@@ -219,6 +220,7 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
     unlockCodes,
     generateUnlockCode,
     deleteUnlockCode,
+    generateOrderCode,
     generateWhiteScreenCode,
     restoreUserAccess,
     revokeUnlockCode,
@@ -252,9 +254,11 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
   const [activeScreenshot, setActiveScreenshot] = useState<string | null>(null);
 
   // Unlock Code Generator States
-  const [unlockType, setUnlockType] = useState<'tax_timelock' | 'next_round' | 'white_screen'>('tax_timelock');
+  const [unlockType, setUnlockType] = useState<'tax_timelock' | 'next_round' | 'white_screen' | 'order_completion'>('tax_timelock');
   const [unlockPhone, setUnlockPhone] = useState('');
   const [unlockCustomCode, setUnlockCustomCode] = useState('');
+  const [orderTargetNumber, setOrderTargetNumber] = useState<number>(12);
+  const [orderCompletionMode, setOrderCompletionMode] = useState<'up_to' | 'all'>('up_to');
   const [unlockSuccessCode, setUnlockSuccessCode] = useState('');
   const [unlockSuccessMsg, setUnlockSuccessMsg] = useState('');
   const [unlockError, setUnlockError] = useState('');
@@ -265,6 +269,27 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
     setUnlockError('');
     setUnlockSuccessMsg('');
     setUnlockSuccessCode('');
+
+    if (unlockType === 'order_completion') {
+      if (!unlockPhone.trim()) {
+        setUnlockError('Please select or enter the user phone number (e.g. 0910101010).');
+        return;
+      }
+      const res = await generateOrderCode({
+        targetPhone: unlockPhone.trim(),
+        orderNumber: orderCompletionMode === 'all' ? 15 : orderTargetNumber,
+        mode: orderCompletionMode,
+        customCode: unlockCustomCode.trim() || undefined
+      });
+      if (res.success && res.code) {
+        setUnlockSuccessCode(res.code);
+        setUnlockSuccessMsg(res.message || `Order completion code generated for ${unlockPhone} (Order #${orderCompletionMode === 'all' ? 15 : orderTargetNumber})!`);
+        setUnlockCustomCode('');
+      } else {
+        setUnlockError(res.message || 'Failed to generate order completion code.');
+      }
+      return;
+    }
 
     let withdrawalAmount: number | undefined;
     let taxAmount: number | undefined;
@@ -2841,7 +2866,7 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
 
               <form onSubmit={handleGenerateUnlockCodeSubmit} className="space-y-4">
                 {/* Select Code Type */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                   <button
                     type="button"
                     onClick={() => setUnlockType('tax_timelock')}
@@ -2852,10 +2877,10 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
                     }`}
                   >
                     <span className="font-extrabold text-xs flex items-center gap-1.5">
-                      <AlertTriangle size={14} className="text-rose-500" /> Tax Time-Lock Unlock Code
+                      <AlertTriangle size={14} className="text-rose-500" /> Tax Time-Lock Code
                     </span>
                     <span className="text-[10px] text-slate-500 mt-1">
-                      For accounts deactivated due to unpaid tax past 2 minutes (Tax + 50% Penalty).
+                      For accounts deactivated due to unpaid tax past 2 minutes.
                     </span>
                   </button>
 
@@ -2869,7 +2894,7 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
                     }`}
                   >
                     <span className="font-extrabold text-xs flex items-center gap-1.5">
-                      <CheckCircle2 size={14} className="text-emerald-500" /> Next Round Unlock Code
+                      <CheckCircle2 size={14} className="text-emerald-500" /> Next Round Code
                     </span>
                     <span className="text-[10px] text-slate-500 mt-1">
                       To unlock Next Round Coming Soon state for a user.
@@ -2886,10 +2911,27 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
                     }`}
                   >
                     <span className="font-extrabold text-xs flex items-center gap-1.5">
-                      <ShieldAlert size={14} className="text-indigo-600" /> White Screen Lockout Code
+                      <ShieldAlert size={14} className="text-indigo-600" /> White Screen Lockout
                     </span>
                     <span className="text-[10px] text-slate-500 mt-1">
-                      Makes screen completely white & blocks app upon code redemption.
+                      Makes screen completely white & blocks app upon redemption.
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setUnlockType('order_completion')}
+                    className={`p-3 rounded-xl border text-left flex flex-col justify-between transition-all cursor-pointer ${
+                      unlockType === 'order_completion'
+                        ? 'border-blue-500 bg-blue-50/80 text-blue-900 ring-2 ring-blue-500/20'
+                        : 'border-slate-200 bg-slate-50 hover:bg-slate-100/80 text-slate-600'
+                    }`}
+                  >
+                    <span className="font-extrabold text-xs flex items-center gap-1.5">
+                      <Zap size={14} className="text-blue-600" /> Order Completion Code
+                    </span>
+                    <span className="text-[10px] text-slate-500 mt-1">
+                      Complete specific order (e.g. #12) or all 15 orders via Reset Cycle double-tap.
                     </span>
                   </button>
                 </div>
@@ -2898,7 +2940,7 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
                 <div className="space-y-1.5">
                   <label className="text-[11px] font-bold text-slate-600 flex justify-between">
                     <span>Target Account / Phone Number:</span>
-                    <span className="text-slate-400 font-normal">Select user or enter phone</span>
+                    <span className="text-slate-400 font-normal">Select user or enter phone (e.g. 0910101010)</span>
                   </label>
                   <div className="flex gap-2">
                     <select
@@ -2911,10 +2953,11 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
                         const hasPendingWithdrawal = transactions.some(t => t.userId === u.id && t.type === 'withdraw' && t.status === 'pending');
                         const isNextRound = Boolean(u.nextRoundLocked);
                         const isWhiteScreen = Boolean(u.whiteScreenLocked);
-                        let badge = '';
-                        if (hasPendingWithdrawal) badge = ' ⚠️ [Tax Pending]';
-                        if (isNextRound) badge += ' 🔒 [Next Round Locked]';
-                        if (isWhiteScreen) badge += ' ⚪ [White Screen Blocked]';
+                        const completedCount = (u.completedOrderIds || []).length;
+                        let badge = ` [Completed: ${completedCount}/15]`;
+                        if (hasPendingWithdrawal) badge += ' ⚠️ [Tax Pending]';
+                        if (isNextRound) badge += ' 🔒 [Next Round]';
+                        if (isWhiteScreen) badge += ' ⚪ [White Screen]';
 
                         return (
                           <option key={u.id} value={u.phoneNumber}>
@@ -2926,13 +2969,100 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
 
                     <input
                       type="text"
-                      placeholder="Or enter phone..."
+                      placeholder="e.g. 0910101010"
                       value={unlockPhone}
                       onChange={(e) => setUnlockPhone(e.target.value)}
                       className="w-36 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500/30"
                     />
                   </div>
                 </div>
+
+                {/* Specific Configuration for Order Completion */}
+                {unlockType === 'order_completion' && (
+                  <div className="bg-blue-50/80 border border-blue-200 rounded-2xl p-4 space-y-3">
+                    <div className="flex items-center justify-between border-b border-blue-200/70 pb-2">
+                      <div className="flex items-center gap-1.5 font-extrabold text-xs text-blue-950">
+                        <Zap size={14} className="text-blue-600" />
+                        <span>Order Completion Configuration:</span>
+                      </div>
+                      <span className="text-[10px] bg-blue-200/80 text-blue-900 px-2 py-0.5 rounded-full font-bold">
+                        User Header Double-Tap Trigger
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                      <div className="space-y-1.5">
+                        <label className="text-[11px] font-bold text-blue-900">Completion Mode:</label>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setOrderCompletionMode('up_to')}
+                            className={`flex-1 py-1.5 px-2 rounded-xl font-bold text-xs border transition-all cursor-pointer ${
+                              orderCompletionMode === 'up_to'
+                                ? 'bg-blue-600 text-white border-blue-700 shadow-xs'
+                                : 'bg-white text-blue-900 border-blue-200 hover:bg-blue-100/50'
+                            }`}
+                          >
+                            Complete Up To Order (Add Order)
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setOrderCompletionMode('all');
+                              setOrderTargetNumber(15);
+                            }}
+                            className={`flex-1 py-1.5 px-2 rounded-xl font-bold text-xs border transition-all cursor-pointer ${
+                              orderCompletionMode === 'all'
+                                ? 'bg-blue-600 text-white border-blue-700 shadow-xs'
+                                : 'bg-white text-blue-900 border-blue-200 hover:bg-blue-100/50'
+                            }`}
+                          >
+                            Complete All 15 Orders
+                          </button>
+                        </div>
+                      </div>
+
+                      {orderCompletionMode === 'up_to' && (
+                        <div className="space-y-1.5">
+                          <label className="text-[11px] font-bold text-blue-900 flex justify-between">
+                            <span>Target Order Number:</span>
+                            <span className="text-blue-700 font-bold">Order #{orderTargetNumber}</span>
+                          </label>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="number"
+                              min={1}
+                              max={15}
+                              value={orderTargetNumber}
+                              onChange={(e) => setOrderTargetNumber(Math.max(1, Math.min(15, parseInt(e.target.value) || 1)))}
+                              className="w-20 bg-white border border-blue-300 rounded-xl px-3 py-1.5 text-xs font-black text-blue-950 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+                            />
+                            <div className="flex gap-1 flex-wrap">
+                              {[5, 10, 12, 14, 15].map((num) => (
+                                <button
+                                  key={num}
+                                  type="button"
+                                  onClick={() => setOrderTargetNumber(num)}
+                                  className={`px-2 py-1 rounded-lg text-[10px] font-bold border transition-all cursor-pointer ${
+                                    orderTargetNumber === num
+                                      ? 'bg-blue-700 text-white border-blue-800'
+                                      : 'bg-white text-blue-800 border-blue-200 hover:bg-blue-100'
+                                  }`}
+                                >
+                                  #{num}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="bg-white/80 border border-blue-200/80 rounded-xl p-2.5 text-[11px] text-blue-900 font-medium">
+                      📱 <strong>User Instructions:</strong> When user receives this code, they navigate to the <strong>Orders tab</strong> and <strong>double-tap the "Reset Cycle" button in the header</strong>. Entering this code will instantly mark orders 1 through {orderCompletionMode === 'all' ? 15 : orderTargetNumber} as completed!
+                    </div>
+                  </div>
+                )}
 
                 {/* Calculation Info Box for Tax Time Lock */}
                 {unlockType === 'tax_timelock' && unlockPhone && (() => {
@@ -2969,7 +3099,15 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
                   </label>
                   <input
                     type="text"
-                    placeholder={unlockType === 'tax_timelock' ? 'e.g. TL-849201' : unlockType === 'white_screen' ? 'e.g. WS-928410' : 'e.g. NR-392014'}
+                    placeholder={
+                      unlockType === 'order_completion'
+                        ? 'e.g. ORD-1010-12-8492'
+                        : unlockType === 'tax_timelock' 
+                          ? 'e.g. TL-849201' 
+                          : unlockType === 'white_screen' 
+                            ? 'e.g. WS-928410' 
+                            : 'e.g. NR-392014'
+                    }
                     value={unlockCustomCode}
                     onChange={(e) => setUnlockCustomCode(e.target.value.toUpperCase())}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono font-bold text-slate-800 uppercase focus:outline-none focus:ring-2 focus:ring-amber-500/30"
@@ -2984,10 +3122,24 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
 
                 <button
                   type="submit"
-                  className="w-full bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs py-3 px-4 rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98"
+                  className={`w-full text-white font-extrabold text-xs py-3 px-4 rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98 ${
+                    unlockType === 'order_completion'
+                      ? 'bg-blue-600 hover:bg-blue-700'
+                      : 'bg-amber-600 hover:bg-amber-700'
+                  }`}
                 >
                   <KeyRound size={15} />
-                  <span>Generate {unlockType === 'tax_timelock' ? 'Tax Time-Lock' : unlockType === 'white_screen' ? 'White Screen Lockout' : 'Next Round'} Code</span>
+                  <span>
+                    Generate {
+                      unlockType === 'order_completion'
+                        ? `Order Completion (Order #${orderCompletionMode === 'all' ? 15 : orderTargetNumber})`
+                        : unlockType === 'tax_timelock' 
+                          ? 'Tax Time-Lock' 
+                          : unlockType === 'white_screen' 
+                            ? 'White Screen Lockout' 
+                            : 'Next Round'
+                    } Code
+                  </span>
                 </button>
               </form>
 
@@ -3203,6 +3355,7 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
                 <div className="space-y-2.5">
                   {(unlockCodes || []).map((uc) => {
                     const isWsCode = uc.code_type === 'WHITE_SCREEN_LOCK' || uc.type === 'white_screen';
+                    const isOrderCode = uc.code_type === 'ORDER_COMPLETION' || uc.type === 'order_completion' || (uc.code && uc.code.startsWith('ORD'));
                     const isRevoked = uc.status === 'REVOKED' || uc.status === 'revoked';
                     const isUsed = uc.status === 'USED' || uc.status === 'used';
                     const isActive = !isRevoked && !isUsed && (uc.status === 'ACTIVE' || uc.status === 'active');
@@ -3220,14 +3373,21 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
                             <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md ${
                               isWsCode
                                 ? 'bg-slate-900 text-white border border-slate-700 flex items-center gap-1'
-                                : uc.type === 'tax_timelock' 
-                                  ? 'bg-amber-100 text-amber-900 border border-amber-300' 
-                                  : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                                : isOrderCode
+                                  ? 'bg-blue-100 text-blue-900 border border-blue-300 flex items-center gap-1'
+                                  : uc.type === 'tax_timelock' 
+                                    ? 'bg-amber-100 text-amber-900 border border-amber-300' 
+                                    : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
                             }`}>
                               {isWsCode ? (
                                 <>
                                   <ShieldAlert size={10} className="text-rose-400" />
                                   WHITE_SCREEN_LOCK
+                                </>
+                              ) : isOrderCode ? (
+                                <>
+                                  <Zap size={10} className="text-blue-600" />
+                                  ORDER_COMPLETION {uc.targetOrderNumber ? `(#${uc.targetOrderNumber})` : ''}
                                 </>
                               ) : (
                                 uc.type === 'tax_timelock' ? 'TAX_UNLOCK' : 'NEXT_ROUND'
@@ -3247,6 +3407,15 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
                           <div className="text-xs text-slate-600 flex flex-wrap gap-x-4 gap-y-1">
                             {(uc.target_user_id || uc.targetPhone) && (
                               <span>Target Account: <strong className="text-slate-800 font-mono">{uc.target_user_id || uc.targetPhone}</strong></span>
+                            )}
+                            {isOrderCode && (
+                              <span>
+                                Target Orders: <strong className="text-blue-700 font-bold">
+                                  {uc.orderCompletionMode === 'all' || (uc.targetOrderNumber && uc.targetOrderNumber >= 15)
+                                    ? 'All 15 Orders'
+                                    : `Orders 1 through ${uc.targetOrderNumber || 12}`}
+                                </strong>
+                              </span>
                             )}
                             {uc.totalAmountDue && (
                               <span>Amount Paid: <strong className="text-emerald-700">{formatPrice(uc.totalAmountDue)}</strong></span>
