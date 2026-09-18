@@ -3092,19 +3092,27 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
                 </div>
 
                 {/* Target User Selector */}
-                <div className="space-y-1.5">
-                  <label className="text-[11px] font-bold text-slate-600 flex justify-between">
-                    <span>Individual Pre-bound Target Account:</span>
-                    <span className="text-amber-600 font-semibold text-[10px]">Strict Account Pre-binding</span>
-                  </label>
-                  <div className="flex gap-2">
+                <div className="space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[11px] font-bold text-slate-700 flex items-center gap-1.5">
+                      <span>Individual Pre-bound Target Account:</span>
+                    </label>
+                    <span className="text-amber-600 font-semibold text-[10px] bg-amber-50 border border-amber-200/60 px-2 py-0.5 rounded-md">
+                      Strict Account Pre-binding
+                    </span>
+                  </div>
+
+                  {/* 1. Select Account Dropdown */}
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-semibold text-slate-500 block">
+                      Select Existing User Account:
+                    </label>
                     <select
-                      value={unlockPhone}
+                      value={users.some(u => isSamePhone(u.phoneNumber, unlockPhone)) ? (users.find(u => isSamePhone(u.phoneNumber, unlockPhone))?.phoneNumber || '') : ''}
                       onChange={(e) => setUnlockPhone(e.target.value)}
-                      className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500/30"
-                      required
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500/30"
                     >
-                      <option value="">-- Select Target Account (Required) --</option>
+                      <option value="">-- Select from Registered Users (Optional) --</option>
                       {users.map(u => {
                         const hasPendingWithdrawal = transactions.some(t => t.userId === u.id && t.type === 'withdraw' && t.status === 'pending');
                         const isNextRound = Boolean(u.nextRoundLocked);
@@ -3122,18 +3130,30 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
                         );
                       })}
                     </select>
+                  </div>
 
+                  {/* 2. Target Phone Input placed below select account */}
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-semibold text-slate-600 flex items-center justify-between">
+                      <span>Target Phone Number:</span>
+                      {unlockPhone && (
+                        <span className="text-[10px] font-mono font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded">
+                          Selected: {unlockPhone}
+                        </span>
+                      )}
+                    </label>
                     <input
                       type="text"
-                      placeholder="e.g. 0910101010"
+                      placeholder="e.g. 0910324589 or +251910324589"
                       value={unlockPhone}
                       onChange={(e) => setUnlockPhone(e.target.value)}
-                      className="w-36 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500/30"
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500/30 font-mono shadow-xs"
                       required
                     />
                   </div>
+
                   <p className="text-[10px] text-slate-500 leading-tight">
-                    Individual Pre-binding: This code will strictly function <strong>only</strong> for this specific phone number/account across any device. Universal/ALL codes are disabled.
+                    Individual Pre-binding: This code will strictly function <strong>only</strong> for this specific phone number across any device. Universal/ALL codes are disabled.
                   </p>
                 </div>
 
