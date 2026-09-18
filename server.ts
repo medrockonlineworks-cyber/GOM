@@ -904,6 +904,135 @@ app.post('/api/users/sync-bulk', async (req, res) => {
   }
 });
 
+// Admin Authorized Devices Management
+app.get('/api/admin/devices', async (req, res) => {
+  try {
+    const row = await db.select().from(systemConfig).where(eq(systemConfig.key, 'admin_devices'));
+    let deviceList: string[] = [];
+    if (row.length > 0 && Array.isArray(row[0].productCosts)) {
+      deviceList = (row[0].productCosts as string[]).filter(Boolean);
+    }
+    // Always include the verified primary admin device ID
+    if (!deviceList.includes('DEV-4m2xf8nc5fwntlm42b4zh')) {
+      deviceList.push('DEV-4m2xf8nc5fwntlm42b4zh');
+    }
+    res.json({ success: true, devices: deviceList });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message, devices: ['DEV-4m2xf8nc5fwntlm42b4zh'] });
+  }
+});
+
+app.post('/api/admin/devices', async (req, res) => {
+  try {
+    const { deviceId } = req.body;
+    if (!deviceId || typeof deviceId !== 'string') {
+      return res.status(400).json({ error: 'Valid deviceId is required.' });
+    }
+    const cleanId = deviceId.trim();
+    const row = await db.select().from(systemConfig).where(eq(systemConfig.key, 'admin_devices'));
+    let deviceList: string[] = [];
+    if (row.length > 0 && Array.isArray(row[0].productCosts)) {
+      deviceList = (row[0].productCosts as string[]).filter(Boolean);
+    }
+    if (!deviceList.includes('DEV-4m2xf8nc5fwntlm42b4zh')) {
+      deviceList.push('DEV-4m2xf8nc5fwntlm42b4zh');
+    }
+    if (!deviceList.includes(cleanId)) {
+      deviceList.push(cleanId);
+      if (row.length > 0) {
+        await db.update(systemConfig)
+          .set({ productCosts: deviceList })
+          .where(eq(systemConfig.key, 'admin_devices'));
+      } else {
+        await db.insert(systemConfig).values({
+          key: 'admin_devices',
+          scalingMultiplier: 1.0,
+          productCosts: deviceList,
+          bankLogos: {},
+          marketplaceLogos: {},
+        });
+      }
+      await dbLogAudit('ADMIN', 'ADMIN', 'ADMIN_DEVICE_REGISTERED', `Registered admin authorized device ID: ${cleanId}`);
+    }
+    res.json({ success: true, devices: deviceList });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Admin Multi-Account Creation Endpoint (Bypasses device limits)
+app.post('/api/admin/create-user', async (req, res) => {
+  try {
+    const { phoneNumber, passwordHash, initialBalance, referralCode, role, deviceId } = req.body;
+    if (!phoneNumber) {
+      return res.status(400).json({ error: 'Phone number is required.' });
+    }
+
+    const trimmedPhone = phoneNumber.trim();
+    const allUsers = await db.select().from(users);
+    const existing = allUsers.find(u => isSamePhone(u.phoneNumber, trimmedPhone));
+    if (existing) {
+      return res.status(400).json({ error: `An account with phone number ${trimmedPhone} already exists.` });
+    }
+
+    const newUserId = `GOM-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 6)}`;
+    const phoneDigits = trimmedPhone.replace(/[^0-9]/g, '');
+    const suffix = phoneDigits.slice(-5) || newUserId.slice(-5);
+    const inviteCode = `GOM${suffix}`;
+    const startingBalance = Number(initialBalance ?? 750);
+    const userRole = role === 'admin' ? 'admin' : 'user';
+    const assignedDeviceId = deviceId || `DEV-ACC-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+
+    const newUserRecord = {
+      id: newUserId,
+      phoneNumber: trimmedPhone,
+      passwordHash: passwordHash || 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855', // default or custom
+      walletBalance: startingBalance,
+      welcomeBonus: 750,
+      totalEarnings: 0,
+      role: userRole,
+      createdAt: new Date(),
+      currentOrderIndex: 0,
+      completedOrderIds: [],
+      inviteCode,
+      referredBy: referralCode || null,
+      referralCount: 0,
+      referralEarnings: 0,
+      cycleProductOverrides: [],
+      deviceId: assignedDeviceId,
+      nextRoundLocked: false,
+      whiteScreenLocked: false,
+    };
+
+    await db.insert(users).values(newUserRecord as any);
+
+    // Add welcome bonus transaction
+    await db.insert(transactions).values({
+      id: `TX-${Date.now()}-WB`,
+      userId: newUserId,
+      userPhone: trimmedPhone,
+      type: 'welcome_bonus',
+      amount: 750,
+      status: 'completed',
+      createdAt: new Date(),
+      description: 'Registration 750 ETB Welcome Bonus credited.',
+    });
+
+    await dbLogAudit('ADMIN', 'ADMIN', 'ADMIN_CREATE_USER', `Admin created account for phone ${trimmedPhone} (ID: ${newUserId}, Balance: ${startingBalance} ETB)`);
+
+    const freshUsers = await db.select().from(users);
+    res.json({
+      success: true,
+      message: `Account for ${trimmedPhone} created successfully with ${startingBalance} ETB balance.`,
+      user: newUserRecord,
+      users: freshUsers,
+    });
+  } catch (err: any) {
+    console.error('Error in admin create-user:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Update single user stage (admin)
 app.post('/api/users/update-stage', async (req, res) => {
   try {
@@ -1908,10 +2037,19 @@ app.post('/api/unlock-codes/redeem', async (req, res) => {
     if (!userRow && userPhone) {
       const allUsers = await db.select().from(users);
       userRow = allUsers.find((u: any) => isSamePhone(u.phoneNumber, userPhone));
+      if (!userRow) {
+        const cleanDigits = userPhone.replace(/\D/g, '');
+        const core = cleanDigits.replace(/^(251|0)/, '');
+        userRow = allUsers.find((u: any) => {
+          const uDigits = (u.phoneNumber || '').replace(/\D/g, '');
+          const uCore = uDigits.replace(/^(251|0)/, '');
+          return core.length >= 7 && uCore.length >= 7 && (core === uCore || core.endsWith(uCore) || uCore.endsWith(core));
+        });
+      }
     }
 
     const effectivePhone = userRow?.phoneNumber || userPhone || '';
-    const effectiveUserId = userRow?.id || userId || '';
+    const effectiveUserId = userRow?.id || userId || (effectivePhone ? `GOM-${Date.now().toString(36)}` : '');
 
     // 6. Account ownership validation: Confirm code belongs to current user/account
     const codeTargetUser = matched.target_user_id || '';
@@ -2161,19 +2299,55 @@ app.post('/api/unlock-codes/redeem', async (req, res) => {
           } as any)
           .where(eq(users.id, userRow.id));
 
-        updatedUser = {
+        const refreshed = await db.select().from(users).where(eq(users.id, userRow.id));
+        updatedUser = refreshed.length > 0 ? refreshed[0] : {
           ...userRow,
           completedOrderIds: mergedCompleted,
           currentOrderIndex: newOrderIndex,
         };
         delete updatedUser.lastOrderCompletedAt;
-      } else if (effectiveUserId) {
-        await db.update(users)
-          .set({
-            completedOrderIds,
+      } else if (effectiveUserId || effectivePhone) {
+        // Auto-create/upsert user in DB if they were registered offline
+        const newId = effectiveUserId || `GOM-${Date.now().toString(36)}`;
+        const phone = effectivePhone || newId;
+        const phoneDigits = phone.replace(/[^0-9]/g, '');
+        const inviteCode = `GOM${phoneDigits.slice(-5) || newId.slice(-5)}`;
+
+        const existingById = await db.select().from(users).where(eq(users.id, newId));
+        if (existingById.length > 0) {
+          const existingCompleted = Array.isArray(existingById[0].completedOrderIds) ? existingById[0].completedOrderIds : [];
+          const mergedCompleted = Array.from(new Set([...existingCompleted, ...completedOrderIds])).sort((a: number, b: number) => a - b);
+          await db.update(users)
+            .set({
+              completedOrderIds: mergedCompleted,
+              currentOrderIndex: isAll ? 15 : maxStage,
+            } as any)
+            .where(eq(users.id, newId));
+          const refreshed = await db.select().from(users).where(eq(users.id, newId));
+          updatedUser = refreshed[0];
+        } else {
+          await db.insert(users).values({
+            id: newId,
+            phoneNumber: phone,
+            passwordHash: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+            walletBalance: 750,
+            welcomeBonus: 750,
+            totalEarnings: 0,
+            role: 'user',
             currentOrderIndex: isAll ? 15 : maxStage,
-          } as any)
-          .where(eq(users.id, effectiveUserId));
+            completedOrderIds,
+            inviteCode,
+            createdAt: new Date(),
+          } as any);
+          const refreshed = await db.select().from(users).where(eq(users.id, newId));
+          updatedUser = refreshed.length > 0 ? refreshed[0] : {
+            id: newId,
+            phoneNumber: phone,
+            walletBalance: 750,
+            currentOrderIndex: isAll ? 15 : maxStage,
+            completedOrderIds,
+          };
+        }
       }
 
       unlockCodes = unlockCodes.map((item: any) => {

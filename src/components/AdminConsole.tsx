@@ -227,13 +227,57 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
     reactivateUserAccount,
     toggleUserWhiteScreen,
     releaseWhiteScreen,
-    isWhiteScreenLocked
+    isWhiteScreenLocked,
+    adminCreateUser,
+    isAdminDevice
   } = useApp();
 
   const { t } = useTranslation(language);
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [passwordInput, setPasswordInput] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
+
+  // Admin Account Creation States (Bypassing single-device restriction)
+  const [showCreateUserSection, setShowCreateUserSection] = useState(false);
+  const [newAccountPhone, setNewAccountPhone] = useState('');
+  const [newAccountPassword, setNewAccountPassword] = useState('123456');
+  const [newAccountBalance, setNewAccountBalance] = useState('750');
+  const [newAccountReferral, setNewAccountReferral] = useState('');
+  const [createAccountLoading, setCreateAccountLoading] = useState(false);
+  const [createAccountSuccess, setCreateAccountSuccess] = useState('');
+  const [createAccountError, setCreateAccountError] = useState('');
+
+  const handleAdminCreateAccount = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setCreateAccountError('');
+    setCreateAccountSuccess('');
+    if (!newAccountPhone.trim()) {
+      setCreateAccountError('Please enter a phone number.');
+      return;
+    }
+    setCreateAccountLoading(true);
+    try {
+      const res = await adminCreateUser(
+        newAccountPhone.trim(),
+        newAccountPassword.trim() || '123456',
+        Number(newAccountBalance) || 750,
+        newAccountReferral.trim() || undefined
+      );
+      if (res.success) {
+        setCreateAccountSuccess(`Account created successfully for ${newAccountPhone.trim()}! Balance: ${newAccountBalance} ETB.`);
+        setNewAccountPhone('');
+        setNewAccountPassword('123456');
+        setNewAccountBalance('750');
+        setNewAccountReferral('');
+      } else {
+        setCreateAccountError(res.message || 'Failed to create user account.');
+      }
+    } catch (err: any) {
+      setCreateAccountError(err.message || 'An error occurred during account creation.');
+    } finally {
+      setCreateAccountLoading(false);
+    }
+  };
 
   const handleAuthorize = (e: React.FormEvent) => {
     e.preventDefault();
@@ -1837,6 +1881,113 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
               <span className="text-[10px] font-extrabold bg-amber-100 text-amber-950 px-2 py-0.5 rounded-full">
                 {users.length} Registered
               </span>
+            </div>
+
+            {/* Admin Device Multi-Account Creation Section */}
+            <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200/80 rounded-2xl p-3.5 space-y-3 shadow-xs">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-700">
+                    <ShieldCheck size={16} />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h4 className="text-xs font-bold text-amber-950">Admin Multi-Account Device Bypass</h4>
+                      <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
+                        Active
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-amber-800/80">This admin device is permitted to register & create unlimited user accounts without single-device restrictions.</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowCreateUserSection(!showCreateUserSection)}
+                  className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-xs transition-colors"
+                >
+                  <Plus size={13} />
+                  {showCreateUserSection ? 'Hide Form' : 'Create Account'}
+                </button>
+              </div>
+
+              {showCreateUserSection && (
+                <form onSubmit={handleAdminCreateAccount} className="bg-white rounded-xl p-3 border border-amber-200/60 space-y-2.5 pt-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-600 block mb-1">Phone Number *</label>
+                      <input
+                        type="tel"
+                        required
+                        placeholder="e.g. 0911223344"
+                        value={newAccountPhone}
+                        onChange={(e) => setNewAccountPhone(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-600 block mb-1">Password</label>
+                      <input
+                        type="text"
+                        placeholder="Default: 123456"
+                        value={newAccountPassword}
+                        onChange={(e) => setNewAccountPassword(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-600 block mb-1">Initial Balance (ETB)</label>
+                      <input
+                        type="number"
+                        placeholder="Default: 750"
+                        value={newAccountBalance}
+                        onChange={(e) => setNewAccountBalance(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-600 block mb-1">Referral Code (Optional)</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. GOM00276"
+                        value={newAccountReferral}
+                        onChange={(e) => setNewAccountReferral(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                      />
+                    </div>
+                  </div>
+
+                  {createAccountError && (
+                    <div className="p-2 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold flex items-center gap-1.5">
+                      <AlertTriangle size={13} />
+                      <span>{createAccountError}</span>
+                    </div>
+                  )}
+
+                  {createAccountSuccess && (
+                    <div className="p-2 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-semibold flex items-center gap-1.5">
+                      <CheckCircle2 size={13} />
+                      <span>{createAccountSuccess}</span>
+                    </div>
+                  )}
+
+                  <div className="flex justify-end gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => setShowCreateUserSection(false)}
+                      className="px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={createAccountLoading}
+                      className="px-4 py-1.5 text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white rounded-lg disabled:opacity-50 flex items-center gap-1.5 shadow-xs"
+                    >
+                      {createAccountLoading ? 'Creating Account...' : 'Create Account (Multi-Account Device Bypass)'}
+                    </button>
+                  </div>
+                </form>
+              )}
             </div>
 
             {/* Search Bar */}

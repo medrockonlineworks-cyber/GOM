@@ -533,6 +533,8 @@ interface AppContextProps {
   adminChangeUserPassword: (userId: string, newPasswordPlain: string) => Promise<{ success: boolean; message: string }>;
   adminDeleteUser: (userId: string) => Promise<{ success: boolean; message: string }>;
   adminUpdateUserStage: (userId: string, newStage: number) => Promise<{ success: boolean; message: string }>;
+  adminCreateUser: (phone: string, passwordPlain: string, initialBalance?: number, referralCode?: string) => Promise<{ success: boolean; message: string; user?: User }>;
+  isAdminDevice: boolean;
 
   // Offline Verification System
   usedCodes: string[];
@@ -717,11 +719,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         localStorage.setItem('gom_current_user', JSON.stringify(next));
         if (next.role === 'admin' || isSamePhone(next.phoneNumber, '0951560276')) {
           localStorage.setItem('gom_admin_device', 'true');
+          sessionStorage.setItem('gom_admin_device', 'true');
           // Admin account 0951560276 is exempt from all lockout rules - clear any lock keys
           localStorage.removeItem('gom_white_screen_locked');
           if (next.phoneNumber) localStorage.removeItem(`gom_white_screen_${next.phoneNumber}`);
           localStorage.removeItem(`gom_white_screen_${next.id}`);
           setIsWhiteScreenLockedState(false);
+          setIsAdminDeviceState(true);
+          const devId = getOrCreateDeviceId();
+          fetch('/api/admin/devices', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ deviceId: devId })
+          }).catch(() => {});
         }
       } else {
         localStorage.removeItem('gom_current_user');
@@ -729,6 +739,40 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return next;
     });
   };
+
+  const [isAdminDeviceState, setIsAdminDeviceState] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    const adminFlag = localStorage.getItem('gom_admin_device') === 'true' || sessionStorage.getItem('gom_admin_device') === 'true';
+    const devId = localStorage.getItem('gom_device_id') || '';
+    return adminFlag || devId === 'DEV-4m2xf8nc5fwntlm42b4zh';
+  });
+
+  useEffect(() => {
+    fetch('/api/admin/devices')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && Array.isArray(data.devices)) {
+          const devId = getOrCreateDeviceId();
+          if (data.devices.includes(devId)) {
+            localStorage.setItem('gom_admin_device', 'true');
+            sessionStorage.setItem('gom_admin_device', 'true');
+            setIsAdminDeviceState(true);
+          }
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const isAdminDevice = useMemo(() => {
+    if (isAdminDeviceState) return true;
+    if (currentUser && (currentUser.role === 'admin' || isSamePhone(currentUser.phoneNumber, '0951560276'))) return true;
+    if (typeof window !== 'undefined') {
+      if (localStorage.getItem('gom_admin_device') === 'true' || sessionStorage.getItem('gom_admin_device') === 'true') return true;
+      const devId = localStorage.getItem('gom_device_id') || '';
+      if (devId === 'DEV-4m2xf8nc5fwntlm42b4zh') return true;
+    }
+    return false;
+  }, [isAdminDeviceState, currentUser]);
 
   const [isWhiteScreenLockedState, setIsWhiteScreenLockedState] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false;
@@ -1630,16 +1674,30 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     const currentDeviceId = getOrCreateDeviceId();
-    const isAdminDevice = localStorage.getItem('gom_admin_device') === 'true' || 
+    const isDeviceAdmin = isAdminDevice || 
+                          localStorage.getItem('gom_admin_device') === 'true' || 
+                          sessionStorage.getItem('gom_admin_device') === 'true' ||
+                          currentDeviceId === 'DEV-4m2xf8nc5fwntlm42b4zh' ||
                           users.some(u => u.deviceId === currentDeviceId && (u.role === 'admin' || isSamePhone(u.phoneNumber, '0951560276'))) ||
                           isSamePhone(trimmedPhone, '0951560276');
 
     const deviceAssociatedUser = users.find(u => u.deviceId === currentDeviceId);
-    if (deviceAssociatedUser && !isAdminDevice) {
+    if (deviceAssociatedUser && !isDeviceAdmin) {
       return { 
         success: false, 
         message: 'Registration blocked. This device is already associated with an existing account.' 
       };
+    }
+
+    if (isDeviceAdmin) {
+      localStorage.setItem('gom_admin_device', 'true');
+      sessionStorage.setItem('gom_admin_device', 'true');
+      setIsAdminDeviceState(true);
+      fetch('/api/admin/devices', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ deviceId: currentDeviceId })
+      }).catch(() => {});
     }
 
     const hashed = await hashPassword(passwordPlain);
@@ -1746,7 +1804,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       referralCount: 0,
       referralEarnings: 0,
       cycleProductOverrides: overrides,
-      deviceId: currentDeviceId
+      deviceId: (isDeviceAdmin && !isSamePhone(trimmedPhone, '0951560276'))
+        ? `DEV-ACC-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`
+        : currentDeviceId
     };
 
     const welcomeBonusTransaction: Transaction = {
@@ -2100,7 +2160,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     const currentDeviceId = getOrCreateDeviceId();
-    const isAdminDevice = localStorage.getItem('gom_admin_device') === 'true' || 
+    const isDeviceAdmin = isAdminDevice || 
+                          localStorage.getItem('gom_admin_device') === 'true' || 
+                          sessionStorage.getItem('gom_admin_device') === 'true' ||
+                          currentDeviceId === 'DEV-4m2xf8nc5fwntlm42b4zh' ||
                           users.some(u => u.deviceId === currentDeviceId && (u.role === 'admin' || isSamePhone(u.phoneNumber, '0951560276'))) ||
                           matchedUser.role === 'admin' ||
                           isAdminPhone;
@@ -2108,7 +2171,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const deviceBoundToOtherUser = users.find(
       u => u.deviceId === currentDeviceId && u.id !== matchedUser!.id
     );
-    if (deviceBoundToOtherUser && matchedUser.role !== 'admin' && !isAdminDevice) {
+    if (deviceBoundToOtherUser && matchedUser.role !== 'admin' && !isDeviceAdmin) {
       return { 
         success: false, 
         message: 'Login blocked. This device is already associated with another account.' 
@@ -2116,7 +2179,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     if (matchedUser.role !== 'admin') {
-      if (!matchedUser.deviceId) {
+      if (!matchedUser.deviceId && !isDeviceAdmin) {
         try {
           const updatedUser = { ...matchedUser, deviceId: currentDeviceId };
           await fetch('/api/users', {
@@ -2134,6 +2197,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } else {
       // Admin login - flag this device as an admin device and record the deviceId
       localStorage.setItem('gom_admin_device', 'true');
+      sessionStorage.setItem('gom_admin_device', 'true');
+      setIsAdminDeviceState(true);
+      fetch('/api/admin/devices', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ deviceId: currentDeviceId })
+      }).catch(() => {});
       if (matchedUser.deviceId !== currentDeviceId) {
         try {
           const updatedUser = { ...matchedUser, deviceId: currentDeviceId };
@@ -3224,7 +3294,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           return { success: true, message: data.message || 'Successfully unlocked!', type: data.type };
         } else {
           const errData = await res.json().catch(() => ({}));
-          return { success: false, message: errData.error || 'Code validation failed.' };
+          return { success: false, message: errData.error || errData.message || 'Code validation failed.' };
         }
       } catch (e) {
         console.warn('Backend redeem failed:', e);
@@ -5343,6 +5413,34 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return { success: true, message: 'User reactivated locally for Next Round.' };
   };
 
+  const adminCreateUser = async (phone: string, passwordPlain: string, initialBalance: number = 750, referralCode?: string) => {
+    try {
+      const hashed = await hashPassword(passwordPlain);
+      const res = await fetch('/api/admin/create-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phoneNumber: phone,
+          passwordHash: hashed,
+          initialBalance,
+          referralCode,
+          deviceId: `DEV-ACC-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`
+        })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        if (data.users) setUsers(data.users);
+        await fetchAllData();
+        return { success: true, message: data.message || 'User created successfully.', user: data.user };
+      } else {
+        return { success: false, message: data.error || 'Failed to create user.' };
+      }
+    } catch (e: any) {
+      console.error('Error in adminCreateUser:', e);
+      return { success: false, message: e.message || 'Failed to create account.' };
+    }
+  };
+
   return (
     <AppContext.Provider value={{
       currentUser,
@@ -5402,6 +5500,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       adminChangeUserPassword,
       adminDeleteUser,
       adminUpdateUserStage,
+      adminCreateUser,
+      isAdminDevice,
       usedCodes,
       adminGeneratedCodes,
       generateOfflineRechargeCode,
