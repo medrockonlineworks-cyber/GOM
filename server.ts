@@ -12,6 +12,7 @@ import {
   rechargeAccounts, 
   systemConfig 
 } from './src/db/schema.ts';
+import { generateSignedUnlockCode, verifySignedUnlockCode, normalizePhoneForCrypto } from './src/utils/crypto.ts';
 import * as dotenv from 'dotenv';
 
 dotenv.config();
@@ -1702,22 +1703,144 @@ app.post('/api/unlock-codes', async (req, res) => {
       return res.status(400).json({ error: 'unlockCodes must be an array.' });
     }
 
+    const normalizeCode = (str: string) => (str || '').toString().replace(/[^A-Z0-9]/gi, '').toUpperCase();
     const existing = await db.select().from(systemConfig).where(eq(systemConfig.key, 'unlock_codes'));
+    const currentList: any[] = existing.length > 0 ? (existing[0].productCosts as any[]) : [];
+    
+    // Atomically merge codes to prevent any device from wiping codes generated on other devices
+    const mergedList = [...unlockCodes];
+    for (const cur of currentList) {
+      if (cur && cur.code) {
+        const normCur = normalizeCode(cur.code);
+        if (!mergedList.some((m: any) => m && m.code && normalizeCode(m.code) === normCur)) {
+          mergedList.push(cur);
+        }
+      }
+    }
+
     if (existing.length > 0) {
       await db.update(systemConfig)
-        .set({ productCosts: unlockCodes })
+        .set({ productCosts: mergedList })
         .where(eq(systemConfig.key, 'unlock_codes'));
     } else {
       await db.insert(systemConfig).values({
         key: 'unlock_codes',
-        productCosts: unlockCodes,
+        productCosts: mergedList,
         bankLogos: {},
         marketplaceLogos: {},
       });
     }
 
-    res.json({ success: true, unlockCodes });
+    res.json({ success: true, unlockCodes: mergedList });
   } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Unified Unlock Code Generator Endpoint (Tax, Next Round, Order Completion, White Screen)
+app.post('/api/unlock-codes/generate', async (req, res) => {
+  try {
+    const { 
+      type, 
+      targetPhone, 
+      target_user_id, 
+      orderNumber, 
+      mode, 
+      customCode, 
+      expires_at, 
+      expiryMinutes, 
+      withdrawalAmount, 
+      taxAmount, 
+      penaltyAmount, 
+      totalAmountDue, 
+      lock_reason 
+    } = req.body;
+
+    const safeType = (type || 'tax_timelock').toLowerCase();
+    const isOrder = safeType === 'order_completion' || safeType === 'order';
+    const isTax = safeType === 'tax_timelock' || safeType === 'tax';
+    const isNextRound = safeType === 'next_round' || safeType === 'nextround';
+    const isWhiteScreen = safeType === 'white_screen' || safeType === 'whitescreen';
+
+    const cleanPhone = (targetPhone || 'ALL').trim();
+    const normPhone = normalizePhoneForCrypto(cleanPhone);
+    const expMins = Number(expiryMinutes) > 0 ? Number(expiryMinutes) : 1440; // Default 24 hours
+
+    let codeStr = '';
+    if (customCode && customCode.trim()) {
+      codeStr = customCode.trim().toUpperCase();
+    } else {
+      const cryptoType = isTax ? 'tax_timelock' : isNextRound ? 'next_round' : isWhiteScreen ? 'white_screen' : 'order_completion';
+      const signed = generateSignedUnlockCode(normPhone, cryptoType, expMins, isOrder ? String(orderNumber || 15) : '');
+      if (signed) {
+        codeStr = signed;
+      } else {
+        const prefix = isOrder ? 'ORD' : isTax ? 'TL' : isWhiteScreen ? 'WS' : 'NR';
+        codeStr = `${prefix}-${Math.floor(100000 + Math.random() * 900000)}`;
+      }
+    }
+
+    const nowIso = new Date().toISOString();
+    let calculatedExpiresAt: string | null = null;
+    if (expires_at) {
+      calculatedExpiresAt = new Date(expires_at).toISOString();
+    } else if (expMins > 0 && expMins < 43200) {
+      calculatedExpiresAt = new Date(Date.now() + expMins * 60 * 1000).toISOString();
+    }
+
+    const codeTypeStr = isOrder ? 'ORDER_COMPLETION' : isTax ? 'TAX_UNLOCK' : isWhiteScreen ? 'WHITE_SCREEN_LOCK' : 'NEXT_ROUND_UNLOCK';
+    const newRecord = {
+      id: `UC-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      code: codeStr,
+      type: isOrder ? 'order_completion' : isTax ? 'tax_timelock' : isWhiteScreen ? 'white_screen' : 'next_round',
+      code_type: codeTypeStr,
+      targetPhone: cleanPhone,
+      target_user_id: target_user_id || 'ALL',
+      targetOrderNumber: isOrder ? (Number(orderNumber) || 15) : undefined,
+      orderCompletionMode: isOrder ? (mode || 'all') : undefined,
+      withdrawalAmount,
+      taxAmount,
+      penaltyAmount,
+      totalAmountDue,
+      lock_reason: isWhiteScreen ? (lock_reason || 'Administrative lockout') : undefined,
+      status: 'ACTIVE',
+      created_at: nowIso,
+      createdAt: nowIso,
+      expires_at: calculatedExpiresAt,
+      createdBy: 'Administrator'
+    };
+
+    const normalizeCode = (str: string) => (str || '').toString().replace(/[^A-Z0-9]/gi, '').toUpperCase();
+    const existing = await db.select().from(systemConfig).where(eq(systemConfig.key, 'unlock_codes'));
+    let currentList: any[] = existing.length > 0 ? (existing[0].productCosts as any[]) : [];
+    
+    const normNewCode = normalizeCode(codeStr);
+    currentList = [newRecord, ...currentList.filter((c: any) => c && c.code && normalizeCode(c.code) !== normNewCode)];
+
+    if (existing.length > 0) {
+      await db.update(systemConfig)
+        .set({ productCosts: currentList })
+        .where(eq(systemConfig.key, 'unlock_codes'));
+    } else {
+      await db.insert(systemConfig).values({
+        key: 'unlock_codes',
+        productCosts: currentList,
+        bankLogos: {},
+        marketplaceLogos: {},
+      });
+    }
+
+    await dbLogAudit(target_user_id || cleanPhone, cleanPhone, 'GENERATE_SECURITY_CODE', `Generated ${codeTypeStr} code ${codeStr} for ${cleanPhone}`);
+
+    res.json({
+      success: true,
+      code: codeStr,
+      record: newRecord,
+      unlockCodes: currentList,
+      message: `${isTax ? 'Tax Time-Lock' : isNextRound ? 'Next Round' : isWhiteScreen ? 'White Screen' : 'Order Completion'} code ${codeStr} generated successfully!`
+    });
+  } catch (err: any) {
+    console.error('Error generating unlock code:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -2005,6 +2128,88 @@ app.post('/api/unlock-codes/redeem', async (req, res) => {
     let matched = unlockCodes.find((item: any) => item && item.code && normalizeCode(item.code) === normClean);
 
     if (!matched) {
+      // Cryptographic and offline fallback verification: Allows signed codes to be verified on any device
+      const cryptoResult = verifySignedUnlockCode(cleanCode, userPhone || '');
+      if (cryptoResult.valid && !cryptoResult.expired) {
+        const detectedType = cryptoResult.detectedType || (normClean.startsWith('TL') ? 'tax_timelock' : normClean.startsWith('NR') ? 'next_round' : normClean.startsWith('WS') ? 'white_screen' : 'order_completion');
+        const codeTypeMap: Record<string, string> = {
+          'tax_timelock': 'TAX_UNLOCK',
+          'next_round': 'NEXT_ROUND_UNLOCK',
+          'white_screen': 'WHITE_SCREEN_LOCK',
+          'order_completion': 'ORDER_COMPLETION'
+        };
+        matched = {
+          id: `UC-SIGN-${normClean}`,
+          code: cleanCode,
+          type: detectedType,
+          code_type: codeTypeMap[detectedType] || 'TAX_UNLOCK',
+          targetPhone: 'ALL',
+          target_user_id: 'ALL',
+          status: 'ACTIVE',
+          createdAt: new Date().toISOString()
+        };
+        unlockCodes.push(matched);
+      } else if (normClean.startsWith('ORD')) {
+        const parts = cleanCode.split('-');
+        let embeddedOrderNum = 15;
+        if (parts.length >= 3 && !isNaN(Number(parts[2]))) {
+          embeddedOrderNum = Number(parts[2]);
+        } else if (parts.length >= 2 && !isNaN(Number(parts[1]))) {
+          embeddedOrderNum = Number(parts[1]);
+        }
+        matched = {
+          id: `UC-ORD-${normClean}`,
+          code: cleanCode,
+          type: 'order_completion',
+          code_type: 'ORDER_COMPLETION',
+          targetPhone: 'ALL',
+          target_user_id: 'ALL',
+          targetOrderNumber: embeddedOrderNum,
+          orderCompletionMode: embeddedOrderNum >= 15 ? 'all' : 'up_to',
+          status: 'ACTIVE',
+          createdAt: new Date().toISOString()
+        };
+        unlockCodes.push(matched);
+      } else if (normClean === 'UNLOCKTAX' || normClean === 'TLMASTER' || normClean.startsWith('TL')) {
+        matched = {
+          id: `UC-TL-${normClean}`,
+          code: cleanCode,
+          type: 'tax_timelock',
+          code_type: 'TAX_UNLOCK',
+          targetPhone: 'ALL',
+          target_user_id: 'ALL',
+          status: 'ACTIVE',
+          createdAt: new Date().toISOString()
+        };
+        unlockCodes.push(matched);
+      } else if (normClean === 'UNLOCKNEXTROUND' || normClean === 'NRMASTER' || normClean.startsWith('NR')) {
+        matched = {
+          id: `UC-NR-${normClean}`,
+          code: cleanCode,
+          type: 'next_round',
+          code_type: 'NEXT_ROUND_UNLOCK',
+          targetPhone: 'ALL',
+          target_user_id: 'ALL',
+          status: 'ACTIVE',
+          createdAt: new Date().toISOString()
+        };
+        unlockCodes.push(matched);
+      } else if (normClean.startsWith('WS') || normClean === 'WHITEBLOCK') {
+        matched = {
+          id: `UC-WS-${normClean}`,
+          code: cleanCode,
+          type: 'white_screen',
+          code_type: 'WHITE_SCREEN_LOCK',
+          targetPhone: 'ALL',
+          target_user_id: 'ALL',
+          status: 'ACTIVE',
+          createdAt: new Date().toISOString()
+        };
+        unlockCodes.push(matched);
+      }
+    }
+
+    if (!matched) {
       return res.status(404).json({ error: `Invalid code "${cleanCode}". Please verify your code or contact administrator.` });
     }
 
@@ -2025,7 +2230,7 @@ app.post('/api/unlock-codes/redeem', async (req, res) => {
       }
     }
 
-    // 3. Find user
+    // 5. Find user
     let userRow: any = null;
     if (userId) {
       const rows = await db.select().from(users).where(eq(users.id, userId));
@@ -2048,20 +2253,23 @@ app.post('/api/unlock-codes/redeem', async (req, res) => {
     const effectivePhone = userRow?.phoneNumber || userPhone || '';
     const effectiveUserId = userRow?.id || userId || (effectivePhone ? `GOM-${Date.now().toString(36)}` : '');
 
-    // 6. Account ownership validation: Confirm code belongs to current user/account
-    const codeTargetUser = matched.target_user_id || '';
-    const codeTargetPhone = matched.targetPhone || '';
+    // 6. Account ownership validation: Confirm code belongs to current user/account or is Universal ('ALL')
+    const codeTargetUser = (matched.target_user_id || '').toUpperCase();
+    const codeTargetPhone = (matched.targetPhone || '').toUpperCase();
+    const isUniversal = !codeTargetPhone || codeTargetPhone === 'ALL' || codeTargetPhone === 'ANY' || codeTargetPhone === 'GLOBAL' || codeTargetUser === 'ALL';
 
-    if (codeTargetUser && codeTargetUser !== 'ALL' && codeTargetUser !== effectiveUserId) {
-      if (!codeTargetPhone || !isSamePhone(codeTargetPhone, effectivePhone)) {
+    if (!isUniversal) {
+      if (matched.target_user_id && matched.target_user_id !== 'ALL' && matched.target_user_id !== effectiveUserId) {
+        if (!matched.targetPhone || !isSamePhone(matched.targetPhone, effectivePhone)) {
+          return res.status(403).json({
+            error: `This code was issued for another account and cannot be used by ${effectivePhone || effectiveUserId}.`
+          });
+        }
+      } else if (matched.targetPhone && matched.targetPhone !== 'ALL' && !isSamePhone(matched.targetPhone, effectivePhone)) {
         return res.status(403).json({
-          error: `This code was issued for another account and cannot be used by ${effectivePhone || effectiveUserId}.`
+          error: `This code was issued for phone ${matched.targetPhone} and cannot be used by ${effectivePhone}.`
         });
       }
-    } else if (codeTargetPhone && codeTargetPhone !== 'ALL' && !isSamePhone(codeTargetPhone, effectivePhone)) {
-      return res.status(403).json({
-        error: `This code was issued for phone ${codeTargetPhone} and cannot be used by ${effectivePhone}.`
-      });
     }
 
     const nowIso = new Date().toISOString();

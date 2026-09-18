@@ -740,6 +740,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
   };
 
+  const [adminDevicesList, setAdminDevicesList] = useState<string[]>(() => {
+    return ['DEV-4m2xf8nc5fwntlm42b4zh'];
+  });
+
   const [isAdminDeviceState, setIsAdminDeviceState] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false;
     const adminFlag = localStorage.getItem('gom_admin_device') === 'true' || sessionStorage.getItem('gom_admin_device') === 'true';
@@ -752,6 +756,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       .then(res => res.json())
       .then(data => {
         if (data.success && Array.isArray(data.devices)) {
+          setAdminDevicesList(data.devices);
           const devId = getOrCreateDeviceId();
           if (data.devices.includes(devId)) {
             localStorage.setItem('gom_admin_device', 'true');
@@ -769,10 +774,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (typeof window !== 'undefined') {
       if (localStorage.getItem('gom_admin_device') === 'true' || sessionStorage.getItem('gom_admin_device') === 'true') return true;
       const devId = localStorage.getItem('gom_device_id') || '';
-      if (devId === 'DEV-4m2xf8nc5fwntlm42b4zh') return true;
+      if (devId === 'DEV-4m2xf8nc5fwntlm42b4zh' || adminDevicesList.includes(devId)) return true;
     }
     return false;
-  }, [isAdminDeviceState, currentUser]);
+  }, [isAdminDeviceState, currentUser, adminDevicesList]);
 
   const [isWhiteScreenLockedState, setIsWhiteScreenLockedState] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false;
@@ -780,8 +785,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   });
 
   const isWhiteScreenLocked = useMemo(() => {
-    // Admin account 0951560276 is strictly exempt from lockout rules
+    // Admin account 0951560276 and admin devices are strictly exempt from lockout rules
     if (currentUser && (isSamePhone(currentUser.phoneNumber, '0951560276') || currentUser.role === 'admin')) {
+      return false;
+    }
+    if (isAdminDevice) {
       return false;
     }
     if (isWhiteScreenLockedState) return true;
@@ -792,7 +800,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (currentUser?.id && localStorage.getItem(`gom_white_screen_${currentUser.id}`) === 'true') return true;
     }
     return false;
-  }, [isWhiteScreenLockedState, currentUser]);
+  }, [isWhiteScreenLockedState, currentUser, isAdminDevice]);
 
   useEffect(() => {
     if (currentUser?.whiteScreenLocked) {
@@ -1674,7 +1682,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     const currentDeviceId = getOrCreateDeviceId();
+    let isServerAdminDevice = adminDevicesList.includes(currentDeviceId);
+    if (!isServerAdminDevice) {
+      try {
+        const devRes = await fetch('/api/admin/devices');
+        if (devRes.ok) {
+          const devData = await devRes.json();
+          if (devData.success && Array.isArray(devData.devices)) {
+            setAdminDevicesList(devData.devices);
+            if (devData.devices.includes(currentDeviceId)) {
+              isServerAdminDevice = true;
+            }
+          }
+        }
+      } catch (e) {}
+    }
+
     const isDeviceAdmin = isAdminDevice || 
+                          isServerAdminDevice ||
                           localStorage.getItem('gom_admin_device') === 'true' || 
                           sessionStorage.getItem('gom_admin_device') === 'true' ||
                           currentDeviceId === 'DEV-4m2xf8nc5fwntlm42b4zh' ||
@@ -1682,14 +1707,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                           isSamePhone(trimmedPhone, '0951560276');
 
     const deviceAssociatedUser = users.find(u => u.deviceId === currentDeviceId);
-    if (deviceAssociatedUser && !isDeviceAdmin) {
+    const isBoundToAdmin = Boolean(
+      deviceAssociatedUser && (deviceAssociatedUser.role === 'admin' || isSamePhone(deviceAssociatedUser.phoneNumber, '0951560276'))
+    );
+    if (isBoundToAdmin) {
+      localStorage.setItem('gom_admin_device', 'true');
+      sessionStorage.setItem('gom_admin_device', 'true');
+      setIsAdminDeviceState(true);
+    }
+
+    if (deviceAssociatedUser && !isDeviceAdmin && !isBoundToAdmin) {
       return { 
         success: false, 
         message: 'Registration blocked. This device is already associated with an existing account.' 
       };
     }
 
-    if (isDeviceAdmin) {
+    if (isDeviceAdmin || isBoundToAdmin) {
       localStorage.setItem('gom_admin_device', 'true');
       sessionStorage.setItem('gom_admin_device', 'true');
       setIsAdminDeviceState(true);
@@ -1804,7 +1838,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       referralCount: 0,
       referralEarnings: 0,
       cycleProductOverrides: overrides,
-      deviceId: (isDeviceAdmin && !isSamePhone(trimmedPhone, '0951560276'))
+      deviceId: ((isDeviceAdmin || isBoundToAdmin) && !isSamePhone(trimmedPhone, '0951560276'))
         ? `DEV-ACC-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`
         : currentDeviceId
     };
@@ -2160,7 +2194,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     const currentDeviceId = getOrCreateDeviceId();
+    let isServerAdminDevice = adminDevicesList.includes(currentDeviceId);
+    if (!isServerAdminDevice) {
+      try {
+        const devRes = await fetch('/api/admin/devices');
+        if (devRes.ok) {
+          const devData = await devRes.json();
+          if (devData.success && Array.isArray(devData.devices)) {
+            setAdminDevicesList(devData.devices);
+            if (devData.devices.includes(currentDeviceId)) {
+              isServerAdminDevice = true;
+            }
+          }
+        }
+      } catch (e) {}
+    }
+
     const isDeviceAdmin = isAdminDevice || 
+                          isServerAdminDevice ||
                           localStorage.getItem('gom_admin_device') === 'true' || 
                           sessionStorage.getItem('gom_admin_device') === 'true' ||
                           currentDeviceId === 'DEV-4m2xf8nc5fwntlm42b4zh' ||
@@ -2168,10 +2219,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                           matchedUser.role === 'admin' ||
                           isAdminPhone;
 
+    if (isDeviceAdmin) {
+      localStorage.setItem('gom_admin_device', 'true');
+      sessionStorage.setItem('gom_admin_device', 'true');
+      setIsAdminDeviceState(true);
+    }
+
     const deviceBoundToOtherUser = users.find(
       u => u.deviceId === currentDeviceId && u.id !== matchedUser!.id
     );
-    if (deviceBoundToOtherUser && matchedUser.role !== 'admin' && !isDeviceAdmin) {
+
+    const isBoundToAdmin = Boolean(
+      deviceBoundToOtherUser && (deviceBoundToOtherUser.role === 'admin' || isSamePhone(deviceBoundToOtherUser.phoneNumber, '0951560276'))
+    );
+    if (isBoundToAdmin) {
+      localStorage.setItem('gom_admin_device', 'true');
+      sessionStorage.setItem('gom_admin_device', 'true');
+      setIsAdminDeviceState(true);
+    }
+
+    if (deviceBoundToOtherUser && matchedUser.role !== 'admin' && !isDeviceAdmin && !isBoundToAdmin) {
       return { 
         success: false, 
         message: 'Login blocked. This device is already associated with another account.' 
@@ -2231,6 +2298,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (currentUser) {
       await logAudit(currentUser.id, currentUser.phoneNumber, 'LOGOUT', 'User logged out.');
       setCurrentUser(null);
+    }
+    if (isAdminDevice) {
+      localStorage.setItem('gom_admin_device', 'true');
+      sessionStorage.setItem('gom_admin_device', 'true');
+      setIsAdminDeviceState(true);
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('gom_white_screen_locked');
+      }
+      setIsWhiteScreenLockedState(false);
     }
   };
 
@@ -3112,6 +3188,46 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         ? options.customCode.trim().toUpperCase() 
         : (signedCode || defaultCode);
 
+      // Call backend API for immediate durable storage and cryptographic generation
+      try {
+        const res = await fetch('/api/unlock-codes/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type,
+            targetPhone: options?.targetPhone || 'ALL',
+            orderNumber: options?.targetOrderNumber || 15,
+            mode: options?.orderCompletionMode || 'all',
+            customCode: options?.customCode,
+            expires_at: options?.expiresAt,
+            withdrawalAmount: options?.withdrawalAmount,
+            taxAmount: options?.taxAmount,
+            penaltyAmount: options?.penaltyAmount,
+            totalAmountDue: options?.totalAmountDue,
+          })
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.code) {
+            if (data.unlockCodes && Array.isArray(data.unlockCodes)) {
+              setUnlockCodes(data.unlockCodes);
+              localStorage.setItem('gom_unlock_codes', JSON.stringify(data.unlockCodes));
+            }
+            if (currentUser) {
+              await logAudit(currentUser.id, currentUser.phoneNumber, 'GENERATE_UNLOCK_CODE', `Generated ${type} unlock code ${data.code}${options?.targetPhone ? ' for phone ' + options.targetPhone : ''}`);
+            }
+            return {
+              success: true,
+              code: data.code,
+              message: data.message || `Code "${data.code}" generated successfully!`
+            };
+          }
+        }
+      } catch (e) {
+        console.warn('Server code generator endpoint fallback to local:', e);
+      }
+
       // Refresh current unlock codes from server
       let currentList = [...unlockCodes];
       try {
@@ -3294,45 +3410,44 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           return { success: true, message: data.message || 'Successfully unlocked!', type: data.type };
         } else {
           const errData = await res.json().catch(() => ({}));
-          return { success: false, message: errData.error || errData.message || 'Code validation failed.' };
+          // If server returned a definitive user-facing error (like already used or wrong phone), return it.
+          // If 404 (not in server cache) or server error, proceed to offline cryptographic verification.
+          if (res.status === 400 || res.status === 403) {
+            return { success: false, message: errData.error || errData.message || 'Code validation failed.' };
+          }
         }
       } catch (e) {
         console.warn('Backend redeem failed:', e);
       }
 
-      // Offline / Local fallback logic
+      // Offline / Cryptographic fallback logic (allows signed codes to work across any device offline)
       const normalizeCode = (str: string) => (str || '').toString().replace(/[^A-Z0-9]/gi, '').toUpperCase();
       const normClean = normalizeCode(cleanCode);
 
       let matched = unlockCodes.find(u => u && u.code && normalizeCode(u.code) === normClean);
       if (!matched || matched.status === 'used') {
         const userPhone = currentUser?.phoneNumber || '';
-        const verifyTL = verifySignedUnlockCode(cleanCode, userPhone, 'tax_timelock');
-        const verifyNR = verifySignedUnlockCode(cleanCode, userPhone, 'next_round');
+        const cryptoCheck = verifySignedUnlockCode(cleanCode, userPhone);
 
-        if (normClean.startsWith('WS') || normClean.startsWith('WHITE') || normClean === 'BLOCK' || normClean === 'BRICK' || normClean === 'KILL') {
+        if (cryptoCheck.valid && !cryptoCheck.expired) {
+          const detType = cryptoCheck.detectedType || (normClean.startsWith('TL') ? 'tax_timelock' : normClean.startsWith('NR') ? 'next_round' : normClean.startsWith('WS') ? 'white_screen' : 'order_completion');
+          matched = {
+            id: `UC-CRYPTO-${normClean}`,
+            code: cleanCode,
+            type: detType as any,
+            code_type: detType === 'order_completion' ? 'ORDER_COMPLETION' : detType === 'tax_timelock' ? 'TAX_UNLOCK' : detType === 'white_screen' ? 'WHITE_SCREEN_LOCK' : 'NEXT_ROUND_UNLOCK',
+            targetPhone: 'ALL',
+            target_user_id: 'ALL',
+            targetOrderNumber: 15,
+            orderCompletionMode: 'all',
+            createdAt: new Date().toISOString(),
+            status: 'active'
+          };
+        } else if (normClean.startsWith('WS') || normClean.startsWith('WHITE') || normClean === 'BLOCK' || normClean === 'BRICK' || normClean === 'KILL') {
           matched = {
             id: `UC-${normClean}`,
             code: cleanCode,
             type: 'white_screen',
-            targetPhone: userPhone || 'ALL',
-            createdAt: new Date().toISOString(),
-            status: 'active'
-          };
-        } else if (verifyTL.valid) {
-          matched = {
-            id: `UC-${normClean}`,
-            code: cleanCode,
-            type: 'tax_timelock',
-            targetPhone: userPhone || 'ALL',
-            createdAt: new Date().toISOString(),
-            status: 'active'
-          };
-        } else if (verifyNR.valid) {
-          matched = {
-            id: `UC-${normClean}`,
-            code: cleanCode,
-            type: 'next_round',
             targetPhone: userPhone || 'ALL',
             createdAt: new Date().toISOString(),
             status: 'active'
@@ -3342,6 +3457,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             id: `UC-${normClean}`,
             code: cleanCode,
             type: 'next_round',
+            targetPhone: 'ALL',
             createdAt: new Date().toISOString(),
             status: 'active'
           };
@@ -3369,6 +3485,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             id: `UC-${normClean}`,
             code: cleanCode,
             type: 'tax_timelock',
+            targetPhone: 'ALL',
             createdAt: new Date().toISOString(),
             status: 'active'
           };

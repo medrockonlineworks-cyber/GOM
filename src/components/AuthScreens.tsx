@@ -57,7 +57,7 @@ const getFullPhoneNumber = (code: string, rawPhone: string) => {
 };
 
 export const AuthScreens: React.FC = () => {
-  const { login, register, resetPassword, language, setLanguage } = useApp();
+  const { login, register, resetPassword, language, setLanguage, isAdminDevice } = useApp();
   const { t } = useTranslation(language);
   const [view, setView] = useState<AuthView>('login');
   
@@ -298,13 +298,13 @@ export const AuthScreens: React.FC = () => {
     setError(null);
     setSuccess(null);
 
-    const isUnsupported = detectedCountry ? !['ET', 'KE', 'NG'].includes(detectedCountry.iso) : false;
+    const isUnsupported = (!isAdminDevice && detectedCountry) ? !['ET', 'KE', 'NG'].includes(detectedCountry.iso) : false;
     if (isUnsupported) {
       setError('GOM is currently unavailable in your country. Registration has not yet opened for your location. Please wait until GOM officially launches in your country.');
       return;
     }
 
-    const mismatchError = getCountryMismatchError();
+    const mismatchError = !isAdminDevice ? getCountryMismatchError() : null;
     if (mismatchError) {
       setError(mismatchError);
       return;
@@ -326,6 +326,12 @@ export const AuthScreens: React.FC = () => {
       const res = await register(fullPhone, password);
       if (res.success) {
         setSuccess(res.message);
+        // Persist newly registered credentials so if they log out and return to the login screen, they can immediately log in!
+        secureStorage.setItem('gom_remember_me', 'true');
+        secureStorage.setItem('gom_remembered_phone', phoneNumber);
+        secureStorage.setItem('gom_remembered_country_code', registerCountryCode);
+        secureStorage.setItem('gom_remembered_pass', password);
+        setRememberMe(true);
         // Instant success, context automatically redirects current session
       } else {
         setError(res.message);

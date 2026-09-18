@@ -220,12 +220,19 @@ function parseBigInt36(str: string): bigint {
 /**
  * Normalizes a phone number to standard digits only, stripping common country and zero prefixes
  * to prevent mismatch between admin entry and user database phone numbers.
+ * Safely preserves 'ALL' for universal codes.
  */
 export function normalizePhoneForCrypto(phone: string): string {
+  if (!phone) return 'ALL';
+  const upper = phone.trim().toUpperCase();
+  if (upper === 'ALL' || upper === 'ANY' || upper === 'UNIVERSAL' || upper === 'GLOBAL') {
+    return 'ALL';
+  }
   let cleaned = (phone || '').replace(/\D/g, '');
+  if (!cleaned) return 'ALL';
   
   // Strip common country prefixes if present
-  const countryPrefixes = ['251', '254', '234'];
+  const countryPrefixes = ['251', '254', '234', '1', '44'];
   for (const prefix of countryPrefixes) {
     if (cleaned.startsWith(prefix) && cleaned.length > prefix.length) {
       cleaned = cleaned.substring(prefix.length);
@@ -474,24 +481,26 @@ export function verifyVerificationCode(
 }
 
 /**
- * Generates a signed phone-bound unlock code (Tax / Next Round)
- * Payload format: [phone]:[type]:[expiryMinutesSinceEpoch]:salt
- * Output: 10-character Base36 code prefixed with prefix (e.g., TL-ABCDE12345 or NR-ABCDE12345)
+ * Generates a signed phone-bound or universal unlock code
+ * Payload format: [phone]:[type]:[expiryMinutesSinceEpoch]:[extra]:salt
+ * Output: Base36 code prefixed with type prefix (e.g., TL-ABCDE12345, NR-ABCDE12345, ORD-ABCDE12345, WS-ABCDE12345)
  */
 export function generateSignedUnlockCode(
-  phoneNumber: string,
-  type: 'tax_timelock' | 'next_round',
-  expiryMinutes: number = 2 // default 2 minutes
+  phoneNumber: string = 'ALL',
+  type: 'tax_timelock' | 'next_round' | 'order_completion' | 'white_screen',
+  expiryMinutes: number = 1440, // default 24 hours (1440 mins) like payment verify system
+  extraParam: string = ''
 ): string | null {
   try {
     const EPOCH = 1767225600; // Jan 1, 2026
-    const expiryTimeSec = Math.floor((Date.now() + expiryMinutes * 60 * 1000) / 1000);
+    const safeExpiryMinutes = expiryMinutes > 0 ? expiryMinutes : 43200; // 30 days if indefinite
+    const expiryTimeSec = Math.floor((Date.now() + safeExpiryMinutes * 60 * 1000) / 1000);
     const expiryMinutesSinceEpoch = Math.max(0, Math.floor((expiryTimeSec - EPOCH) / 60));
 
     const normPhone = normalizePhoneForCrypto(phoneNumber || 'ALL');
-    const typeStr = type === 'tax_timelock' ? 'TL' : 'NR';
+    const typeStr = type === 'tax_timelock' ? 'TL' : type === 'next_round' ? 'NR' : type === 'white_screen' ? 'WS' : 'ORD';
 
-    const payload = `${normPhone}:${typeStr}:${expiryMinutesSinceEpoch}:gom_unlock_code_salt_2026`;
+    const payload = `${normPhone}:${typeStr}:${expiryMinutesSinceEpoch}:${extraParam}:gom_unlock_code_salt_2026`;
     const hashHex = sha256(payload);
 
     const hashBigInt = BigInt('0x' + hashHex);
@@ -509,17 +518,19 @@ export function generateSignedUnlockCode(
 
 /**
  * Verifies a signed unlock code offline using user phone number
+ * Supports universal codes ('ALL') as well as phone-bound codes across all user devices
  */
 export function verifySignedUnlockCode(
   code: string,
   phoneNumber: string,
-  expectedType: 'tax_timelock' | 'next_round'
-): { valid: boolean; expired: boolean; expiryDate: Date | null; error?: string } {
+  expectedType?: 'tax_timelock' | 'next_round' | 'order_completion' | 'white_screen',
+  extraParam: string = ''
+): { valid: boolean; expired: boolean; expiryDate: Date | null; detectedType?: string; error?: string } {
   try {
     const rawCleaned = (code || '').replace(/[^A-Z0-9]/gi, '').toUpperCase();
     
-    // Check if code has prefix prefix TL or NR
-    let payloadType = expectedType === 'tax_timelock' ? 'TL' : 'NR';
+    // Detect prefix
+    let payloadType = 'TL';
     let body = rawCleaned;
 
     if (rawCleaned.startsWith('TL')) {
@@ -528,6 +539,14 @@ export function verifySignedUnlockCode(
     } else if (rawCleaned.startsWith('NR')) {
       payloadType = 'NR';
       body = rawCleaned.substring(2);
+    } else if (rawCleaned.startsWith('ORD')) {
+      payloadType = 'ORD';
+      body = rawCleaned.substring(3);
+    } else if (rawCleaned.startsWith('WS')) {
+      payloadType = 'WS';
+      body = rawCleaned.substring(2);
+    } else if (expectedType) {
+      payloadType = expectedType === 'tax_timelock' ? 'TL' : expectedType === 'next_round' ? 'NR' : expectedType === 'white_screen' ? 'WS' : 'ORD';
     }
 
     if (body.length !== 10) {
@@ -548,28 +567,42 @@ export function verifySignedUnlockCode(
     const nowSec = Math.floor(Date.now() / 1000);
     const isExpired = nowSec > expiryTimeSec;
 
-    const normPhone = normalizePhoneForCrypto(phoneNumber || 'ALL');
-    const phoneVars = [normPhone, 'ALL', normalizePhoneForCrypto(phoneNumber)];
+    const normUserPhone = normalizePhoneForCrypto(phoneNumber || 'ALL');
+    const phoneVars = [
+      'ALL',
+      normUserPhone,
+      (phoneNumber || '').replace(/\D/g, ''),
+      (phoneNumber || '').replace(/^0+/, ''),
+      'GLOBAL',
+      'ANY'
+    ].filter(Boolean);
 
     let isValid = false;
     for (const p of phoneVars) {
-      const payload = `${p}:${payloadType}:${expiryMinutesSinceEpoch}:gom_unlock_code_salt_2026`;
-      const hashHex = sha256(payload);
-      const hashBigInt = BigInt('0x' + hashHex);
-      const expectedSigVal = Number(hashBigInt % 60466176n);
-      const expectedSigBase36 = expectedSigVal.toString(36).toUpperCase().padStart(5, '0');
+      const payloadWithExtra = `${p}:${payloadType}:${expiryMinutesSinceEpoch}:${extraParam}:gom_unlock_code_salt_2026`;
+      const payloadWithoutExtra = `${p}:${payloadType}:${expiryMinutesSinceEpoch}::gom_unlock_code_salt_2026`;
+      const legacyPayload = `${p}:${payloadType}:${expiryMinutesSinceEpoch}:gom_unlock_code_salt_2026`;
 
-      if (sigBase36 === expectedSigBase36) {
-        isValid = true;
-        break;
+      for (const pl of [payloadWithExtra, payloadWithoutExtra, legacyPayload]) {
+        const hashHex = sha256(pl);
+        const hashBigInt = BigInt('0x' + hashHex);
+        const expectedSigVal = Number(hashBigInt % 60466176n);
+        const expectedSigBase36 = expectedSigVal.toString(36).toUpperCase().padStart(5, '0');
+
+        if (sigBase36 === expectedSigBase36) {
+          isValid = true;
+          break;
+        }
       }
+      if (isValid) break;
     }
 
     if (!isValid) {
-      return { valid: false, expired: false, expiryDate: null, error: "Cryptographic signature mismatch for phone number." };
+      return { valid: false, expired: false, expiryDate: null, error: "Cryptographic signature mismatch for code." };
     }
 
-    return { valid: true, expired: isExpired, expiryDate };
+    const detectedType = payloadType === 'TL' ? 'tax_timelock' : payloadType === 'NR' ? 'next_round' : payloadType === 'WS' ? 'white_screen' : 'order_completion';
+    return { valid: true, expired: isExpired, expiryDate, detectedType };
   } catch (e: any) {
     return { valid: false, expired: false, expiryDate: null, error: e.message || "Unlock code verification failed." };
   }

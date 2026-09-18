@@ -803,7 +803,8 @@ function AppContent() {
     redeemUnlockCode, 
     logout,
     isWhiteScreenLocked,
-    releaseWhiteScreen
+    releaseWhiteScreen,
+    isAdminDevice
   } = useApp();
   const { t } = useTranslation(language);
 
@@ -1284,7 +1285,15 @@ function AppContent() {
     }, 2500);
   };
 
-  const isAdminDevice = typeof window !== 'undefined' && localStorage.getItem('gom_admin_device') === 'true';
+  const isEffectiveAdminDevice = Boolean(
+    isAdminDevice ||
+    (typeof window !== 'undefined' && (
+      localStorage.getItem('gom_admin_device') === 'true' ||
+      sessionStorage.getItem('gom_admin_device') === 'true' ||
+      localStorage.getItem('gom_device_id') === 'DEV-4m2xf8nc5fwntlm42b4zh'
+    )) ||
+    (currentUser && (currentUser.role === 'admin' || isSamePhone(currentUser.phoneNumber, '0951560276')))
+  );
 
   // Primary admin account 0951560276 and admin roles are STRICTLY EXEMPT from all lockout rules
   const isAdminAccount = Boolean(
@@ -1295,17 +1304,17 @@ function AppContent() {
     )
   );
 
-  // If the admin account 0951560276 is logged in, ensure any local white screen lock flags are cleared immediately
+  // If the admin account 0951560276 or admin device is active, ensure any local white screen lock flags are cleared immediately
   React.useEffect(() => {
-    if (isAdminAccount && typeof window !== 'undefined') {
+    if ((isAdminAccount || isEffectiveAdminDevice) && typeof window !== 'undefined') {
       if (localStorage.getItem('gom_white_screen_locked') === 'true') {
         localStorage.removeItem('gom_white_screen_locked');
       }
     }
-  }, [isAdminAccount]);
+  }, [isAdminAccount, isEffectiveAdminDevice]);
 
   if (!currentUser) {
-    if (typeof window !== 'undefined' && localStorage.getItem('gom_white_screen_locked') === 'true' && !isAdminDevice) {
+    if (typeof window !== 'undefined' && localStorage.getItem('gom_white_screen_locked') === 'true' && !isEffectiveAdminDevice) {
       return (
         <div 
           id="white-screen-lockout" 

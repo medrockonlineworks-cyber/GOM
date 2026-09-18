@@ -300,6 +300,7 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
   // Unlock Code Generator States
   const [unlockType, setUnlockType] = useState<'tax_timelock' | 'next_round' | 'white_screen' | 'order_completion'>('tax_timelock');
   const [unlockPhone, setUnlockPhone] = useState('');
+  const [unlockExpiry, setUnlockExpiry] = useState<string>('1440'); // Default 24 hours (1440 mins) like payment verify
   const [unlockCustomCode, setUnlockCustomCode] = useState('');
   const [orderTargetNumber, setOrderTargetNumber] = useState<number>(12);
   const [orderCompletionMode, setOrderCompletionMode] = useState<'up_to' | 'all'>('up_to');
@@ -314,20 +315,22 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
     setUnlockSuccessMsg('');
     setUnlockSuccessCode('');
 
+    const targetPhoneClean = unlockPhone.trim() || 'ALL';
+    const expiryMinutesNum = Number(unlockExpiry) || 1440;
+    const expiresAtIso = expiryMinutesNum > 0 && expiryMinutesNum < 43200 
+      ? new Date(Date.now() + expiryMinutesNum * 60 * 1000).toISOString() 
+      : undefined;
+
     if (unlockType === 'order_completion') {
-      if (!unlockPhone.trim()) {
-        setUnlockError('Please select or enter the user phone number (e.g. 0910101010).');
-        return;
-      }
       const res = await generateOrderCode({
-        targetPhone: unlockPhone.trim(),
+        targetPhone: targetPhoneClean,
         orderNumber: orderCompletionMode === 'all' ? 15 : orderTargetNumber,
         mode: orderCompletionMode,
         customCode: unlockCustomCode.trim() || undefined
       });
       if (res.success && res.code) {
         setUnlockSuccessCode(res.code);
-        setUnlockSuccessMsg(res.message || `Order completion code generated for ${unlockPhone} (Order #${orderCompletionMode === 'all' ? 15 : orderTargetNumber})!`);
+        setUnlockSuccessMsg(res.message || `Order completion code generated for ${targetPhoneClean === 'ALL' ? 'Universal (Any Device)' : targetPhoneClean} (Order #${orderCompletionMode === 'all' ? 15 : orderTargetNumber})!`);
         setUnlockCustomCode('');
       } else {
         setUnlockError(res.message || 'Failed to generate order completion code.');
@@ -341,12 +344,8 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
     let totalAmountDue: number | undefined;
     let targetTxId: string | undefined;
 
-    if (unlockType === 'tax_timelock') {
-      if (!unlockPhone.trim()) {
-        setUnlockError('Please select or enter the user phone number.');
-        return;
-      }
-      const matchedUser = users.find(u => isSamePhone(u.phoneNumber, unlockPhone));
+    if (unlockType === 'tax_timelock' && targetPhoneClean !== 'ALL') {
+      const matchedUser = users.find(u => isSamePhone(u.phoneNumber, targetPhoneClean));
       if (matchedUser) {
         const pendingTx = transactions.find(t => t.userId === matchedUser.id && t.type === 'withdraw' && t.status === 'pending');
         if (pendingTx) {
@@ -360,13 +359,14 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
     }
 
     const res = await generateUnlockCode(unlockType, {
-      targetPhone: unlockPhone.trim() || undefined,
+      targetPhone: targetPhoneClean,
       targetTxId,
       withdrawalAmount,
       taxAmount,
       penaltyAmount,
       totalAmountDue,
       customCode: unlockCustomCode.trim() || undefined,
+      expiresAt: expiresAtIso
     });
 
     if (res.success && res.code) {
@@ -3090,8 +3090,8 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
                 {/* Target User Selector */}
                 <div className="space-y-1.5">
                   <label className="text-[11px] font-bold text-slate-600 flex justify-between">
-                    <span>Target Account / Phone Number:</span>
-                    <span className="text-slate-400 font-normal">Select user or enter phone (e.g. 0910101010)</span>
+                    <span>Target Account / Device Scope:</span>
+                    <span className="text-slate-400 font-normal">Works across all user devices</span>
                   </label>
                   <div className="flex gap-2">
                     <select
@@ -3099,7 +3099,8 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
                       onChange={(e) => setUnlockPhone(e.target.value)}
                       className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500/30"
                     >
-                      <option value="">-- Select Target User Account --</option>
+                      <option value="ALL">🌐 Universal Code (Effective on Any User Device)</option>
+                      <option value="">-- Specific User Account --</option>
                       {users.map(u => {
                         const hasPendingWithdrawal = transactions.some(t => t.userId === u.id && t.type === 'withdraw' && t.status === 'pending');
                         const isNextRound = Boolean(u.nextRoundLocked);
@@ -3120,12 +3121,32 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
 
                     <input
                       type="text"
-                      placeholder="e.g. 0910101010"
-                      value={unlockPhone}
+                      placeholder="e.g. 0910101010 or ALL"
+                      value={unlockPhone === 'ALL' ? '' : unlockPhone}
                       onChange={(e) => setUnlockPhone(e.target.value)}
                       className="w-36 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500/30"
                     />
                   </div>
+                </div>
+
+                {/* Expiry Selector (Matching Payment Verify System) */}
+                <div className="space-y-1">
+                  <label className="text-[11px] font-bold text-slate-600 flex justify-between">
+                    <span>Code Expiration / Lifetime:</span>
+                    <span className="text-slate-400 font-normal">Controls how long code remains redeemable</span>
+                  </label>
+                  <select
+                    value={unlockExpiry}
+                    onChange={(e) => setUnlockExpiry(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500/30"
+                  >
+                    <option value="30">30 Minutes (Quick Verification)</option>
+                    <option value="60">1 Hour</option>
+                    <option value="1440">24 Hours (1 Day - Recommended)</option>
+                    <option value="10080">7 Days (1 Week)</option>
+                    <option value="43200">30 Days</option>
+                    <option value="0">No Expiration (Indefinite / Permanent)</option>
+                  </select>
                 </div>
 
                 {/* Specific Configuration for Order Completion */}
@@ -3294,35 +3315,68 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
                 </button>
               </form>
 
-              {/* SUCCESS DISPLAY BOX */}
+              {/* SUCCESS DISPLAY BOX - MATCHING PAYMENT VERIFY SYSTEM */}
               {unlockSuccessCode && (
-                <div className="bg-emerald-50 border-2 border-emerald-400 rounded-2xl p-4 space-y-3 shadow-inner">
-                  <div className="flex items-center gap-2 text-emerald-800 font-extrabold text-xs">
-                    <CheckCircle2 size={18} className="text-emerald-600 shrink-0" />
-                    <span>{unlockSuccessMsg}</span>
+                <div className="bg-amber-100/60 border border-amber-300 rounded-2xl p-4 space-y-3.5 text-center animate-fade-in">
+                  <div className="flex items-center justify-between">
+                    <span className="inline-flex items-center gap-1 text-[9px] font-black text-amber-900 uppercase tracking-widest bg-amber-200/80 px-2 py-0.5 rounded-full">
+                      ⚡ Signed Security Code
+                    </span>
+                    <span className="text-[10px] font-bold text-amber-800">
+                      {unlockPhone && unlockPhone !== 'ALL' ? `📱 Device: ${unlockPhone}` : '🌐 Scope: Any User Device'}
+                    </span>
                   </div>
 
-                  <div className="bg-white border border-emerald-300 rounded-xl p-3 flex items-center justify-between shadow-xs">
-                    <div>
-                      <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Generated Unlock Code</div>
-                      <div className="text-xl font-black font-mono text-slate-900 tracking-wider select-all">{unlockSuccessCode}</div>
-                    </div>
+                  <div className="space-y-1">
+                    <span className="block text-[10px] font-bold text-amber-800 uppercase tracking-wide">
+                      {unlockSuccessMsg || 'Generated Cryptographic Unlock Code'}
+                    </span>
+                    <span className="block text-base font-black text-slate-900 font-mono select-all border border-dashed border-amber-400 bg-white p-3 rounded-xl tracking-wider select-all break-all shadow-xs">
+                      {unlockSuccessCode}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
                     <button
                       type="button"
                       onClick={() => {
                         navigator.clipboard.writeText(unlockSuccessCode);
                         setCopiedUnlockCode(unlockSuccessCode);
                         setTimeout(() => setCopiedUnlockCode(null), 2500);
+                        alert(`Copied signed unlock code ${unlockSuccessCode} to clipboard!`);
                       }}
-                      className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-3.5 py-2 rounded-xl flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
+                      className="bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-bold text-[10px] py-2.5 rounded-xl uppercase tracking-wider flex items-center justify-center gap-1 font-sans cursor-pointer transition-all shadow-xs"
                     >
-                      {copiedUnlockCode === unlockSuccessCode ? <Check size={14} /> : <Copy size={14} />}
-                      <span>{copiedUnlockCode === unlockSuccessCode ? 'Copied!' : 'Copy Code'}</span>
+                      {copiedUnlockCode === unlockSuccessCode ? '✓ Copied' : '📋 Copy Code'}
                     </button>
+
+                    {(() => {
+                      const cleanPhone = (unlockPhone && unlockPhone !== 'ALL') ? unlockPhone.replace(/[^0-9]/g, '') : '';
+                      const typeLabel = unlockType === 'order_completion' 
+                        ? 'Order Completion' 
+                        : unlockType === 'tax_timelock' 
+                          ? 'Tax Time-Lock Unlock' 
+                          : unlockType === 'white_screen' 
+                            ? 'Security Access' 
+                            : 'Next Round Unlock';
+                      const msg = `Hi! Your ${typeLabel} code is: ${unlockSuccessCode}. Enter this on your screen to immediately unlock access across any device.`;
+                      const waLink = cleanPhone ? `https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}` : `https://wa.me/?text=${encodeURIComponent(msg)}`;
+
+                      return (
+                        <a
+                          href={waLink}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] py-2.5 rounded-xl uppercase tracking-wider flex items-center justify-center gap-1 font-sans cursor-pointer transition-all shadow-xs"
+                        >
+                          💬 Send WhatsApp
+                        </a>
+                      );
+                    })()}
                   </div>
 
-                  <p className="text-[11px] text-emerald-800 font-medium leading-normal">
-                    💡 Provide this code to the user. They can enter it on their screen to immediately unlock their account.
+                  <p className="text-[10px] text-amber-900 font-medium leading-relaxed bg-amber-50/80 p-2 rounded-lg border border-amber-200/60">
+                    💡 <strong>Cross-Device Enabled:</strong> This code uses cryptographic signing and will immediately be accepted on any user device, even before database synchronization finishes.
                   </p>
                 </div>
               )}
