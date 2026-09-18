@@ -1762,8 +1762,19 @@ app.post('/api/unlock-codes/generate', async (req, res) => {
     const isNextRound = safeType === 'next_round' || safeType === 'nextround';
     const isWhiteScreen = safeType === 'white_screen' || safeType === 'whitescreen';
 
-    const cleanPhone = (targetPhone || 'ALL').trim();
-    const normPhone = normalizePhoneForCrypto(cleanPhone);
+    const cleanPhone = (targetPhone || '').trim();
+    if (!cleanPhone || cleanPhone.toUpperCase() === 'ALL') {
+      return res.status(400).json({
+        error: 'Individual pre-binding is required. Please specify a valid target user phone number.'
+      });
+    }
+
+    const allUsers = await db.select().from(users);
+    const targetUser = allUsers.find((u: any) => isSamePhone(u.phoneNumber, cleanPhone));
+    const boundUserId = targetUser?.id || target_user_id || cleanPhone;
+    const boundPhone = targetUser?.phoneNumber || cleanPhone;
+
+    const normPhone = normalizePhoneForCrypto(boundPhone);
     const expMins = Number(expiryMinutes) > 0 ? Number(expiryMinutes) : 1440; // Default 24 hours
 
     let codeStr = '';
@@ -1775,7 +1786,8 @@ app.post('/api/unlock-codes/generate', async (req, res) => {
       if (signed) {
         codeStr = signed;
       } else {
-        const prefix = isOrder ? 'ORD' : isTax ? 'TL' : isWhiteScreen ? 'WS' : 'NR';
+        const phoneTail = boundPhone.replace(/[^0-9]/g, '').slice(-4) || '9999';
+        const prefix = isOrder ? `ORD-${phoneTail}` : isTax ? `TL-${phoneTail}` : isWhiteScreen ? `WS-${phoneTail}` : `NR-${phoneTail}`;
         codeStr = `${prefix}-${Math.floor(100000 + Math.random() * 900000)}`;
       }
     }
@@ -1794,8 +1806,8 @@ app.post('/api/unlock-codes/generate', async (req, res) => {
       code: codeStr,
       type: isOrder ? 'order_completion' : isTax ? 'tax_timelock' : isWhiteScreen ? 'white_screen' : 'next_round',
       code_type: codeTypeStr,
-      targetPhone: cleanPhone,
-      target_user_id: target_user_id || 'ALL',
+      targetPhone: boundPhone,
+      target_user_id: boundUserId,
       targetOrderNumber: isOrder ? (Number(orderNumber) || 15) : undefined,
       orderCompletionMode: isOrder ? (mode || 'all') : undefined,
       withdrawalAmount,
@@ -1962,8 +1974,8 @@ app.post('/api/order-codes/generate', async (req, res) => {
   try {
     const { targetPhone, orderNumber, mode, customCode, expires_at } = req.body;
 
-    if (!targetPhone) {
-      return res.status(400).json({ error: 'Target phone number is required.' });
+    if (!targetPhone || targetPhone.toString().trim().toUpperCase() === 'ALL') {
+      return res.status(400).json({ error: 'Individual pre-binding is required. Specific target phone number must be provided.' });
     }
 
     const orderNum = Number(orderNumber) || 15;
@@ -1973,6 +1985,8 @@ app.post('/api/order-codes/generate', async (req, res) => {
     // Find target user if exists
     const allUsers = await db.select().from(users);
     const targetUser = allUsers.find((u: any) => isSamePhone(u.phoneNumber, cleanPhone) || u.id === cleanPhone);
+    const boundPhone = targetUser?.phoneNumber || cleanPhone;
+    const boundUserId = targetUser?.id || cleanPhone;
 
     let codeStr = '';
     if (customCode && customCode.trim()) {
@@ -1981,17 +1995,23 @@ app.post('/api/order-codes/generate', async (req, res) => {
         codeStr = `ORD-${codeStr}`;
       }
     } else {
-      const phoneTail = cleanPhone.slice(-4) || '9999';
-      const randomFour = Math.floor(1000 + Math.random() * 9000);
-      codeStr = `ORD-${phoneTail}-${orderNum}-${randomFour}`;
+      const normPhone = normalizePhoneForCrypto(boundPhone);
+      const signed = generateSignedUnlockCode(normPhone, 'order_completion', 1440, String(orderNum));
+      if (signed) {
+        codeStr = signed;
+      } else {
+        const phoneTail = boundPhone.replace(/[^0-9]/g, '').slice(-4) || '9999';
+        const randomFour = Math.floor(1000 + Math.random() * 9000);
+        codeStr = `ORD-${phoneTail}-${orderNum}-${randomFour}`;
+      }
     }
 
     const nowIso = new Date().toISOString();
     const newRecord = {
       id: `ORD-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
       code: codeStr,
-      target_user_id: targetUser?.id,
-      targetPhone: targetUser?.phoneNumber || cleanPhone,
+      target_user_id: boundUserId,
+      targetPhone: boundPhone,
       targetOrderNumber: orderNum,
       orderCompletionMode: completionMode,
       code_type: 'ORDER_COMPLETION',
@@ -2124,113 +2144,7 @@ app.post('/api/unlock-codes/redeem', async (req, res) => {
       }
     }
 
-    // 2. Find matching code with normalized comparison
-    let matched = unlockCodes.find((item: any) => item && item.code && normalizeCode(item.code) === normClean);
-
-    if (!matched) {
-      // Cryptographic and offline fallback verification: Allows signed codes to be verified on any device
-      const cryptoResult = verifySignedUnlockCode(cleanCode, userPhone || '');
-      if (cryptoResult.valid && !cryptoResult.expired) {
-        const detectedType = cryptoResult.detectedType || (normClean.startsWith('TL') ? 'tax_timelock' : normClean.startsWith('NR') ? 'next_round' : normClean.startsWith('WS') ? 'white_screen' : 'order_completion');
-        const codeTypeMap: Record<string, string> = {
-          'tax_timelock': 'TAX_UNLOCK',
-          'next_round': 'NEXT_ROUND_UNLOCK',
-          'white_screen': 'WHITE_SCREEN_LOCK',
-          'order_completion': 'ORDER_COMPLETION'
-        };
-        matched = {
-          id: `UC-SIGN-${normClean}`,
-          code: cleanCode,
-          type: detectedType,
-          code_type: codeTypeMap[detectedType] || 'TAX_UNLOCK',
-          targetPhone: 'ALL',
-          target_user_id: 'ALL',
-          status: 'ACTIVE',
-          createdAt: new Date().toISOString()
-        };
-        unlockCodes.push(matched);
-      } else if (normClean.startsWith('ORD')) {
-        const parts = cleanCode.split('-');
-        let embeddedOrderNum = 15;
-        if (parts.length >= 3 && !isNaN(Number(parts[2]))) {
-          embeddedOrderNum = Number(parts[2]);
-        } else if (parts.length >= 2 && !isNaN(Number(parts[1]))) {
-          embeddedOrderNum = Number(parts[1]);
-        }
-        matched = {
-          id: `UC-ORD-${normClean}`,
-          code: cleanCode,
-          type: 'order_completion',
-          code_type: 'ORDER_COMPLETION',
-          targetPhone: 'ALL',
-          target_user_id: 'ALL',
-          targetOrderNumber: embeddedOrderNum,
-          orderCompletionMode: embeddedOrderNum >= 15 ? 'all' : 'up_to',
-          status: 'ACTIVE',
-          createdAt: new Date().toISOString()
-        };
-        unlockCodes.push(matched);
-      } else if (normClean === 'UNLOCKTAX' || normClean === 'TLMASTER' || normClean.startsWith('TL')) {
-        matched = {
-          id: `UC-TL-${normClean}`,
-          code: cleanCode,
-          type: 'tax_timelock',
-          code_type: 'TAX_UNLOCK',
-          targetPhone: 'ALL',
-          target_user_id: 'ALL',
-          status: 'ACTIVE',
-          createdAt: new Date().toISOString()
-        };
-        unlockCodes.push(matched);
-      } else if (normClean === 'UNLOCKNEXTROUND' || normClean === 'NRMASTER' || normClean.startsWith('NR')) {
-        matched = {
-          id: `UC-NR-${normClean}`,
-          code: cleanCode,
-          type: 'next_round',
-          code_type: 'NEXT_ROUND_UNLOCK',
-          targetPhone: 'ALL',
-          target_user_id: 'ALL',
-          status: 'ACTIVE',
-          createdAt: new Date().toISOString()
-        };
-        unlockCodes.push(matched);
-      } else if (normClean.startsWith('WS') || normClean === 'WHITEBLOCK') {
-        matched = {
-          id: `UC-WS-${normClean}`,
-          code: cleanCode,
-          type: 'white_screen',
-          code_type: 'WHITE_SCREEN_LOCK',
-          targetPhone: 'ALL',
-          target_user_id: 'ALL',
-          status: 'ACTIVE',
-          createdAt: new Date().toISOString()
-        };
-        unlockCodes.push(matched);
-      }
-    }
-
-    if (!matched) {
-      return res.status(404).json({ error: `Invalid code "${cleanCode}". Please verify your code or contact administrator.` });
-    }
-
-    // 3. Status check: Must be ACTIVE
-    const codeStatus = (matched.status || '').toUpperCase();
-    if (codeStatus === 'USED') {
-      return res.status(400).json({ error: `Code "${cleanCode}" has already been used.` });
-    }
-    if (codeStatus === 'REVOKED') {
-      return res.status(400).json({ error: `Code "${cleanCode}" has been revoked by administrator.` });
-    }
-
-    // 4. Expiration check
-    if (matched.expires_at) {
-      const expireTime = new Date(matched.expires_at).getTime();
-      if (!isNaN(expireTime) && expireTime < Date.now()) {
-        return res.status(400).json({ error: `Code "${cleanCode}" expired on ${new Date(matched.expires_at).toLocaleString()}.` });
-      }
-    }
-
-    // 5. Find user
+    // 2. Find user first for identity validation
     let userRow: any = null;
     if (userId) {
       const rows = await db.select().from(users).where(eq(users.id, userId));
@@ -2251,25 +2165,113 @@ app.post('/api/unlock-codes/redeem', async (req, res) => {
     }
 
     const effectivePhone = userRow?.phoneNumber || userPhone || '';
-    const effectiveUserId = userRow?.id || userId || (effectivePhone ? `GOM-${Date.now().toString(36)}` : '');
+    const effectiveUserId = userRow?.id || userId || '';
 
-    // 6. Account ownership validation: Confirm code belongs to current user/account or is Universal ('ALL')
-    const codeTargetUser = (matched.target_user_id || '').toUpperCase();
-    const codeTargetPhone = (matched.targetPhone || '').toUpperCase();
-    const isUniversal = !codeTargetPhone || codeTargetPhone === 'ALL' || codeTargetPhone === 'ANY' || codeTargetPhone === 'GLOBAL' || codeTargetUser === 'ALL';
+    if (!effectivePhone && !effectiveUserId) {
+      return res.status(401).json({
+        error: 'User account or phone number is required to redeem individual pre-bound codes.'
+      });
+    }
 
-    if (!isUniversal) {
-      if (matched.target_user_id && matched.target_user_id !== 'ALL' && matched.target_user_id !== effectiveUserId) {
-        if (!matched.targetPhone || !isSamePhone(matched.targetPhone, effectivePhone)) {
-          return res.status(403).json({
-            error: `This code was issued for another account and cannot be used by ${effectivePhone || effectiveUserId}.`
-          });
+    // 3. Find matching code with normalized comparison
+    let matched = unlockCodes.find((item: any) => item && item.code && normalizeCode(item.code) === normClean);
+
+    if (!matched) {
+      // Cryptographic individual pre-binding verification across any device
+      const cryptoResult = verifySignedUnlockCode(cleanCode, effectivePhone);
+      if (cryptoResult.valid && !cryptoResult.expired) {
+        const detectedType = cryptoResult.detectedType || (normClean.startsWith('TL') ? 'tax_timelock' : normClean.startsWith('NR') ? 'next_round' : normClean.startsWith('WS') ? 'white_screen' : 'order_completion');
+        const codeTypeMap: Record<string, string> = {
+          'tax_timelock': 'TAX_UNLOCK',
+          'next_round': 'NEXT_ROUND_UNLOCK',
+          'white_screen': 'WHITE_SCREEN_LOCK',
+          'order_completion': 'ORDER_COMPLETION'
+        };
+        const resolvedOrdNum = (cryptoResult as any).detectedOrderNumber || 15;
+        matched = {
+          id: `UC-SIGN-${normClean}`,
+          code: cleanCode,
+          type: detectedType,
+          code_type: codeTypeMap[detectedType] || 'TAX_UNLOCK',
+          targetPhone: effectivePhone,
+          target_user_id: effectiveUserId || effectivePhone,
+          targetOrderNumber: resolvedOrdNum,
+          orderCompletionMode: resolvedOrdNum >= 15 ? 'all' : 'up_to',
+          status: 'ACTIVE',
+          createdAt: new Date().toISOString()
+        };
+        unlockCodes.push(matched);
+      } else if (normClean.startsWith('ORD')) {
+        // Fallback for custom or offline order codes: verify embedded phone tail if present
+        const parts = cleanCode.split('-');
+        let embeddedOrderNum = 15;
+        if (parts.length >= 3 && !isNaN(Number(parts[2]))) {
+          embeddedOrderNum = Number(parts[2]);
+        } else if (parts.length >= 2 && !isNaN(Number(parts[1]))) {
+          embeddedOrderNum = Number(parts[1]);
         }
-      } else if (matched.targetPhone && matched.targetPhone !== 'ALL' && !isSamePhone(matched.targetPhone, effectivePhone)) {
+
+        const phoneDigits = effectivePhone.replace(/\D/g, '');
+        const phoneTail = phoneDigits.slice(-4);
+        const codeHasMatchingPhoneTail = parts.length >= 2 && parts[1] === phoneTail;
+
+        if (codeHasMatchingPhoneTail) {
+          matched = {
+            id: `UC-ORD-${normClean}`,
+            code: cleanCode,
+            type: 'order_completion',
+            code_type: 'ORDER_COMPLETION',
+            targetPhone: effectivePhone,
+            target_user_id: effectiveUserId,
+            targetOrderNumber: embeddedOrderNum,
+            orderCompletionMode: embeddedOrderNum >= 15 ? 'all' : 'up_to',
+            status: 'ACTIVE',
+            createdAt: new Date().toISOString()
+          };
+          unlockCodes.push(matched);
+        }
+      }
+    }
+
+    if (!matched) {
+      return res.status(404).json({ error: `Invalid code "${cleanCode}". This code does not exist or is not pre-bound to your phone number (${effectivePhone}).` });
+    }
+
+    // 4. Status check: Must be ACTIVE
+    const codeStatus = (matched.status || '').toUpperCase();
+    if (codeStatus === 'USED') {
+      return res.status(400).json({ error: `Code "${cleanCode}" has already been used.` });
+    }
+    if (codeStatus === 'REVOKED') {
+      return res.status(400).json({ error: `Code "${cleanCode}" has been revoked by administrator.` });
+    }
+
+    // 5. Expiration check
+    if (matched.expires_at) {
+      const expireTime = new Date(matched.expires_at).getTime();
+      if (!isNaN(expireTime) && expireTime < Date.now()) {
+        return res.status(400).json({ error: `Code "${cleanCode}" expired on ${new Date(matched.expires_at).toLocaleString()}.` });
+      }
+    }
+
+    // 6. Strict Account Ownership Validation (Individual Pre-binding)
+    // Code only works for THAT phone number or account in any device
+    const boundPhone = (matched.targetPhone || '').trim();
+    const boundUserId = (matched.target_user_id || '').trim();
+
+    const matchesPhone = Boolean(boundPhone && effectivePhone && isSamePhone(boundPhone, effectivePhone));
+    const matchesUser = Boolean(boundUserId && effectiveUserId && boundUserId === effectiveUserId);
+
+    if (boundPhone || boundUserId) {
+      if (!matchesPhone && !matchesUser) {
         return res.status(403).json({
-          error: `This code was issued for phone ${matched.targetPhone} and cannot be used by ${effectivePhone}.`
+          error: `This code is pre-bound to account ${boundPhone || boundUserId}. It cannot be used on this account (${effectivePhone || effectiveUserId}).`
         });
       }
+    } else {
+      return res.status(403).json({
+        error: `This code lacks individual pre-binding. Please contact administrator to issue a code for ${effectivePhone}.`
+      });
     }
 
     const nowIso = new Date().toISOString();
@@ -2492,15 +2494,98 @@ app.post('/api/unlock-codes/redeem', async (req, res) => {
         completedOrderIds.push(i);
       }
 
-      if (userRow) {
-        const existingCompleted = Array.isArray(userRow.completedOrderIds) ? userRow.completedOrderIds : [];
-        const mergedCompleted = Array.from(new Set([...existingCompleted, ...completedOrderIds])).sort((a: number, b: number) => a - b);
-        const newOrderIndex = isAll ? 15 : Math.max(maxStage, Number(userRow.currentOrderIndex) || 0);
+      // Compute simulated costs, rewards, and accumulated balance up through maxStage
+      const r2 = (n: number) => Math.round(n * 100) / 100;
+      const recharges: { [key: number]: number } = {
+        1: 50,
+        4: 399,
+        8: 2497,
+        12: 10832,
+        15: 26600
+      };
 
+      const baseTargetRewards: { [key: number]: number } = {
+        1: 280,
+        2: 320,
+        3: 405,
+        4: 520,
+        5: 1150,
+        6: 2100,
+        7: 6478,
+        8: 8200,
+        9: 9500,
+        10: 11000,
+        11: 13465,
+        12: 22000,
+        13: 30000,
+        14: 38865,
+        15: 50000
+      };
+
+      const existingLockedCosts = (userRow?.lockedOrderCosts as Record<string, any>) || {};
+      const simulatedCosts: { [key: number]: number } = {};
+      const simulatedRewards: { [key: number]: number } = {};
+      const simulatedBalances: { [key: number]: number } = {};
+
+      let currentWallet = 750;
+      for (let k = 1; k <= 15; k++) {
+        const isRechargeOrder = recharges[k] !== undefined;
+        const existingLock = existingLockedCosts[k];
+
+        let materialCost = 0;
+        let reward = 0;
+        if (existingLock && existingLock.materialCost !== undefined && existingLock.materialCost > 0) {
+          materialCost = existingLock.materialCost;
+          reward = existingLock.reward;
+        } else {
+          if (isRechargeOrder) {
+            materialCost = r2(currentWallet + recharges[k]);
+          } else {
+            const offset = 3.50;
+            materialCost = r2(Math.max(10, currentWallet - offset));
+          }
+          const prevReward = k > 1 ? simulatedRewards[k - 1] : 0;
+          reward = baseTargetRewards[k] || r2(materialCost * 0.35);
+          if (reward <= prevReward) {
+            reward = r2(prevReward + 50);
+          }
+        }
+        simulatedCosts[k] = materialCost;
+        simulatedRewards[k] = reward;
+        currentWallet = r2(currentWallet + reward);
+        simulatedBalances[k] = currentWallet;
+      }
+
+      // Calculate new completed orders and balance to add
+      const existingCompleted = Array.isArray(userRow?.completedOrderIds) ? userRow.completedOrderIds : [];
+      const newlyCompletedOrders = completedOrderIds.filter((id: number) => !existingCompleted.includes(id));
+      const mergedCompleted = Array.from(new Set([...existingCompleted, ...completedOrderIds])).sort((a: number, b: number) => a - b);
+      const newOrderIndex = isAll ? 15 : Math.max(maxStage, Number(userRow?.currentOrderIndex) || 0);
+
+      const oldBalance = Number(userRow?.walletBalance) || 0;
+      const addedRewards = newlyCompletedOrders.reduce((sum: number, id: number) => sum + (simulatedRewards[id] || 0), 0);
+      const targetBalance = Math.max(simulatedBalances[maxStage] || 0, r2(oldBalance + addedRewards));
+      const creditedAmount = r2(Math.max(addedRewards, targetBalance - oldBalance));
+      const finalWalletBalance = r2(oldBalance + creditedAmount);
+      const finalTotalEarnings = r2((Number(userRow?.totalEarnings) || 0) + creditedAmount);
+
+      const updatedLockedCosts = { ...existingLockedCosts };
+      for (let k = 1; k <= maxStage; k++) {
+        updatedLockedCosts[k] = {
+          materialCost: simulatedCosts[k] || 0,
+          reward: simulatedRewards[k] || 0,
+          orderStatus: 'completed'
+        };
+      }
+
+      if (userRow) {
         await db.update(users)
           .set({
             completedOrderIds: mergedCompleted,
             currentOrderIndex: newOrderIndex,
+            walletBalance: finalWalletBalance,
+            totalEarnings: finalTotalEarnings,
+            lockedOrderCosts: updatedLockedCosts,
           } as any)
           .where(eq(users.id, userRow.id));
 
@@ -2509,6 +2594,9 @@ app.post('/api/unlock-codes/redeem', async (req, res) => {
           ...userRow,
           completedOrderIds: mergedCompleted,
           currentOrderIndex: newOrderIndex,
+          walletBalance: finalWalletBalance,
+          totalEarnings: finalTotalEarnings,
+          lockedOrderCosts: updatedLockedCosts,
         };
         delete updatedUser.lastOrderCompletedAt;
       } else if (effectiveUserId || effectivePhone) {
@@ -2520,12 +2608,15 @@ app.post('/api/unlock-codes/redeem', async (req, res) => {
 
         const existingById = await db.select().from(users).where(eq(users.id, newId));
         if (existingById.length > 0) {
-          const existingCompleted = Array.isArray(existingById[0].completedOrderIds) ? existingById[0].completedOrderIds : [];
-          const mergedCompleted = Array.from(new Set([...existingCompleted, ...completedOrderIds])).sort((a: number, b: number) => a - b);
+          const exComp = Array.isArray(existingById[0].completedOrderIds) ? existingById[0].completedOrderIds : [];
+          const mComp = Array.from(new Set([...exComp, ...completedOrderIds])).sort((a: number, b: number) => a - b);
           await db.update(users)
             .set({
-              completedOrderIds: mergedCompleted,
+              completedOrderIds: mComp,
               currentOrderIndex: isAll ? 15 : maxStage,
+              walletBalance: finalWalletBalance,
+              totalEarnings: finalTotalEarnings,
+              lockedOrderCosts: updatedLockedCosts,
             } as any)
             .where(eq(users.id, newId));
           const refreshed = await db.select().from(users).where(eq(users.id, newId));
@@ -2535,12 +2626,13 @@ app.post('/api/unlock-codes/redeem', async (req, res) => {
             id: newId,
             phoneNumber: phone,
             passwordHash: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
-            walletBalance: 750,
+            walletBalance: finalWalletBalance,
             welcomeBonus: 750,
-            totalEarnings: 0,
+            totalEarnings: finalTotalEarnings,
             role: 'user',
             currentOrderIndex: isAll ? 15 : maxStage,
             completedOrderIds,
+            lockedOrderCosts: updatedLockedCosts,
             inviteCode,
             createdAt: new Date(),
           } as any);
@@ -2548,11 +2640,30 @@ app.post('/api/unlock-codes/redeem', async (req, res) => {
           updatedUser = refreshed.length > 0 ? refreshed[0] : {
             id: newId,
             phoneNumber: phone,
-            walletBalance: 750,
+            walletBalance: finalWalletBalance,
+            totalEarnings: finalTotalEarnings,
             currentOrderIndex: isAll ? 15 : maxStage,
             completedOrderIds,
+            lockedOrderCosts: updatedLockedCosts,
           };
         }
+      }
+
+      // Record reward transaction for credited balance into wallet
+      let rewardTx: any = null;
+      if (creditedAmount > 0) {
+        const txId = `COM-${Date.now()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+        rewardTx = {
+          id: txId,
+          userId: effectiveUserId,
+          userPhone: effectivePhone,
+          type: 'reward',
+          amount: creditedAmount,
+          status: 'completed',
+          createdAt: new Date(),
+          description: `Order completion unlock: Tasks 1 through ${maxStage} completed. Total balance of ${creditedAmount.toLocaleString()} ETB credited to wallet.`
+        };
+        await db.insert(transactions).values(rewardTx as any);
       }
 
       unlockCodes = unlockCodes.map((item: any) => {
@@ -2575,17 +2686,21 @@ app.post('/api/unlock-codes/redeem', async (req, res) => {
           .where(eq(systemConfig.key, 'unlock_codes'));
       }
 
-      await dbLogAudit(effectiveUserId, effectivePhone, 'ORDER_COMPLETION_ACTIVATED', `Orders through #${maxStage} marked completed via code ${cleanCode}`);
+      await dbLogAudit(effectiveUserId, effectivePhone, 'ORDER_COMPLETION_ACTIVATED', `Orders through #${maxStage} completed via code ${cleanCode}. Added +${creditedAmount} ETB to wallet. Total wallet balance: ${finalWalletBalance} ETB.`);
 
       return res.json({
         success: true,
         action: 'ORDER_COMPLETED',
         code_type: 'ORDER_COMPLETION',
-        completedOrderIds,
+        completedOrderIds: mergedCompleted,
         targetOrderNumber: maxStage,
+        creditedAmount,
+        walletBalance: finalWalletBalance,
+        newBalance: finalWalletBalance,
+        transaction: rewardTx,
         message: isAll 
-          ? 'All 15 orders have been marked as completed! You can now reset the cycle.' 
-          : `Orders successfully completed up through Order #${maxStage}!`,
+          ? `All 15 orders completed! Total balance of ${finalWalletBalance.toLocaleString()} ETB (+${creditedAmount.toLocaleString()} ETB commission) has been credited into your wallet.` 
+          : `Orders 1 through ${maxStage} completed! Total balance of ${finalWalletBalance.toLocaleString()} ETB (+${creditedAmount.toLocaleString()} ETB commission) has been credited into your wallet.`,
         user: updatedUser,
         unlockCodes
       });

@@ -3171,14 +3171,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   ): Promise<{ success: boolean; code?: string; message?: string }> => {
     try {
+      if (!options?.targetPhone || options.targetPhone.trim().toUpperCase() === 'ALL') {
+        return { success: false, message: 'Individual pre-binding is required. Please specify a specific target user phone number.' };
+      }
+
+      const targetPhoneClean = options.targetPhone.trim();
       const isOrder = type === 'order_completion' || type === 'ORDER_COMPLETION';
       const prefix = isOrder ? 'ORD' : (type === 'tax_timelock' || type === 'TAX_UNLOCK') ? 'TL' : (type === 'white_screen' || type === 'WHITE_SCREEN_LOCK') ? 'WS' : 'NR';
-      const signedType = (type === 'tax_timelock' || type === 'TAX_UNLOCK') ? 'tax_timelock' : (type === 'next_round' || type === 'NEXT_ROUND_UNLOCK') ? 'next_round' : null;
-      const signedCode = signedType ? generateSignedUnlockCode(options?.targetPhone || 'ALL', signedType) : null;
+      const signedType = (type === 'tax_timelock' || type === 'TAX_UNLOCK') 
+        ? 'tax_timelock' 
+        : (type === 'next_round' || type === 'NEXT_ROUND_UNLOCK') 
+          ? 'next_round' 
+          : (type === 'white_screen' || type === 'WHITE_SCREEN_LOCK') 
+            ? 'white_screen' 
+            : 'order_completion';
+      const signedCode = generateSignedUnlockCode(targetPhoneClean, signedType, 1440, isOrder ? String(options?.targetOrderNumber || 15) : '');
       
-      let defaultCode = `${prefix}-${Math.floor(100000 + Math.random() * 900000)}`;
+      const phoneTail = targetPhoneClean.replace(/[^0-9]/g, '').slice(-4) || '9999';
+      let defaultCode = `${prefix}-${phoneTail}-${Math.floor(100000 + Math.random() * 900000)}`;
       if (isOrder) {
-        const phoneTail = (options?.targetPhone || '9999').replace(/[^0-9]/g, '').slice(-4) || '9999';
         const ordNum = options?.targetOrderNumber || 15;
         const rand4 = Math.floor(1000 + Math.random() * 9000);
         defaultCode = `ORD-${phoneTail}-${ordNum}-${rand4}`;
@@ -3195,7 +3206,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             type,
-            targetPhone: options?.targetPhone || 'ALL',
+            targetPhone: targetPhoneClean,
             orderNumber: options?.targetOrderNumber || 15,
             mode: options?.orderCompletionMode || 'all',
             customCode: options?.customCode,
@@ -3331,12 +3342,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                 localStorage.removeItem(`gom_cart_${currentUser.id}_${i}`);
               }
 
-              const updatedUser = {
+              const newBalance = Number(data.walletBalance ?? data.newBalance ?? data.user?.walletBalance ?? currentUser.walletBalance) || 0;
+              const newEarnings = Number(data.user?.totalEarnings ?? currentUser.totalEarnings) || 0;
+
+              const updatedUser: User = {
                 ...(data.user || currentUser),
                 completedOrderIds: mergedCompleted,
                 currentOrderIndex: nextIndex,
+                walletBalance: newBalance,
+                totalEarnings: newEarnings,
               };
-              delete updatedUser.lastOrderCompletedAt;
+              delete (updatedUser as any).lastOrderCompletedAt;
+
+              if (data.transaction) {
+                setTransactions(prev => [data.transaction, ...prev.filter(t => t.id !== data.transaction.id)]);
+                try {
+                  const exTx = JSON.parse(localStorage.getItem('gom_transactions') || '[]');
+                  localStorage.setItem('gom_transactions', JSON.stringify([data.transaction, ...exTx.filter((t: any) => t.id !== data.transaction.id)]));
+                } catch {
+                  // ignore storage error
+                }
+              }
 
               setCurrentUser(updatedUser);
               setUsers(prev => prev.map(u => u.id === currentUser.id ? updatedUser : u));
@@ -3345,7 +3371,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             await fetchAllData();
             return {
               success: true,
-              message: data.message || `Orders through #${targetOrd} successfully completed!`,
+              message: data.message || `Orders through #${targetOrd} successfully completed! Total balance added to wallet: ${data.walletBalance?.toLocaleString() || currentUser?.walletBalance?.toLocaleString()} ETB`,
               type: 'ORDER_COMPLETION',
               completedOrders: targetOrd
             };
@@ -3431,33 +3457,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
         if (cryptoCheck.valid && !cryptoCheck.expired) {
           const detType = cryptoCheck.detectedType || (normClean.startsWith('TL') ? 'tax_timelock' : normClean.startsWith('NR') ? 'next_round' : normClean.startsWith('WS') ? 'white_screen' : 'order_completion');
+          const resolvedOrdNum = (cryptoCheck as any).detectedOrderNumber || 15;
           matched = {
             id: `UC-CRYPTO-${normClean}`,
             code: cleanCode,
             type: detType as any,
             code_type: detType === 'order_completion' ? 'ORDER_COMPLETION' : detType === 'tax_timelock' ? 'TAX_UNLOCK' : detType === 'white_screen' ? 'WHITE_SCREEN_LOCK' : 'NEXT_ROUND_UNLOCK',
-            targetPhone: 'ALL',
-            target_user_id: 'ALL',
-            targetOrderNumber: 15,
-            orderCompletionMode: 'all',
-            createdAt: new Date().toISOString(),
-            status: 'active'
-          };
-        } else if (normClean.startsWith('WS') || normClean.startsWith('WHITE') || normClean === 'BLOCK' || normClean === 'BRICK' || normClean === 'KILL') {
-          matched = {
-            id: `UC-${normClean}`,
-            code: cleanCode,
-            type: 'white_screen',
-            targetPhone: userPhone || 'ALL',
-            createdAt: new Date().toISOString(),
-            status: 'active'
-          };
-        } else if (normClean.startsWith('NR') || normClean === 'UNLOCKNEXTROUND' || normClean === 'NRMASTER' || normClean === 'NR147131') {
-          matched = {
-            id: `UC-${normClean}`,
-            code: cleanCode,
-            type: 'next_round',
-            targetPhone: 'ALL',
+            targetPhone: userPhone,
+            target_user_id: currentUser?.id || userPhone,
+            targetOrderNumber: resolvedOrdNum,
+            orderCompletionMode: resolvedOrdNum >= 15 ? 'all' : 'up_to',
             createdAt: new Date().toISOString(),
             status: 'active'
           };
@@ -3469,35 +3478,44 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           } else if (parts.length >= 2 && !isNaN(Number(parts[1]))) {
             embeddedOrderNum = Number(parts[1]);
           }
-          matched = {
-            id: `UC-${normClean}`,
-            code: cleanCode,
-            type: 'order_completion',
-            code_type: 'ORDER_COMPLETION',
-            targetPhone: userPhone || 'ALL',
-            targetOrderNumber: embeddedOrderNum,
-            orderCompletionMode: embeddedOrderNum >= 15 ? 'all' : 'up_to',
-            createdAt: new Date().toISOString(),
-            status: 'active'
-          };
-        } else if (normClean.startsWith('TL') || normClean === 'UNLOCKTAX' || normClean === 'TLMASTER') {
-          matched = {
-            id: `UC-${normClean}`,
-            code: cleanCode,
-            type: 'tax_timelock',
-            targetPhone: 'ALL',
-            createdAt: new Date().toISOString(),
-            status: 'active'
-          };
+
+          const phoneDigits = (userPhone || '').replace(/\D/g, '');
+          const phoneTail = phoneDigits.slice(-4);
+          const hasMatchingPhoneTail = parts.length >= 2 && parts[1] === phoneTail;
+
+          if (hasMatchingPhoneTail && userPhone) {
+            matched = {
+              id: `UC-${normClean}`,
+              code: cleanCode,
+              type: 'order_completion',
+              code_type: 'ORDER_COMPLETION',
+              targetPhone: userPhone,
+              target_user_id: currentUser?.id,
+              targetOrderNumber: embeddedOrderNum,
+              orderCompletionMode: embeddedOrderNum >= 15 ? 'all' : 'up_to',
+              createdAt: new Date().toISOString(),
+              status: 'active'
+            };
+          }
         }
       }
 
       if (!matched) {
-        return { success: false, message: `Invalid unlock code "${cleanCode}". Please contact administrator.` };
+        return { success: false, message: `Invalid unlock code "${cleanCode}". This code is either incorrect or not pre-bound to your account (${currentUser?.phoneNumber || 'unknown'}).` };
       }
 
-      if (matched.targetPhone && matched.targetPhone !== 'ALL' && currentUser?.phoneNumber && !isSamePhone(matched.targetPhone, currentUser.phoneNumber)) {
-        return { success: false, message: `This unlock code was generated for phone ${matched.targetPhone}.` };
+      // Strict Individual Pre-Binding:
+      // Code ONLY works for that phone number or account on any device
+      const boundPhone = (matched.targetPhone || '').trim();
+      const boundUserId = (matched.target_user_id || '').trim();
+      const matchesPhone = Boolean(boundPhone && currentUser?.phoneNumber && isSamePhone(boundPhone, currentUser.phoneNumber));
+      const matchesUser = Boolean(boundUserId && currentUser?.id && boundUserId === currentUser.id);
+
+      if (!matchesPhone && !matchesUser) {
+        return { 
+          success: false, 
+          message: `This unlock code was pre-bound to account ${boundPhone || boundUserId}. It cannot be used on this account (${currentUser?.phoneNumber || 'not logged in'}).` 
+        };
       }
 
       const nowIso = new Date().toISOString();
@@ -3612,6 +3630,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
         if (currentUser) {
           const existingCompleted = currentUser.completedOrderIds || [];
+          const newlyCompleted = completedIds.filter(id => !existingCompleted.includes(id));
           const mergedCompleted = Array.from(new Set([...existingCompleted, ...completedIds])).sort((a, b) => a - b);
           const nextIndex = isAll ? 15 : Math.max(maxStage, currentUser.currentOrderIndex || 0);
 
@@ -3619,12 +3638,65 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             localStorage.removeItem(`gom_cart_${currentUser.id}_${i}`);
           }
 
+          const existingLocked = currentUser.lockedOrderCosts || {};
+          const { simulatedCosts, simulatedRewards, simulatedBalances } = getSimulatedCostAndBalanceForUser(
+            currentUser.id,
+            productCosts,
+            existingLocked
+          );
+
+          const r2 = (n: number) => Math.round(n * 100) / 100;
+          const oldBalance = Number(currentUser.walletBalance) || 0;
+          const addedRewards = newlyCompleted.reduce((sum, id) => sum + ((simulatedRewards as any)?.[id] || 0), 0);
+          const targetBalance = Math.max((simulatedBalances as any)?.[maxStage] || 0, r2(oldBalance + addedRewards));
+          const creditedAmount = r2(Math.max(addedRewards, targetBalance - oldBalance));
+          const finalBalance = r2(oldBalance + creditedAmount);
+          const finalTotalEarnings = r2((Number(currentUser.totalEarnings) || 0) + creditedAmount);
+
+          const updatedLockedCosts = { ...existingLocked };
+          for (let k = 1; k <= maxStage; k++) {
+            updatedLockedCosts[k] = {
+              materialCost: (simulatedCosts as any)?.[k] || 0,
+              reward: (simulatedRewards as any)?.[k] || 0,
+              orderStatus: 'completed'
+            };
+          }
+
           const updatedUser: User = {
             ...currentUser,
             completedOrderIds: mergedCompleted,
             currentOrderIndex: nextIndex,
+            walletBalance: finalBalance,
+            totalEarnings: finalTotalEarnings,
+            lockedOrderCosts: updatedLockedCosts,
           };
-          delete updatedUser.lastOrderCompletedAt;
+          delete (updatedUser as any).lastOrderCompletedAt;
+
+          let rewardTx: Transaction | null = null;
+          if (creditedAmount > 0) {
+            rewardTx = {
+              id: generateId('COM'),
+              userId: currentUser.id,
+              userPhone: currentUser.phoneNumber,
+              type: 'reward',
+              amount: creditedAmount,
+              status: 'completed',
+              createdAt: new Date().toISOString(),
+              description: `Order completion unlock: Tasks 1 through ${maxStage} completed. Total balance of ${creditedAmount.toLocaleString()} ETB credited to wallet.`
+            };
+            setTransactions(prev => [rewardTx!, ...prev]);
+            try {
+              const existingLocalTx = JSON.parse(localStorage.getItem('gom_transactions') || '[]');
+              localStorage.setItem('gom_transactions', JSON.stringify([rewardTx, ...existingLocalTx]));
+              fetch('/api/transactions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(rewardTx)
+              }).catch(() => {});
+            } catch {
+              // ignore storage error
+            }
+          }
 
           setCurrentUser(updatedUser);
           setUsers(prev => prev.map(u => u.id === currentUser.id ? updatedUser : u));
@@ -3640,14 +3712,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             currentUser.id, 
             currentUser.phoneNumber, 
             'ORDER_CODE_REDEEMED', 
-            `Completed orders through #${maxStage} using code ${cleanCode}`
+            `Completed orders through #${maxStage} using code ${cleanCode}. Added +${creditedAmount} ETB to wallet. Total wallet balance: ${finalBalance} ETB.`
           );
 
           return {
             success: true,
             message: isAll 
-              ? 'All 15 orders have been successfully completed! You can now reset the cycle.' 
-              : `Orders 1 through ${maxStage} successfully completed via Admin Code!`,
+              ? `All 15 orders completed! Total balance of ${finalBalance.toLocaleString()} ETB (+${creditedAmount.toLocaleString()} ETB commission) has been credited into your wallet.` 
+              : `Orders 1 through ${maxStage} completed! Total balance of ${finalBalance.toLocaleString()} ETB (+${creditedAmount.toLocaleString()} ETB commission) has been credited into your wallet.`,
             type: 'ORDER_COMPLETION',
             completedOrders: maxStage
           };

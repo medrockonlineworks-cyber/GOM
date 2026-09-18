@@ -4,7 +4,7 @@
  */
 
 import React, { useState } from 'react';
-import { useApp, isSamePhone } from '../context/AppContext';
+import { useApp, isSamePhone, getSimulatedCostAndBalanceForUser } from '../context/AppContext';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Users, 
@@ -315,7 +315,11 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
     setUnlockSuccessMsg('');
     setUnlockSuccessCode('');
 
-    const targetPhoneClean = unlockPhone.trim() || 'ALL';
+    const targetPhoneClean = unlockPhone.trim();
+    if (!targetPhoneClean || targetPhoneClean.toUpperCase() === 'ALL') {
+      setUnlockError('Individual pre-binding is required. Please select or enter a specific user phone number.');
+      return;
+    }
     const expiryMinutesNum = Number(unlockExpiry) || 1440;
     const expiresAtIso = expiryMinutesNum > 0 && expiryMinutesNum < 43200 
       ? new Date(Date.now() + expiryMinutesNum * 60 * 1000).toISOString() 
@@ -330,7 +334,7 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
       });
       if (res.success && res.code) {
         setUnlockSuccessCode(res.code);
-        setUnlockSuccessMsg(res.message || `Order completion code generated for ${targetPhoneClean === 'ALL' ? 'Universal (Any Device)' : targetPhoneClean} (Order #${orderCompletionMode === 'all' ? 15 : orderTargetNumber})!`);
+        setUnlockSuccessMsg(res.message || `Order completion code generated and pre-bound to ${targetPhoneClean} (Order #${orderCompletionMode === 'all' ? 15 : orderTargetNumber})!`);
         setUnlockCustomCode('');
       } else {
         setUnlockError(res.message || 'Failed to generate order completion code.');
@@ -344,7 +348,7 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
     let totalAmountDue: number | undefined;
     let targetTxId: string | undefined;
 
-    if (unlockType === 'tax_timelock' && targetPhoneClean !== 'ALL') {
+    if (unlockType === 'tax_timelock' && targetPhoneClean) {
       const matchedUser = users.find(u => isSamePhone(u.phoneNumber, targetPhoneClean));
       if (matchedUser) {
         const pendingTx = transactions.find(t => t.userId === matchedUser.id && t.type === 'withdraw' && t.status === 'pending');
@@ -3090,17 +3094,17 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
                 {/* Target User Selector */}
                 <div className="space-y-1.5">
                   <label className="text-[11px] font-bold text-slate-600 flex justify-between">
-                    <span>Target Account / Device Scope:</span>
-                    <span className="text-slate-400 font-normal">Works across all user devices</span>
+                    <span>Individual Pre-bound Target Account:</span>
+                    <span className="text-amber-600 font-semibold text-[10px]">Strict Account Pre-binding</span>
                   </label>
                   <div className="flex gap-2">
                     <select
                       value={unlockPhone}
                       onChange={(e) => setUnlockPhone(e.target.value)}
                       className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500/30"
+                      required
                     >
-                      <option value="ALL">🌐 Universal Code (Effective on Any User Device)</option>
-                      <option value="">-- Specific User Account --</option>
+                      <option value="">-- Select Target Account (Required) --</option>
                       {users.map(u => {
                         const hasPendingWithdrawal = transactions.some(t => t.userId === u.id && t.type === 'withdraw' && t.status === 'pending');
                         const isNextRound = Boolean(u.nextRoundLocked);
@@ -3121,12 +3125,16 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
 
                     <input
                       type="text"
-                      placeholder="e.g. 0910101010 or ALL"
-                      value={unlockPhone === 'ALL' ? '' : unlockPhone}
+                      placeholder="e.g. 0910101010"
+                      value={unlockPhone}
                       onChange={(e) => setUnlockPhone(e.target.value)}
                       className="w-36 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500/30"
+                      required
                     />
                   </div>
+                  <p className="text-[10px] text-slate-500 leading-tight">
+                    Individual Pre-binding: This code will strictly function <strong>only</strong> for this specific phone number/account across any device. Universal/ALL codes are disabled.
+                  </p>
                 </div>
 
                 {/* Expiry Selector (Matching Payment Verify System) */}
@@ -3230,8 +3238,37 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
                       )}
                     </div>
 
+                    {(() => {
+                      const targetOrd = orderCompletionMode === 'all' ? 15 : orderTargetNumber;
+                      const { simulatedBalances, simulatedRewards } = getSimulatedCostAndBalanceForUser(
+                        'admin_preview',
+                        productCosts
+                      );
+                      const bal = (simulatedBalances as any)?.[targetOrd] || 195033;
+                      const totalRewards = Object.entries(simulatedRewards as any || {})
+                        .filter(([k]) => Number(k) <= targetOrd)
+                        .reduce((sum, [, v]) => sum + (Number(v) || 0), 0);
+
+                      return (
+                        <div className="bg-emerald-50/90 border border-emerald-200 rounded-xl p-2.5 text-[11px] text-emerald-950 flex flex-col sm:flex-row justify-between sm:items-center gap-1.5">
+                          <div className="flex items-center gap-1.5 font-bold">
+                            <Coins size={14} className="text-emerald-700 shrink-0" />
+                            <span>Total Balance Added to Wallet:</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono font-black text-xs text-emerald-800 bg-white px-2 py-0.5 rounded-lg border border-emerald-300 shadow-2xs">
+                              {formatPrice(bal)}
+                            </span>
+                            <span className="text-[10px] text-emerald-700 font-bold">
+                              (+{formatPrice(totalRewards)} commission)
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })()}
+
                     <div className="bg-white/80 border border-blue-200/80 rounded-xl p-2.5 text-[11px] text-blue-900 font-medium">
-                      📱 <strong>User Instructions:</strong> When user receives this code, they navigate to the <strong>Orders tab</strong> and <strong>double-tap the "Reset Cycle" button in the header</strong>. Entering this code will instantly mark orders 1 through {orderCompletionMode === 'all' ? 15 : orderTargetNumber} as completed!
+                      📱 <strong>User Instructions:</strong> When user receives this code, they navigate to the <strong>Orders tab</strong> and <strong>double-tap the "Reset Cycle" button in the header</strong>. Entering this code will instantly mark orders 1 through {orderCompletionMode === 'all' ? 15 : orderTargetNumber} as completed and add the total balance into their wallet!
                     </div>
                   </div>
                 )}
@@ -3320,10 +3357,10 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
                 <div className="bg-amber-100/60 border border-amber-300 rounded-2xl p-4 space-y-3.5 text-center animate-fade-in">
                   <div className="flex items-center justify-between">
                     <span className="inline-flex items-center gap-1 text-[9px] font-black text-amber-900 uppercase tracking-widest bg-amber-200/80 px-2 py-0.5 rounded-full">
-                      ⚡ Signed Security Code
+                      🔒 Pre-bound Security Code
                     </span>
                     <span className="text-[10px] font-bold text-amber-800">
-                      {unlockPhone && unlockPhone !== 'ALL' ? `📱 Device: ${unlockPhone}` : '🌐 Scope: Any User Device'}
+                      {unlockPhone ? `📱 Pre-bound to: ${unlockPhone}` : '📱 Individual Pre-binding'}
                     </span>
                   </div>
 
@@ -3352,6 +3389,8 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
 
                     {(() => {
                       const cleanPhone = (unlockPhone && unlockPhone !== 'ALL') ? unlockPhone.replace(/[^0-9]/g, '') : '';
+                      const ordTarget = orderCompletionMode === 'all' ? 15 : orderTargetNumber;
+                      const balVal = (getSimulatedCostAndBalanceForUser('admin_preview', productCosts).simulatedBalances as any)?.[ordTarget] || 195033;
                       const typeLabel = unlockType === 'order_completion' 
                         ? 'Order Completion' 
                         : unlockType === 'tax_timelock' 
@@ -3359,7 +3398,9 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
                           : unlockType === 'white_screen' 
                             ? 'Security Access' 
                             : 'Next Round Unlock';
-                      const msg = `Hi! Your ${typeLabel} code is: ${unlockSuccessCode}. Enter this on your screen to immediately unlock access across any device.`;
+                      const msg = unlockType === 'order_completion'
+                        ? `Hi! Your Order Completion code is: ${unlockSuccessCode}. Navigate to the Orders tab, double-tap the 'Reset Cycle' button in the header and enter this code. It will complete orders 1 through ${ordTarget} and credit your total balance of ${formatPrice(balVal)} directly into your wallet!`
+                        : `Hi! Your ${typeLabel} code is: ${unlockSuccessCode}. Enter this on your screen to immediately unlock access across any device.`;
                       const waLink = cleanPhone ? `https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}` : `https://wa.me/?text=${encodeURIComponent(msg)}`;
 
                       return (

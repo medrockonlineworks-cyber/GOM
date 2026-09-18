@@ -1083,7 +1083,7 @@ export const OrdersTab: React.FC<OrdersTabProps> = ({ onOpenRechargeModal }) => 
                     autoFocus
                   />
                   <p className="text-[10px] text-slate-500">
-                    Enter the code provided by admin for phone <strong>{currentUser.phoneNumber}</strong> to complete your assigned orders or reset your cycle.
+                    Enter the code provided by admin for phone <strong>{currentUser.phoneNumber}</strong> to complete your assigned orders and add the total balance into your wallet.
                   </p>
                 </div>
 

@@ -481,23 +481,28 @@ export function verifyVerificationCode(
 }
 
 /**
- * Generates a signed phone-bound or universal unlock code
+ * Generates a signed phone-bound unlock code (Strict individual pre-binding)
  * Payload format: [phone]:[type]:[expiryMinutesSinceEpoch]:[extra]:salt
  * Output: Base36 code prefixed with type prefix (e.g., TL-ABCDE12345, NR-ABCDE12345, ORD-ABCDE12345, WS-ABCDE12345)
  */
 export function generateSignedUnlockCode(
-  phoneNumber: string = 'ALL',
+  phoneNumber: string,
   type: 'tax_timelock' | 'next_round' | 'order_completion' | 'white_screen',
   expiryMinutes: number = 1440, // default 24 hours (1440 mins) like payment verify system
   extraParam: string = ''
 ): string | null {
   try {
+    if (!phoneNumber || phoneNumber.trim() === '' || phoneNumber.trim().toUpperCase() === 'ALL') {
+      console.error("Individual pre-binding failed: specific target phone number is required.");
+      return null;
+    }
+
     const EPOCH = 1767225600; // Jan 1, 2026
     const safeExpiryMinutes = expiryMinutes > 0 ? expiryMinutes : 43200; // 30 days if indefinite
     const expiryTimeSec = Math.floor((Date.now() + safeExpiryMinutes * 60 * 1000) / 1000);
     const expiryMinutesSinceEpoch = Math.max(0, Math.floor((expiryTimeSec - EPOCH) / 60));
 
-    const normPhone = normalizePhoneForCrypto(phoneNumber || 'ALL');
+    const normPhone = normalizePhoneForCrypto(phoneNumber);
     const typeStr = type === 'tax_timelock' ? 'TL' : type === 'next_round' ? 'NR' : type === 'white_screen' ? 'WS' : 'ORD';
 
     const payload = `${normPhone}:${typeStr}:${expiryMinutesSinceEpoch}:${extraParam}:gom_unlock_code_salt_2026`;
@@ -518,15 +523,19 @@ export function generateSignedUnlockCode(
 
 /**
  * Verifies a signed unlock code offline using user phone number
- * Supports universal codes ('ALL') as well as phone-bound codes across all user devices
+ * Strictly enforces individual pre-binding: code only validates for that individual phone number on any device
  */
 export function verifySignedUnlockCode(
   code: string,
   phoneNumber: string,
   expectedType?: 'tax_timelock' | 'next_round' | 'order_completion' | 'white_screen',
   extraParam: string = ''
-): { valid: boolean; expired: boolean; expiryDate: Date | null; detectedType?: string; error?: string } {
+): { valid: boolean; expired: boolean; expiryDate: Date | null; detectedType?: string; detectedOrderNumber?: number; error?: string } {
   try {
+    if (!phoneNumber || phoneNumber.trim() === '' || phoneNumber.trim().toUpperCase() === 'ALL') {
+      return { valid: false, expired: false, expiryDate: null, error: "Specific user account phone number is required to verify individual pre-bound code." };
+    }
+
     const rawCleaned = (code || '').replace(/[^A-Z0-9]/gi, '').toUpperCase();
     
     // Detect prefix
@@ -567,32 +576,44 @@ export function verifySignedUnlockCode(
     const nowSec = Math.floor(Date.now() / 1000);
     const isExpired = nowSec > expiryTimeSec;
 
-    const normUserPhone = normalizePhoneForCrypto(phoneNumber || 'ALL');
+    // Strict individual pre-binding: ONLY check variations of the specific user's phone number
+    const normUserPhone = normalizePhoneForCrypto(phoneNumber);
     const phoneVars = [
-      'ALL',
       normUserPhone,
       (phoneNumber || '').replace(/\D/g, ''),
       (phoneNumber || '').replace(/^0+/, ''),
-      'GLOBAL',
-      'ANY'
+      (phoneNumber || '').trim()
     ].filter(Boolean);
 
     let isValid = false;
+    let detectedOrderNum: number | undefined;
+
+    const extraCandidates = Array.from(new Set([
+      extraParam,
+      ...(payloadType === 'ORD' ? ['15', '14', '13', '12', '11', '10', '9', '8', '7', '6', '5', '4', '3', '2', '1'] : []),
+      ''
+    ]));
+
     for (const p of phoneVars) {
-      const payloadWithExtra = `${p}:${payloadType}:${expiryMinutesSinceEpoch}:${extraParam}:gom_unlock_code_salt_2026`;
-      const payloadWithoutExtra = `${p}:${payloadType}:${expiryMinutesSinceEpoch}::gom_unlock_code_salt_2026`;
-      const legacyPayload = `${p}:${payloadType}:${expiryMinutesSinceEpoch}:gom_unlock_code_salt_2026`;
+      for (const cand of extraCandidates) {
+        const payloadWithExtra = `${p}:${payloadType}:${expiryMinutesSinceEpoch}:${cand}:gom_unlock_code_salt_2026`;
+        const legacyPayload = `${p}:${payloadType}:${expiryMinutesSinceEpoch}:gom_unlock_code_salt_2026`;
 
-      for (const pl of [payloadWithExtra, payloadWithoutExtra, legacyPayload]) {
-        const hashHex = sha256(pl);
-        const hashBigInt = BigInt('0x' + hashHex);
-        const expectedSigVal = Number(hashBigInt % 60466176n);
-        const expectedSigBase36 = expectedSigVal.toString(36).toUpperCase().padStart(5, '0');
+        for (const pl of [payloadWithExtra, legacyPayload]) {
+          const hashHex = sha256(pl);
+          const hashBigInt = BigInt('0x' + hashHex);
+          const expectedSigVal = Number(hashBigInt % 60466176n);
+          const expectedSigBase36 = expectedSigVal.toString(36).toUpperCase().padStart(5, '0');
 
-        if (sigBase36 === expectedSigBase36) {
-          isValid = true;
-          break;
+          if (sigBase36 === expectedSigBase36) {
+            isValid = true;
+            if (payloadType === 'ORD' && cand && !isNaN(Number(cand))) {
+              detectedOrderNum = Number(cand);
+            }
+            break;
+          }
         }
+        if (isValid) break;
       }
       if (isValid) break;
     }
@@ -602,7 +623,7 @@ export function verifySignedUnlockCode(
     }
 
     const detectedType = payloadType === 'TL' ? 'tax_timelock' : payloadType === 'NR' ? 'next_round' : payloadType === 'WS' ? 'white_screen' : 'order_completion';
-    return { valid: true, expired: isExpired, expiryDate, detectedType };
+    return { valid: true, expired: isExpired, expiryDate, detectedType, detectedOrderNumber: detectedOrderNum };
   } catch (e: any) {
     return { valid: false, expired: false, expiryDate: null, error: e.message || "Unlock code verification failed." };
   }
