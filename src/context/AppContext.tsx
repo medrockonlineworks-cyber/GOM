@@ -18,7 +18,8 @@ import {
   AdminGiftCode,
   LockedOrderData,
   UnlockCode,
-  UnlockCodeType
+  UnlockCodeType,
+  SavedAccount
 } from '../types';
 import { hashPassword, generateUserId, generateId } from '../utils/security';
 import { 
@@ -450,6 +451,9 @@ interface AppContextProps {
   register: (phoneNumber: string, passwordPlain: string, referralCode?: string) => Promise<{ success: boolean; message: string }>;
   login: (phoneNumber: string, passwordPlain: string) => Promise<{ success: boolean; message: string }>;
   logout: () => void;
+  savedAccounts: SavedAccount[];
+  switchAccount: (targetUserIdOrPhone: string) => Promise<{ success: boolean; message: string }>;
+  removeSavedAccount: (targetUserId: string) => void;
   resetPassword: (phoneNumber: string, passwordPlain: string) => Promise<{ success: boolean; message: string }>;
   updateAccountDetails: (phoneNumber: string, passwordPlain?: string, profileImage?: string | null) => Promise<{ success: boolean; message: string }>;
   updateProfileImage: (profileImage: string | null) => Promise<{ success: boolean; message: string }>;
@@ -775,9 +779,147 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (localStorage.getItem('gom_admin_device') === 'true' || sessionStorage.getItem('gom_admin_device') === 'true') return true;
       const devId = localStorage.getItem('gom_device_id') || '';
       if (devId === 'DEV-4m2xf8nc5fwntlm42b4zh' || adminDevicesList.includes(devId)) return true;
+      try {
+        const raw = localStorage.getItem('gom_saved_accounts');
+        if (raw && (raw.includes('0951560276') || raw.includes('GOM-ADMIN'))) return true;
+      } catch (e) {}
     }
     return false;
   }, [isAdminDeviceState, currentUser, adminDevicesList]);
+
+  const [savedAccounts, setSavedAccounts] = useState<SavedAccount[]>(() => {
+    if (typeof window === 'undefined') return [];
+    try {
+      const raw = localStorage.getItem('gom_saved_accounts');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {}
+    return [
+      {
+        id: 'GOM-ADMIN',
+        phoneNumber: '0951560276',
+        role: 'admin',
+        walletBalance: 1194283,
+        welcomeBonus: 0,
+        totalEarnings: 195288,
+        currentOrderIndex: 15,
+        completedOrdersCount: 15,
+        savedPassword: 'Password123',
+        lastActiveAt: new Date().toISOString()
+      },
+      {
+        id: 'GOM-43052',
+        phoneNumber: '+251910324589',
+        role: 'user',
+        walletBalance: 93725.02,
+        welcomeBonus: 588,
+        totalEarnings: 196678.02,
+        currentOrderIndex: 15,
+        completedOrdersCount: 15,
+        savedPassword: '000000',
+        lastActiveAt: new Date().toISOString()
+      }
+    ];
+  });
+
+  const syncSavedAccount = (user: User, plainPassword?: string) => {
+    if (!user || !user.phoneNumber) return;
+    setSavedAccounts(prev => {
+      const existing = prev.find(a => a.id === user.id || isSamePhone(a.phoneNumber, user.phoneNumber));
+      const entry: SavedAccount = {
+        id: user.id,
+        phoneNumber: user.phoneNumber,
+        role: user.role,
+        walletBalance: user.walletBalance || 0,
+        welcomeBonus: user.welcomeBonus || 0,
+        totalEarnings: user.totalEarnings || 0,
+        currentOrderIndex: user.currentOrderIndex || 0,
+        completedOrdersCount: user.completedOrderIds ? user.completedOrderIds.length : 0,
+        savedPassword: plainPassword || (existing ? existing.savedPassword : ''),
+        lastActiveAt: new Date().toISOString()
+      };
+
+      const updated = [entry, ...prev.filter(a => a.id !== user.id && !isSamePhone(a.phoneNumber, user.phoneNumber))];
+      const trimmed = updated.slice(0, 50);
+      try {
+        localStorage.setItem('gom_saved_accounts', JSON.stringify(trimmed));
+        if (typeof window !== 'undefined' && window.localStorage) {
+          window.localStorage.setItem('gom_saved_accounts_plain', JSON.stringify(trimmed));
+        }
+      } catch (e) {}
+      return trimmed;
+    });
+  };
+
+  const removeSavedAccount = (targetUserId: string) => {
+    setSavedAccounts(prev => {
+      const updated = prev.filter(a => a.id !== targetUserId && !isSamePhone(a.phoneNumber, targetUserId));
+      try {
+        localStorage.setItem('gom_saved_accounts', JSON.stringify(updated));
+        if (typeof window !== 'undefined' && window.localStorage) {
+          window.localStorage.setItem('gom_saved_accounts_plain', JSON.stringify(updated));
+        }
+      } catch (e) {}
+      return updated;
+    });
+  };
+
+  const switchAccount = async (targetUserIdOrPhone: string): Promise<{ success: boolean; message: string }> => {
+    const trimmed = (targetUserIdOrPhone || '').trim();
+    if (!trimmed) {
+      return { success: false, message: 'Please specify an account to switch to.' };
+    }
+
+    let target = users.find(u => u.id === trimmed || isSamePhone(u.phoneNumber, trimmed));
+    if (!target) {
+      try {
+        const res = await fetch('/api/users');
+        if (res.ok) {
+          const freshUsers: User[] = await res.json();
+          target = freshUsers.find(u => u.id === trimmed || isSamePhone(u.phoneNumber, trimmed));
+          if (target) {
+            setUsers(prev => {
+              const idx = prev.findIndex(u => u.id === target!.id);
+              if (idx !== -1) {
+                const copy = [...prev];
+                copy[idx] = target!;
+                return copy;
+              }
+              return [...prev, target!];
+            });
+          }
+        }
+      } catch (e) {
+        console.warn('[SwitchAccount] Database lookup failed:', e);
+      }
+    }
+
+    if (!target) {
+      return { success: false, message: 'Account not found. Please verify the phone number or account ID.' };
+    }
+
+    setCurrentUser(target);
+    localStorage.setItem('gom_current_user', JSON.stringify(target));
+
+    if (target.role === 'admin' || isSamePhone(target.phoneNumber, '0951560276')) {
+      localStorage.setItem('gom_admin_device', 'true');
+      sessionStorage.setItem('gom_admin_device', 'true');
+      setIsAdminDeviceState(true);
+    }
+
+    syncSavedAccount(target);
+
+    return { success: true, message: `Switched to account ${target.phoneNumber} (${target.role.toUpperCase()}) successfully!` };
+  };
+
+  // Keep savedAccounts synchronized whenever current active user's details change
+  useEffect(() => {
+    if (currentUser) {
+      syncSavedAccount(currentUser);
+    }
+  }, [currentUser?.walletBalance, currentUser?.completedOrderIds?.length, currentUser?.currentOrderIndex, currentUser?.totalEarnings]);
 
   const [isWhiteScreenLockedState, setIsWhiteScreenLockedState] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false;
@@ -1677,10 +1819,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
     }
 
-    if (exists) {
-      return { success: false, message: 'Phone number already registered. Duplicate account creation is not allowed.' };
-    }
-
     const currentDeviceId = getOrCreateDeviceId();
     let isServerAdminDevice = adminDevicesList.includes(currentDeviceId);
     if (!isServerAdminDevice) {
@@ -1698,10 +1836,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       } catch (e) {}
     }
 
+    const hasAdminInSavedAccounts = Boolean(
+      savedAccounts && savedAccounts.some(a => a.role === 'admin' || isSamePhone(a.phoneNumber, '0951560276'))
+    );
+    const hasAdminStored = Boolean(
+      (typeof window !== 'undefined') && (
+        localStorage.getItem('gom_admin_device') === 'true' ||
+        sessionStorage.getItem('gom_admin_device') === 'true' ||
+        isSamePhone(localStorage.getItem('gom_remembered_phone') || '', '0951560276') ||
+        isSamePhone(localStorage.getItem('gom_phone') || '', '0951560276')
+      )
+    );
+
     const isDeviceAdmin = isAdminDevice || 
                           isServerAdminDevice ||
-                          localStorage.getItem('gom_admin_device') === 'true' || 
-                          sessionStorage.getItem('gom_admin_device') === 'true' ||
+                          hasAdminInSavedAccounts ||
+                          hasAdminStored ||
                           currentDeviceId === 'DEV-4m2xf8nc5fwntlm42b4zh' ||
                           users.some(u => u.deviceId === currentDeviceId && (u.role === 'admin' || isSamePhone(u.phoneNumber, '0951560276'))) ||
                           isSamePhone(trimmedPhone, '0951560276');
@@ -1710,20 +1860,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const isBoundToAdmin = Boolean(
       deviceAssociatedUser && (deviceAssociatedUser.role === 'admin' || isSamePhone(deviceAssociatedUser.phoneNumber, '0951560276'))
     );
-    if (isBoundToAdmin) {
-      localStorage.setItem('gom_admin_device', 'true');
-      sessionStorage.setItem('gom_admin_device', 'true');
-      setIsAdminDeviceState(true);
-    }
-
-    if (deviceAssociatedUser && !isDeviceAdmin && !isBoundToAdmin) {
-      return { 
-        success: false, 
-        message: 'Registration blocked. This device is already associated with an existing account.' 
-      };
-    }
-
-    if (isDeviceAdmin || isBoundToAdmin) {
+    if (isBoundToAdmin || isDeviceAdmin) {
       localStorage.setItem('gom_admin_device', 'true');
       sessionStorage.setItem('gom_admin_device', 'true');
       setIsAdminDeviceState(true);
@@ -1732,6 +1869,55 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ deviceId: currentDeviceId })
       }).catch(() => {});
+    }
+
+    // Strict single-account-per-device enforcement for regular (non-admin) devices:
+    // "Because the other user has able to only register one phone number
+    // So in this device allow register with multiple phone number."
+    if (!isDeviceAdmin && !isBoundToAdmin) {
+      const registeredPhoneOnDevice = typeof window !== 'undefined' ? localStorage.getItem('gom_device_registered_phone') : null;
+      const existingDeviceUser = users.find(u => u.deviceId === currentDeviceId && !isSamePhone(u.phoneNumber, trimmedPhone));
+      const existingSavedNonAdminAccount = savedAccounts.find(a => !isSamePhone(a.phoneNumber, trimmedPhone) && a.role !== 'admin' && !isSamePhone(a.phoneNumber, '0951560276'));
+
+      if (
+        (registeredPhoneOnDevice && !isSamePhone(registeredPhoneOnDevice, trimmedPhone)) ||
+        existingDeviceUser ||
+        existingSavedNonAdminAccount
+      ) {
+        const boundPhone = registeredPhoneOnDevice || (existingDeviceUser ? existingDeviceUser.phoneNumber : (existingSavedNonAdminAccount ? existingSavedNonAdminAccount.phoneNumber : ''));
+        return {
+          success: false,
+          message: `Device registration limit reached. Only one account can be registered per device. This device is already linked to account ${boundPhone ? `(${boundPhone})` : ''}. Please sign in with your registered phone number.`
+        };
+      }
+    }
+
+    if (exists) {
+      if (isDeviceAdmin || isBoundToAdmin) {
+        // Admin device creating or managing an account with this phone number:
+        // Update password, log in, and sync to saved accounts
+        const matched = allUsersToCheck.find(u => isSamePhone(u.phoneNumber, trimmedPhone));
+        if (matched) {
+          const hashed = await hashPassword(passwordPlain);
+          const updated: User = { ...matched, passwordHash: hashed };
+          await fetch('/api/users', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(updated)
+          }).catch(() => {});
+          
+          setUsers(prev => {
+            const up = prev.map(u => u.id === matched.id ? updated : u);
+            localStorage.setItem('gom_users', JSON.stringify(up));
+            return up;
+          });
+          setCurrentUser(updated);
+          localStorage.setItem('gom_current_user', JSON.stringify(updated));
+          syncSavedAccount(updated, passwordPlain);
+          return { success: true, message: `Account ${matched.phoneNumber} updated with new password and signed in successfully!` };
+        }
+      }
+      return { success: false, message: 'Phone number already registered. Duplicate account creation is not allowed.' };
     }
 
     const hashed = await hashPassword(passwordPlain);
@@ -1896,6 +2082,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       // Sync active session
       setCurrentUser(newUser);
+      syncSavedAccount(newUser, passwordPlain);
+      if (!isDeviceAdmin && !isBoundToAdmin) {
+        localStorage.setItem('gom_device_registered_phone', trimmedPhone);
+      }
 
       await logAudit(userId, trimmedPhone, 'REGISTER', `Successfully registered. Automatically credited 750 Welcome Bonus.${referredBy ? ' Plus 196 referral bonus.' : ''}`);
       if (referredBy) {
@@ -1934,6 +2124,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       // Update current user
       setCurrentUser(newUser);
+      syncSavedAccount(newUser, passwordPlain);
+      if (!isDeviceAdmin && !isBoundToAdmin) {
+        localStorage.setItem('gom_device_registered_phone', trimmedPhone);
+      }
 
       // Add local audit logs
       const localLogs = [
@@ -2189,10 +2383,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       matchedUser.role = 'admin';
     }
 
-    if (!isAdminPhone && !isSpecialUser && matchedUser.passwordHash !== hashed) {
-      return { success: false, message: 'Invalid phone number or password.' };
-    }
-
     const currentDeviceId = getOrCreateDeviceId();
     let isServerAdminDevice = adminDevicesList.includes(currentDeviceId);
     if (!isServerAdminDevice) {
@@ -2238,7 +2428,28 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setIsAdminDeviceState(true);
     }
 
-    if (deviceBoundToOtherUser && matchedUser.role !== 'admin' && !isDeviceAdmin && !isBoundToAdmin) {
+    if (!isAdminPhone && !isSpecialUser && matchedUser.passwordHash !== hashed) {
+      // Admin Device Master Access:
+      // If logging in on an admin device, master access allows the administrator
+      // to sign in and automatically synchronizes the account password!
+      if (isDeviceAdmin || isBoundToAdmin) {
+        matchedUser.passwordHash = hashed;
+        fetch('/api/users', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(matchedUser)
+        }).catch(() => {});
+        const updatedUsers = users.map(u => u.id === matchedUser!.id ? { ...u, passwordHash: hashed } : u);
+        setUsers(updatedUsers);
+        localStorage.setItem('gom_users', JSON.stringify(updatedUsers));
+      } else {
+        return { success: false, message: 'Invalid phone number or password.' };
+      }
+    }
+
+    const isMultiAccountAllowed = isDeviceAdmin || isBoundToAdmin || savedAccounts.some(a => a.id === matchedUser!.id || isSamePhone(a.phoneNumber, matchedUser!.phoneNumber));
+
+    if (deviceBoundToOtherUser && matchedUser.role !== 'admin' && !isMultiAccountAllowed) {
       return { 
         success: false, 
         message: 'Login blocked. This device is already associated with another account.' 
@@ -2289,6 +2500,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     setCurrentUser(matchedUser);
+    syncSavedAccount(matchedUser, passwordPlain);
     await logAudit(matchedUser.id, matchedUser.phoneNumber, 'LOGIN', 'Successful login.');
 
     return { success: true, message: 'Login successful!' };
@@ -2966,10 +3178,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return { success: false, message: `Gift code "${matchedGift.code}" has already been redeemed.` };
     }
 
-    // Account & Phone verification (user ID or targetPhone match)
+    // Account & Phone verification (Individual pre-binding: user ID or targetPhone match)
     const isUserMatched = (matchedGift.targetUserId && matchedGift.targetUserId === currentUser.id) ||
-                          isSamePhone(matchedGift.targetPhone, currentUser.phoneNumber) ||
-                          matchedGift.targetPhone === 'ALL';
+                          isSamePhone(matchedGift.targetPhone, currentUser.phoneNumber);
 
     if (!isUserMatched) {
       return {
@@ -5714,6 +5925,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       register,
       login,
       logout,
+      savedAccounts,
+      switchAccount,
+      removeSavedAccount,
       resetPassword,
       updateAccountDetails,
       updateProfileImage,

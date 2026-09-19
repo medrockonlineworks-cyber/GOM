@@ -3,8 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useApp, isSamePhone, getSimulatedCostAndBalanceForUser } from '../context/AppContext';
+import { User, SavedAccount } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Users, 
@@ -35,7 +36,11 @@ import {
   AlertTriangle,
   CheckCircle2,
   ShieldAlert,
-  Zap
+  Zap,
+  UserCheck,
+  RefreshCw,
+  UserPlus,
+  Smartphone
 } from 'lucide-react';
 
 import { formatUserPhoneId, useTranslation } from '../utils/translations';
@@ -176,6 +181,202 @@ const resizeImageBase64 = (base64Str: string, maxWidth = 300, maxHeight = 300): 
   });
 };
 
+interface AdminPhonePickerProps {
+  value: string;
+  onChange: (phone: string) => void;
+  placeholder?: string;
+  required?: boolean;
+  className?: string;
+  users: User[];
+  savedAccounts?: SavedAccount[];
+  formatPrice?: (amount: number) => string;
+  onSwitchAccount?: (phone: string) => void;
+  label?: string;
+}
+
+export const AdminPhonePicker: React.FC<AdminPhonePickerProps> = ({
+  value,
+  onChange,
+  placeholder = "e.g. 0910324589 or +251910324589",
+  required = false,
+  className = "",
+  users,
+  savedAccounts = [],
+  formatPrice,
+  onSwitchAccount,
+  label
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Merge unique accounts from users & savedAccounts
+  const accountList = useMemo(() => {
+    const map = new Map<string, { id: string; phoneNumber: string; role: string; walletBalance: number; completedCount: number }>();
+    
+    users.forEach(u => {
+      if (u && u.phoneNumber) {
+        map.set(u.phoneNumber, {
+          id: u.id,
+          phoneNumber: u.phoneNumber,
+          role: u.role || 'user',
+          walletBalance: u.walletBalance || 0,
+          completedCount: (u.completedOrderIds || []).length
+        });
+      }
+    });
+
+    savedAccounts.forEach(sa => {
+      if (sa && sa.phoneNumber && !map.has(sa.phoneNumber)) {
+        map.set(sa.phoneNumber, {
+          id: sa.id,
+          phoneNumber: sa.phoneNumber,
+          role: sa.role || 'user',
+          walletBalance: sa.walletBalance || 0,
+          completedCount: sa.completedOrdersCount || 0
+        });
+      }
+    });
+
+    return Array.from(map.values());
+  }, [users, savedAccounts]);
+
+  const filtered = useMemo(() => {
+    const query = value.trim().toLowerCase();
+    if (!query) return accountList;
+    return accountList.filter(a => 
+      a.phoneNumber.toLowerCase().includes(query) ||
+      a.id.toLowerCase().includes(query) ||
+      a.role.toLowerCase().includes(query)
+    );
+  }, [accountList, value]);
+
+  return (
+    <div className="relative w-full text-left" ref={containerRef}>
+      {label && (
+        <label className="text-[10px] font-semibold text-slate-600 flex items-center justify-between mb-1">
+          <span>{label}</span>
+          {value && (
+            <span className="text-[10px] font-mono font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
+              Selected: {value}
+            </span>
+          )}
+        </label>
+      )}
+
+      <div className="relative">
+        <input
+          type="text"
+          value={value}
+          onChange={(e) => {
+            onChange(e.target.value);
+            setIsOpen(true);
+          }}
+          onFocus={() => setIsOpen(true)}
+          placeholder={placeholder}
+          required={required}
+          className={className || "w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500/30 font-mono shadow-xs"}
+        />
+        <button
+          type="button"
+          onClick={() => setIsOpen(!isOpen)}
+          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] font-bold text-amber-700 hover:text-amber-900 bg-amber-100 hover:bg-amber-200 px-2 py-0.5 rounded-lg transition-colors cursor-pointer"
+        >
+          {isOpen ? '✕' : '📋 List'}
+        </button>
+      </div>
+
+      {isOpen && (
+        <div className="absolute left-0 right-0 top-full mt-1.5 bg-white border-2 border-amber-400 rounded-2xl shadow-2xl z-50 overflow-hidden max-h-64 overflow-y-auto animate-in fade-in slide-in-from-top-2 duration-150">
+          <div className="bg-amber-50 px-3 py-1.5 border-b border-amber-200 flex items-center justify-between text-[11px] font-black text-amber-900 sticky top-0 backdrop-blur-xs z-10">
+            <span className="flex items-center gap-1.5">
+              <span>📋</span> Registered Accounts ({filtered.length})
+            </span>
+            <span className="text-[9px] text-amber-700 font-medium">Click to select account</span>
+          </div>
+
+          <div className="divide-y divide-slate-100">
+            {filtered.length === 0 ? (
+              <div className="p-3 text-center text-xs text-slate-400 font-medium">
+                No matching registered account found. You can type any number.
+              </div>
+            ) : (
+              filtered.map(acc => (
+                <div
+                  key={acc.id + acc.phoneNumber}
+                  className="p-2.5 hover:bg-amber-50/70 transition-colors flex items-center justify-between gap-2 cursor-pointer group"
+                  onClick={() => {
+                    onChange(acc.phoneNumber);
+                    setIsOpen(false);
+                  }}
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono font-bold text-xs text-slate-900 group-hover:text-amber-900">
+                        {acc.phoneNumber}
+                      </span>
+                      <span className={`text-[8px] font-extrabold px-1.5 py-0.5 rounded-full uppercase tracking-wider ${
+                        acc.role === 'admin' ? 'bg-amber-100 text-amber-800 border border-amber-300' : 'bg-slate-100 text-slate-600'
+                      }`}>
+                        {acc.role}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-slate-500 font-medium">
+                      <span className="font-mono">{acc.id}</span>
+                      <span>•</span>
+                      <span className="font-bold text-emerald-700">
+                        {formatPrice ? formatPrice(acc.walletBalance) : `${acc.walletBalance.toLocaleString()} ETB`}
+                      </span>
+                      <span>•</span>
+                      <span>{acc.completedCount}/15 orders</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onChange(acc.phoneNumber);
+                        setIsOpen(false);
+                      }}
+                      className="px-2.5 py-1 text-[10px] font-bold bg-amber-500 hover:bg-amber-600 text-slate-950 rounded-lg transition-all cursor-pointer shadow-xs"
+                    >
+                      Choose
+                    </button>
+                    {onSwitchAccount && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onSwitchAccount(acc.phoneNumber);
+                        }}
+                        className="px-2 py-1 text-[10px] font-bold bg-slate-800 hover:bg-slate-900 text-amber-400 rounded-lg transition-all cursor-pointer flex items-center gap-0.5"
+                        title="Switch active user to this account"
+                      >
+                        ⚡ Switch
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
   const { 
     users, 
@@ -229,7 +430,10 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
     releaseWhiteScreen,
     isWhiteScreenLocked,
     adminCreateUser,
-    isAdminDevice
+    isAdminDevice,
+    savedAccounts,
+    switchAccount,
+    removeSavedAccount
   } = useApp();
 
   const { t } = useTranslation(language);
@@ -237,47 +441,7 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
   const [passwordInput, setPasswordInput] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
 
-  // Admin Account Creation States (Bypassing single-device restriction)
-  const [showCreateUserSection, setShowCreateUserSection] = useState(false);
-  const [newAccountPhone, setNewAccountPhone] = useState('');
-  const [newAccountPassword, setNewAccountPassword] = useState('123456');
-  const [newAccountBalance, setNewAccountBalance] = useState('750');
-  const [newAccountReferral, setNewAccountReferral] = useState('');
-  const [createAccountLoading, setCreateAccountLoading] = useState(false);
-  const [createAccountSuccess, setCreateAccountSuccess] = useState('');
-  const [createAccountError, setCreateAccountError] = useState('');
-
-  const handleAdminCreateAccount = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setCreateAccountError('');
-    setCreateAccountSuccess('');
-    if (!newAccountPhone.trim()) {
-      setCreateAccountError('Please enter a phone number.');
-      return;
-    }
-    setCreateAccountLoading(true);
-    try {
-      const res = await adminCreateUser(
-        newAccountPhone.trim(),
-        newAccountPassword.trim() || '123456',
-        Number(newAccountBalance) || 750,
-        newAccountReferral.trim() || undefined
-      );
-      if (res.success) {
-        setCreateAccountSuccess(`Account created successfully for ${newAccountPhone.trim()}! Balance: ${newAccountBalance} ETB.`);
-        setNewAccountPhone('');
-        setNewAccountPassword('123456');
-        setNewAccountBalance('750');
-        setNewAccountReferral('');
-      } else {
-        setCreateAccountError(res.message || 'Failed to create user account.');
-      }
-    } catch (err: any) {
-      setCreateAccountError(err.message || 'An error occurred during account creation.');
-    } finally {
-      setCreateAccountLoading(false);
-    }
-  };
+  const [accountSearchQuery, setAccountSearchQuery] = useState('');
 
   const handleAuthorize = (e: React.FormEvent) => {
     e.preventDefault();
@@ -294,7 +458,7 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
     }
   };
 
-  const [activeAdminSubTab, setActiveAdminSubTab] = useState<'users' | 'recharges' | 'withdrawals' | 'orders' | 'announcements' | 'support' | 'reports' | 'logos' | 'gifts' | 'unlock_codes'>('recharges');
+  const [activeAdminSubTab, setActiveAdminSubTab] = useState<'users' | 'recharges' | 'withdrawals' | 'orders' | 'announcements' | 'support' | 'reports' | 'logos' | 'gifts' | 'unlock_codes' | 'accounts'>('recharges');
   const [activeScreenshot, setActiveScreenshot] = useState<string | null>(null);
 
   // Unlock Code Generator States
@@ -916,6 +1080,18 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
           <KeyRound size={13} />
           🔓 Unlock Codes
         </button>
+
+        <button
+          onClick={() => setActiveAdminSubTab('accounts')}
+          className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap shrink-0 transition-all flex items-center gap-1.5 ${
+            activeAdminSubTab === 'accounts' 
+              ? 'bg-bronze text-white shadow-sm' 
+              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+          }`}
+        >
+          <Users size={13} />
+          👥 Accounts & Switcher ({savedAccounts.length})
+        </button>
       </div>
 
       {/* ADMIN SUB-VIEW AREA */}
@@ -996,14 +1172,16 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
                 }} className="space-y-3">
                   
                   <div className="space-y-1">
-                    <label className="block text-[9px] font-black uppercase text-slate-400 font-sans">User Phone Number</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. 0926193920"
+                    <AdminPhonePicker
+                      label="User Phone Number"
                       value={genPhone}
-                      onChange={(e) => setGenPhone(e.target.value)}
-                      className="w-full bg-white border border-slate-200 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none transition-all font-semibold"
+                      onChange={setGenPhone}
+                      placeholder="e.g. 0926193920"
+                      required
+                      users={users}
+                      savedAccounts={savedAccounts}
+                      formatPrice={formatPrice}
+                      onSwitchAccount={switchAccount}
                     />
                   </div>
 
@@ -1516,14 +1694,16 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
                 }} className="space-y-3">
                   
                   <div className="space-y-1">
-                    <label className="block text-[9px] font-black uppercase text-slate-400 font-sans">User Phone Number</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. 0926193920"
+                    <AdminPhonePicker
+                      label="User Phone Number"
                       value={withdrawGenPhone}
-                      onChange={(e) => setWithdrawGenPhone(e.target.value)}
-                      className="w-full bg-white border border-slate-200 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none transition-all font-semibold"
+                      onChange={setWithdrawGenPhone}
+                      placeholder="e.g. 0926193920"
+                      required
+                      users={users}
+                      savedAccounts={savedAccounts}
+                      formatPrice={formatPrice}
+                      onSwitchAccount={switchAccount}
                     />
                   </div>
 
@@ -1901,97 +2081,12 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
                         Active
                       </span>
                     </div>
-                    <p className="text-[11px] text-amber-800/80">This admin device is permitted to register & create unlimited user accounts without single-device restrictions.</p>
+                    <p className="text-[11px] text-amber-800/80">
+                      Multi-account registration is authorized for this admin device directly on the standard Registration page. You can register multiple accounts using different phone numbers.
+                    </p>
                   </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setShowCreateUserSection(!showCreateUserSection)}
-                  className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-xs transition-colors"
-                >
-                  <Plus size={13} />
-                  {showCreateUserSection ? 'Hide Form' : 'Create Account'}
-                </button>
               </div>
-
-              {showCreateUserSection && (
-                <form onSubmit={handleAdminCreateAccount} className="bg-white rounded-xl p-3 border border-amber-200/60 space-y-2.5 pt-3">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                    <div>
-                      <label className="text-[10px] font-bold text-slate-600 block mb-1">Phone Number *</label>
-                      <input
-                        type="tel"
-                        required
-                        placeholder="e.g. 0911223344"
-                        value={newAccountPhone}
-                        onChange={(e) => setNewAccountPhone(e.target.value)}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-amber-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[10px] font-bold text-slate-600 block mb-1">Password</label>
-                      <input
-                        type="text"
-                        placeholder="Default: 123456"
-                        value={newAccountPassword}
-                        onChange={(e) => setNewAccountPassword(e.target.value)}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-amber-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[10px] font-bold text-slate-600 block mb-1">Initial Balance (ETB)</label>
-                      <input
-                        type="number"
-                        placeholder="Default: 750"
-                        value={newAccountBalance}
-                        onChange={(e) => setNewAccountBalance(e.target.value)}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-amber-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[10px] font-bold text-slate-600 block mb-1">Referral Code (Optional)</label>
-                      <input
-                        type="text"
-                        placeholder="e.g. GOM00276"
-                        value={newAccountReferral}
-                        onChange={(e) => setNewAccountReferral(e.target.value)}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-amber-500"
-                      />
-                    </div>
-                  </div>
-
-                  {createAccountError && (
-                    <div className="p-2 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold flex items-center gap-1.5">
-                      <AlertTriangle size={13} />
-                      <span>{createAccountError}</span>
-                    </div>
-                  )}
-
-                  {createAccountSuccess && (
-                    <div className="p-2 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-semibold flex items-center gap-1.5">
-                      <CheckCircle2 size={13} />
-                      <span>{createAccountSuccess}</span>
-                    </div>
-                  )}
-
-                  <div className="flex justify-end gap-2 pt-1">
-                    <button
-                      type="button"
-                      onClick={() => setShowCreateUserSection(false)}
-                      className="px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={createAccountLoading}
-                      className="px-4 py-1.5 text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white rounded-lg disabled:opacity-50 flex items-center gap-1.5 shadow-xs"
-                    >
-                      {createAccountLoading ? 'Creating Account...' : 'Create Account (Multi-Account Device Bypass)'}
-                    </button>
-                  </div>
-                </form>
-              )}
             </div>
 
             {/* Search Bar */}
@@ -2847,39 +2942,17 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
 
               <div className="space-y-3">
                 {/* Target Phone */}
-                <div className="space-y-1.5">
-                  <label className="text-[11px] font-bold text-slate-600 block">Target User Phone Number *</label>
-                  <input
-                    type="text"
-                    value={giftTargetPhone}
-                    onChange={(e) => setGiftTargetPhone(e.target.value)}
-                    placeholder="e.g. 0926193920 or 0911223344"
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-1 focus:ring-bronze"
-                    required
-                  />
-                  {/* Quick Select Registered Users */}
-                  {users.length > 0 && (
-                    <div className="space-y-1 pt-1">
-                      <span className="text-[10px] text-slate-400 font-bold block">Quick Select Registered User:</span>
-                      <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto p-1 bg-slate-50 rounded-xl border border-slate-100">
-                        {users.filter(u => u?.role !== 'admin').map((u) => (
-                          <button
-                            key={u.id}
-                            type="button"
-                            onClick={() => setGiftTargetPhone(u.phoneNumber)}
-                            className={`text-[10px] font-bold px-2 py-1 rounded-lg border transition-all cursor-pointer ${
-                              giftTargetPhone === u.phoneNumber
-                                ? 'bg-bronze text-white border-bronze shadow-xs'
-                                : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
-                            }`}
-                          >
-                            📱 {u.phoneNumber} ({u.walletBalance} ETB)
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
+                <AdminPhonePicker
+                  label="Target User Phone Number *"
+                  value={giftTargetPhone}
+                  onChange={setGiftTargetPhone}
+                  placeholder="e.g. 0926193920 or 0911223344"
+                  required
+                  users={users}
+                  savedAccounts={savedAccounts}
+                  formatPrice={formatPrice}
+                  onSwitchAccount={switchAccount}
+                />
 
                 {/* Amount & Custom Code */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -3092,66 +3165,18 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
                 </div>
 
                 {/* Target User Selector */}
-                <div className="space-y-2.5">
-                  <div className="flex items-center justify-between">
-                    <label className="text-[11px] font-bold text-slate-700 flex items-center gap-1.5">
-                      <span>Individual Pre-bound Target Account:</span>
-                    </label>
-                    <span className="text-amber-600 font-semibold text-[10px] bg-amber-50 border border-amber-200/60 px-2 py-0.5 rounded-md">
-                      Strict Account Pre-binding
-                    </span>
-                  </div>
-
-                  {/* 1. Select Account Dropdown */}
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-semibold text-slate-500 block">
-                      Select Existing User Account:
-                    </label>
-                    <select
-                      value={users.some(u => isSamePhone(u.phoneNumber, unlockPhone)) ? (users.find(u => isSamePhone(u.phoneNumber, unlockPhone))?.phoneNumber || '') : ''}
-                      onChange={(e) => setUnlockPhone(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500/30"
-                    >
-                      <option value="">-- Select from Registered Users (Optional) --</option>
-                      {users.map(u => {
-                        const hasPendingWithdrawal = transactions.some(t => t.userId === u.id && t.type === 'withdraw' && t.status === 'pending');
-                        const isNextRound = Boolean(u.nextRoundLocked);
-                        const isWhiteScreen = Boolean(u.whiteScreenLocked);
-                        const completedCount = (u.completedOrderIds || []).length;
-                        let badge = ` [Completed: ${completedCount}/15]`;
-                        if (hasPendingWithdrawal) badge += ' ⚠️ [Tax Pending]';
-                        if (isNextRound) badge += ' 🔒 [Next Round]';
-                        if (isWhiteScreen) badge += ' ⚪ [White Screen]';
-
-                        return (
-                          <option key={u.id} value={u.phoneNumber}>
-                            {u.phoneNumber} ({formatPrice(u.walletBalance)}) {badge}
-                          </option>
-                        );
-                      })}
-                    </select>
-                  </div>
-
-                  {/* 2. Target Phone Input placed below select account */}
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-semibold text-slate-600 flex items-center justify-between">
-                      <span>Target Phone Number:</span>
-                      {unlockPhone && (
-                        <span className="text-[10px] font-mono font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded">
-                          Selected: {unlockPhone}
-                        </span>
-                      )}
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="e.g. 0910324589 or +251910324589"
-                      value={unlockPhone}
-                      onChange={(e) => setUnlockPhone(e.target.value)}
-                      className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500/30 font-mono shadow-xs"
-                      required
-                    />
-                  </div>
-
+                <div className="space-y-2">
+                  <AdminPhonePicker
+                    label="Individual Pre-bound Target Account *"
+                    value={unlockPhone}
+                    onChange={setUnlockPhone}
+                    placeholder="e.g. 0910324589 or +251910324589"
+                    required
+                    users={users}
+                    savedAccounts={savedAccounts}
+                    formatPrice={formatPrice}
+                    onSwitchAccount={switchAccount}
+                  />
                   <p className="text-[10px] text-slate-500 leading-tight">
                     Individual Pre-binding: This code will strictly function <strong>only</strong> for this specific phone number across any device. Universal/ALL codes are disabled.
                   </p>
@@ -3468,35 +3493,17 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {/* Field 1: Target User / Account */}
                   <div className="space-y-1.5 sm:col-span-2">
-                    <label className="text-[11px] font-black text-slate-700 uppercase tracking-wider block">
-                      Target User / Account <span className="text-rose-600">*</span>
-                    </label>
-                    <select
+                    <AdminPhonePicker
+                      label="Target User / Account *"
                       value={wsTargetUserId}
-                      onChange={(e) => setWsTargetUserId(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-800"
-                    >
-                      <option value="">-- Select Target User / Account --</option>
-                      {users.map(u => {
-                        const isExempt = u.role === 'admin' || isSamePhone(u.phoneNumber, '0951560276');
-                        return (
-                          <option key={u.id} value={u.id} disabled={isExempt}>
-                            {formatUserPhoneId(u.phoneNumber)} ({u.id.substring(0, 8)}...) - {formatPrice(u.walletBalance)}
-                            {isExempt ? ' [ADMIN - EXEMPT]' : (u.whiteScreenLocked || u.application_access_state === 'WHITE_SCREEN_LOCKED') ? ' [ALREADY WHITE-SCREEN LOCKED]' : ''}
-                          </option>
-                        );
-                      })}
-                    </select>
-                    <div className="flex items-center gap-2 pt-1">
-                      <span className="text-[10px] text-slate-400 font-bold uppercase">Or enter Account ID / Phone:</span>
-                      <input
-                        type="text"
-                        placeholder="e.g. 0912345678 or user-id"
-                        value={wsTargetUserId}
-                        onChange={(e) => setWsTargetUserId(e.target.value)}
-                        className="flex-1 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1 text-xs font-mono font-bold text-slate-800 focus:outline-none focus:ring-1 focus:ring-slate-800"
-                      />
-                    </div>
+                      onChange={setWsTargetUserId}
+                      placeholder="Select or enter phone number or account ID"
+                      required
+                      users={users}
+                      savedAccounts={savedAccounts}
+                      formatPrice={formatPrice}
+                      onSwitchAccount={switchAccount}
+                    />
                   </div>
 
                   {/* Field 2: Optional Lock Reason */}
@@ -3746,6 +3753,259 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
                 </div>
               )}
             </div>
+          </div>
+        )}
+
+        {/* MULTI-DEVICE ACCOUNTS & SWITCHER TAB */}
+        {activeAdminSubTab === 'accounts' && (
+          <div className="space-y-6">
+            <div>
+              <h3 className="text-sm font-extrabold text-slate-700 flex items-center gap-1.5">
+                👥 Multi-Device Account Switcher & Profiles Hub
+              </h3>
+              <p className="text-[11px] text-slate-500 mt-1 leading-normal">
+                Seamlessly toggle between administrator, testing, and regular user accounts on this device without repeated logins. You can also provision new accounts that bypass device limits.
+              </p>
+            </div>
+
+            {/* CURRENT ACTIVE SESSION CARD */}
+            <div className="bg-gradient-to-r from-slate-900 to-slate-800 rounded-2xl p-4 text-white shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-300">
+                    Current Active Session
+                  </span>
+                  <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-md ${
+                    currentUser?.role === 'admin' ? 'bg-amber-400 text-slate-950' : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                  }`}>
+                    {currentUser?.role === 'admin' ? '🛡️ Admin' : '👤 User'}
+                  </span>
+                </div>
+                <div className="text-lg font-black tracking-wide font-mono text-white flex items-center gap-2">
+                  {currentUser?.phoneNumber ? formatUserPhoneId(currentUser.phoneNumber) : 'No User Logged In'}
+                </div>
+                <div className="text-xs text-slate-300 font-semibold flex items-center gap-2">
+                  <span>Balance: <strong className="text-emerald-400 font-bold">{formatPrice(currentUser?.walletBalance || 0)}</strong></span>
+                  <span>•</span>
+                  <span>Orders Completed: <strong className="text-amber-400 font-bold">{(currentUser?.completedOrderIds || []).length}/15</strong></span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <div className="bg-amber-500/10 border border-amber-400/40 rounded-xl px-3 py-1.5 flex items-center gap-1.5 text-[11px] font-bold text-amber-900">
+                  <ShieldCheck size={14} className="text-amber-600 shrink-0" />
+                  <span>Admin Multi-Registration: Active on Register Page</span>
+                </div>
+              </div>
+            </div>
+
+            {/* SAVED ACCOUNTS ON THIS DEVICE */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs font-black text-slate-700 uppercase tracking-wide flex items-center gap-1.5">
+                  <Smartphone size={14} className="text-bronze" />
+                  Saved Accounts On This Device ({savedAccounts.length})
+                </h4>
+                <span className="text-[10px] font-semibold text-slate-400">
+                  Switch instantly without re-typing passwords
+                </span>
+              </div>
+
+              {savedAccounts.length === 0 ? (
+                <div className="bg-white border border-slate-200 rounded-2xl p-6 text-center text-xs text-slate-400 font-bold">
+                  No accounts saved on this device yet. When you or any user logs in, or when you create a new account, it is saved here for 1-click switching.
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {savedAccounts.map((acc) => {
+                    const isActive = currentUser && isSamePhone(currentUser.phoneNumber, acc.phoneNumber);
+                    const matchedUser = users.find(u => isSamePhone(u.phoneNumber, acc.phoneNumber));
+                    const currentBalance = matchedUser ? matchedUser.walletBalance : acc.walletBalance;
+                    const ordersDone = matchedUser ? (matchedUser.completedOrderIds || []).length : (acc.completedOrdersCount || 0);
+
+                    return (
+                      <div
+                        key={acc.id || acc.phoneNumber}
+                        className={`bg-white border rounded-2xl p-3.5 shadow-xs flex flex-col justify-between gap-3 transition-all ${
+                          isActive 
+                            ? 'border-amber-400 ring-2 ring-amber-400/20 bg-amber-50/20' 
+                            : 'border-slate-200/80 hover:border-slate-300'
+                        }`}
+                      >
+                        <div className="space-y-1.5">
+                          <div className="flex items-center justify-between">
+                            <span className="font-mono text-xs font-black text-slate-900 flex items-center gap-1.5">
+                              📱 {formatUserPhoneId(acc.phoneNumber)}
+                            </span>
+                            {isActive ? (
+                              <span className="text-[9px] font-black uppercase bg-emerald-100 text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                <CheckCircle2 size={10} /> Active
+                              </span>
+                            ) : (
+                              <span className="text-[9px] font-black uppercase bg-slate-100 text-slate-600 border border-slate-200 px-2 py-0.5 rounded-full">
+                                {acc.role === 'admin' ? 'Admin' : 'Member'}
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="text-[11px] text-slate-500 flex items-center gap-3">
+                            <span>Balance: <strong className="text-emerald-600 font-bold">{formatPrice(currentBalance)}</strong></span>
+                            <span>•</span>
+                            <span>Orders: <strong className="text-slate-700 font-bold">{ordersDone}/15</strong></span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 pt-1 border-t border-slate-100">
+                          {isActive ? (
+                            <span className="flex-1 text-center py-1.5 bg-emerald-50 text-emerald-700 rounded-xl text-[10px] font-black">
+                              Currently In Use
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                switchAccount(acc.phoneNumber);
+                              }}
+                              className="flex-1 bg-bronze hover:bg-bronze-hover text-white text-[10px] font-black py-1.5 px-3 rounded-xl transition-all flex items-center justify-center gap-1 cursor-pointer active:scale-95 shadow-xs"
+                            >
+                              <UserCheck size={12} /> Switch To Account
+                            </button>
+                          )}
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (confirm(`Remove ${acc.phoneNumber} from saved accounts on this device?`)) {
+                                removeSavedAccount(acc.id);
+                              }
+                            }}
+                            title="Remove from saved accounts"
+                            className="p-1.5 rounded-xl bg-slate-50 hover:bg-rose-50 text-slate-400 hover:text-rose-600 border border-slate-200 hover:border-rose-200 transition-all cursor-pointer"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* ALL PLATFORM USERS QUICK SWITCHER & DIRECT IMPERSONATION */}
+            <div className="space-y-3 pt-2">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <h4 className="text-xs font-black text-slate-700 uppercase tracking-wide flex items-center gap-1.5">
+                  <Users size={14} className="text-bronze" />
+                  All Registered Platform Users ({users.length})
+                </h4>
+                
+                {/* Search Filter */}
+                <div className="relative w-full sm:w-64">
+                  <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Search by phone or ID..."
+                    value={accountSearchQuery}
+                    onChange={(e) => setAccountSearchQuery(e.target.value)}
+                    className="w-full bg-white border border-slate-200 rounded-xl pl-8 pr-3 py-1.5 text-xs font-semibold text-slate-700 focus:outline-none focus:ring-1 focus:ring-bronze"
+                  />
+                  {accountSearchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setAccountSearchQuery('')}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs cursor-pointer"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <div className="bg-white border border-slate-200/80 rounded-2xl overflow-hidden shadow-xs">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-slate-50 text-[10px] uppercase font-black text-slate-500 border-b border-slate-200">
+                      <tr>
+                        <th className="py-2.5 px-3">User / Phone</th>
+                        <th className="py-2.5 px-3">Role</th>
+                        <th className="py-2.5 px-3">Balance</th>
+                        <th className="py-2.5 px-3">Completed Tasks</th>
+                        <th className="py-2.5 px-3 text-right">Instant Switch</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {users
+                        .filter(u => {
+                          if (!accountSearchQuery.trim()) return true;
+                          const q = accountSearchQuery.toLowerCase();
+                          return (
+                            u.phoneNumber.toLowerCase().includes(q) ||
+                            u.id.toLowerCase().includes(q) ||
+                            (u.role && u.role.toLowerCase().includes(q))
+                          );
+                        })
+                        .map(u => {
+                          const isActive = currentUser && isSamePhone(currentUser.phoneNumber, u.phoneNumber);
+
+                          return (
+                            <tr key={u.id} className={isActive ? 'bg-amber-50/40' : 'hover:bg-slate-50/80'}>
+                              <td className="py-2.5 px-3 font-mono font-bold text-slate-800">
+                                <div className="flex items-center gap-1.5">
+                                  <span>{formatUserPhoneId(u.phoneNumber)}</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      navigator.clipboard.writeText(u.phoneNumber);
+                                      alert(`Copied ${u.phoneNumber} to clipboard!`);
+                                    }}
+                                    className="text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer"
+                                    title="Copy Phone"
+                                  >
+                                    <Copy size={11} />
+                                  </button>
+                                </div>
+                              </td>
+                              <td className="py-2.5 px-3">
+                                <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
+                                  u.role === 'admin' ? 'bg-amber-100 text-amber-800 border border-amber-200' : 'bg-slate-100 text-slate-600 border border-slate-200'
+                                }`}>
+                                  {u.role === 'admin' ? 'Admin' : 'Member'}
+                                </span>
+                              </td>
+                              <td className="py-2.5 px-3 font-bold text-emerald-600">
+                                {formatPrice(u.walletBalance)}
+                              </td>
+                              <td className="py-2.5 px-3 font-semibold text-slate-600">
+                                {(u.completedOrderIds || []).length}/15
+                              </td>
+                              <td className="py-2.5 px-3 text-right">
+                                {isActive ? (
+                                  <span className="text-[10px] font-black text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg">
+                                    ✓ Active
+                                  </span>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      switchAccount(u.phoneNumber);
+                                    }}
+                                    className="bg-slate-100 hover:bg-bronze hover:text-white text-slate-700 text-[10px] font-black px-2.5 py-1 rounded-lg transition-all border border-slate-200 hover:border-bronze cursor-pointer active:scale-95 inline-flex items-center gap-1"
+                                  >
+                                    <RefreshCw size={10} /> Switch
+                                  </button>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
           </div>
         )}
 

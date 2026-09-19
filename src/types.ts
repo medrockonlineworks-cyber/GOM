@@ -7,6 +7,21 @@ export type Currency = 'ETB' | 'USD' | 'EUR' | 'CNY' | 'SAR' | 'KES' | 'SOS' | '
 
 export type UserRole = 'user' | 'admin';
 
+export interface SavedAccount {
+  id: string;
+  phoneNumber: string;
+  countryCode?: string;
+  localPhone?: string;
+  role: UserRole;
+  walletBalance: number;
+  welcomeBonus?: number;
+  totalEarnings?: number;
+  currentOrderIndex?: number;
+  completedOrdersCount?: number;
+  savedPassword?: string;
+  lastActiveAt: string;
+}
+
 export interface User {
   id: string; // Auto-generated unique User ID (e.g. GOM-XXXXX)
   phoneNumber: string;

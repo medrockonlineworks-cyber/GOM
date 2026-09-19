@@ -3,12 +3,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { useTranslation } from '../utils/translations';
 import LanguageSelector from './LanguageSelector';
 import { motion } from 'motion/react';
-import { Phone, Lock, Eye, EyeOff, KeyRound, ShoppingBag, Landmark, ArrowLeft, Coins } from 'lucide-react';
+import { Phone, Lock, Eye, EyeOff, KeyRound, ShoppingBag, Landmark, ArrowLeft, Coins, Users, ShieldCheck, PlusCircle, CheckCircle2, ChevronDown, Sparkles, AlertCircle } from 'lucide-react';
 import { secureStorage } from '../utils/crypto';
 
 type AuthView = 'login' | 'register' | 'forgot';
@@ -57,7 +57,19 @@ const getFullPhoneNumber = (code: string, rawPhone: string) => {
 };
 
 export const AuthScreens: React.FC = () => {
-  const { login, register, resetPassword, language, setLanguage, isAdminDevice } = useApp();
+  const { 
+    login, 
+    register, 
+    resetPassword, 
+    language, 
+    setLanguage, 
+    isAdminDevice, 
+    users, 
+    savedAccounts, 
+    switchAccount, 
+    removeSavedAccount, 
+    formatPrice 
+  } = useApp();
   const { t } = useTranslation(language);
   const [view, setView] = useState<AuthView>('login');
   
@@ -89,6 +101,31 @@ export const AuthScreens: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  const normalizePhone = (phone: string) => (phone || '').replace(/[^0-9]/g, '');
+
+  const isMatchingPhone = (p1: string, p2: string) => {
+    const c1 = normalizePhone(p1);
+    const c2 = normalizePhone(p2);
+    if (!c1 || !c2) return false;
+    if (c1 === c2) return true;
+    if (c1.endsWith(c2) || c2.endsWith(c1)) {
+      const minLen = Math.min(c1.length, c2.length);
+      return minLen >= 9;
+    }
+    return false;
+  };
+
+  const isDeviceAdmin = Boolean(
+    isAdminDevice ||
+    (typeof window !== 'undefined' && (
+      localStorage.getItem('gom_admin_device') === 'true' ||
+      sessionStorage.getItem('gom_admin_device') === 'true' ||
+      (savedAccounts && savedAccounts.some(a => a.role === 'admin' || isMatchingPhone(a.phoneNumber, '0951560276'))) ||
+      isMatchingPhone(localStorage.getItem('gom_remembered_phone') || '', '0951560276') ||
+      isMatchingPhone(localStorage.getItem('gom_phone') || '', '0951560276')
+    ))
+  );
 
   // Country Geolocation Detection
   const [detectedCountry, setDetectedCountry] = useState<{ iso: string; name: string; flag: string; phoneCode: string } | null>(null);
@@ -298,13 +335,26 @@ export const AuthScreens: React.FC = () => {
     setError(null);
     setSuccess(null);
 
-    const isUnsupported = (!isAdminDevice && detectedCountry) ? !['ET', 'KE', 'NG'].includes(detectedCountry.iso) : false;
+    const isUnsupported = (!isDeviceAdmin && detectedCountry) ? !['ET', 'KE', 'NG'].includes(detectedCountry.iso) : false;
     if (isUnsupported) {
       setError('GOM is currently unavailable in your country. Registration has not yet opened for your location. Please wait until GOM officially launches in your country.');
       return;
     }
 
-    const mismatchError = !isAdminDevice ? getCountryMismatchError() : null;
+    if (!isDeviceAdmin) {
+      const boundPhone = typeof window !== 'undefined'
+        ? (localStorage.getItem('gom_device_registered_phone') || 
+           (savedAccounts && savedAccounts.length > 0 && !savedAccounts.some(a => a.role === 'admin' || isMatchingPhone(a.phoneNumber, '0951560276'))
+             ? savedAccounts[0].phoneNumber
+             : null))
+        : null;
+      if (boundPhone) {
+        setError(`Only one account can be registered per device. This device is already registered with account (${boundPhone}). Please sign in instead.`);
+        return;
+      }
+    }
+
+    const mismatchError = !isDeviceAdmin ? getCountryMismatchError() : null;
     if (mismatchError) {
       setError(mismatchError);
       return;
@@ -414,7 +464,7 @@ export const AuthScreens: React.FC = () => {
               className="flex-1 flex flex-col justify-between"
             >
               <div>
-                <div className="mb-6">
+                <div className="mb-4">
                   <h2 className="text-xl font-black tracking-tight text-slate-800">{t('signIn')}</h2>
                 </div>
 
@@ -423,7 +473,7 @@ export const AuthScreens: React.FC = () => {
                     <motion.div 
                       initial={{ scale: 0.95, opacity: 0 }}
                       animate={{ scale: 1, opacity: 1 }}
-                      className="p-3 bg-red-50 text-red-600 rounded-xl text-xs font-semibold border border-red-100 flex items-center gap-2"
+                      className="p-3 bg-red-50 text-red-600 rounded-xl text-xs font-semibold border border-red-100 flex items-center gap-2 text-left"
                     >
                       <span className="w-1.5 h-1.5 bg-red-500 rounded-full shrink-0" />
                       <span>{error}</span>
@@ -535,8 +585,8 @@ export const AuthScreens: React.FC = () => {
 
           {/* REGISTER VIEW */}
           {view === 'register' && (() => {
-            const mismatchError = getCountryMismatchError();
-            const isUnsupported = detectedCountry ? !['ET', 'KE', 'NG'].includes(detectedCountry.iso) : false;
+            const mismatchError = !isDeviceAdmin ? getCountryMismatchError() : null;
+            const isUnsupported = (!isDeviceAdmin && detectedCountry) ? !['ET', 'KE', 'NG'].includes(detectedCountry.iso) : false;
             return (
               <motion.div
                 initial={{ opacity: 0, y: 15 }}
@@ -545,7 +595,7 @@ export const AuthScreens: React.FC = () => {
                 className="flex-1 flex flex-col justify-between"
               >
                 <div>
-                  <div className="mb-6">
+                  <div className="mb-4">
                     <h2 className="text-xl font-black tracking-tight text-slate-800">{t('createNewAccount')}</h2>
                   </div>
 

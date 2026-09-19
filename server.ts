@@ -1575,9 +1575,8 @@ app.post('/api/gift-codes/redeem', async (req, res) => {
       return res.status(400).json({ error: `Gift code "${matchedGift.code}" has already been redeemed.` });
     }
 
-    // 4. Phone number & Account verification
-    const isMatched = (matchedGift.targetPhone && matchedGift.targetPhone === 'ALL') ||
-                      (matchedGift.targetUserId && matchedGift.targetUserId === effectiveUserId) ||
+    // 4. Phone number & Account verification (Individual pre-binding)
+    const isMatched = (matchedGift.targetUserId && matchedGift.targetUserId === effectiveUserId) ||
                       (matchedGift.targetPhone && isSamePhone(matchedGift.targetPhone, effectivePhone));
 
     if (!isMatched) {
