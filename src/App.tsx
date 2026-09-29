@@ -1658,7 +1658,10 @@ function AppContent() {
 
       {/* MOBILE PERSISTENT BOTTOM TAB NAVIGATION */}
       {!isAdminView && (
-        <div id="mobile_bottom_navigation_bar" className="bg-white border-t border-slate-200/80 px-6 py-2.5 flex items-center justify-around shrink-0 z-40 shadow-lg">
+        <div 
+          id="mobile_bottom_navigation_bar" 
+          className="bg-white border-t border-slate-200/80 px-6 py-2.5 flex items-center justify-around shrink-0 z-40 shadow-[0_-10px_25px_-3px_rgba(15,23,42,0.12),0_-4px_8px_-2px_rgba(15,23,42,0.06)]"
+        >
           <button
             onClick={() => setActiveTab('home')}
             className={`flex flex-col items-center gap-1 transition-all relative ${
