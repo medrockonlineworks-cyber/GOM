@@ -100,7 +100,7 @@ export const INITIAL_PRODUCTS_RAW = [
   {
     id: 14,
     productName: "Industrial Silicon Processing Cluster",
-    productImage: "https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=400&auto=format&fit=crop&q=60",
+    productImage: "https://images.unsplash.com/photo-1517077304055-6e89abbf09b0?w=400&auto=format&fit=crop&q=60",
     baseCost: 125000,
     rewardMultiplier: 0.60, // 60% reward
   },
@@ -166,23 +166,28 @@ export const ALTERNATIVE_PRODUCTS_POOLS: { [key: number]: { productName: string;
   ],
   11: [
     { productName: "Enterprise Quantum Core Server Rack", productImage: "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=400&auto=format&fit=crop&q=60" },
-    { productName: "Modular Hybrid Cloud Cluster Frame", productImage: "https://images.unsplash.com/photo-1563770660941-20978e870e26?w=400&auto=format&fit=crop&q=60" }
+    { productName: "Modular Hybrid Cloud Cluster Frame", productImage: "https://images.unsplash.com/photo-1563770660941-20978e870e26?w=400&auto=format&fit=crop&q=60" },
+    { productName: "High-Density Datacenter Blade Unit", productImage: "https://images.unsplash.com/photo-1544197150-b99a580bb7a8?w=400&auto=format&fit=crop&q=60" }
   ],
   12: [
     { productName: "Ultimate Pro Holographic AI Studio", productImage: "https://images.unsplash.com/photo-1600132806370-bf17e65e942f?w=400&auto=format&fit=crop&q=60" },
-    { productName: "Deep Learning Neural Synaptic Gateway", productImage: "https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=400&auto=format&fit=crop&q=60" }
+    { productName: "Deep Learning Neural Synaptic Gateway", productImage: "https://images.unsplash.com/photo-1620712943543-bcc4688e7485?w=400&auto=format&fit=crop&q=60" },
+    { productName: "Quantum Photonic AI Processor", productImage: "https://images.unsplash.com/photo-1635070041078-e363dbe005cb?w=400&auto=format&fit=crop&q=60" }
   ],
   13: [
     { productName: "Quantum Neural Supercomputer Unit", productImage: "https://images.unsplash.com/photo-1518770660439-4636190af475?w=400&auto=format&fit=crop&q=60" },
-    { productName: "Synaptic Array Grid Core", productImage: "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=400&auto=format&fit=crop&q=60" }
+    { productName: "Synaptic Array Grid Core", productImage: "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=400&auto=format&fit=crop&q=60" },
+    { productName: "Cryogenic Processor Cryostat Unit", productImage: "https://images.unsplash.com/photo-1581092335397-9583fe92d232?w=400&auto=format&fit=crop&q=60" }
   ],
   14: [
-    { productName: "Industrial Silicon Processing Cluster", productImage: "https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=400&auto=format&fit=crop&q=60" },
-    { productName: "Robotic Assembly Cleanroom Line", productImage: "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=400&auto=format&fit=crop&q=60" }
+    { productName: "Industrial Silicon Processing Cluster", productImage: "https://images.unsplash.com/photo-1517077304055-6e89abbf09b0?w=400&auto=format&fit=crop&q=60" },
+    { productName: "Robotic Assembly Cleanroom Line", productImage: "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=400&auto=format&fit=crop&q=60" },
+    { productName: "Automated Semiconductor Cleanroom Cell", productImage: "https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=400&auto=format&fit=crop&q=60" }
   ],
   15: [
     { productName: "Global Satellite Uplink Mainframe", productImage: "https://images.unsplash.com/photo-1541185933-ef5d8ed016c2?w=400&auto=format&fit=crop&q=60" },
-    { productName: "Planetary Transceiver Orbital Array", productImage: "https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=400&auto=format&fit=crop&q=60" }
+    { productName: "Planetary Transceiver Orbital Array", productImage: "https://images.unsplash.com/photo-1446776811953-b23d57bd21aa?w=400&auto=format&fit=crop&q=60" },
+    { productName: "Deep Space Ground Observatory Array", productImage: "https://images.unsplash.com/photo-1516339901601-2e1b62dc0c45?w=400&auto=format&fit=crop&q=60" }
   ]
 };
 

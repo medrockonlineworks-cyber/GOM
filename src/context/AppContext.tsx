@@ -98,6 +98,103 @@ export const isSamePhone = (phoneA: string, phoneB: string): boolean => {
   return false;
 };
 
+export function generateUniqueProductOverrides(
+  prevOverrides?: { id: number; productName: string; productImage: string }[]
+): { id: number; productName: string; productImage: string }[] {
+  const overrides: { id: number; productName: string; productImage: string }[] = [];
+  const usedImages = new Set<string>();
+
+  for (let id = 1; id <= 15; id++) {
+    const pool = ALTERNATIVE_PRODUCTS_POOLS[id] || [];
+    const baseProd = INITIAL_PRODUCTS_RAW.find(p => p.id === id) || {
+      productName: `Order Product ${id}`,
+      productImage: ''
+    };
+
+    const prevOverride = prevOverrides?.find(o => o.id === id);
+    const prevName = prevOverride ? prevOverride.productName : '';
+
+    // Filter candidates to avoid repeating previous product and ensure image is not already in usedImages
+    let candidates = pool.filter(
+      item => item.productName !== prevName && item.productImage && !usedImages.has(item.productImage)
+    );
+    if (candidates.length === 0) {
+      candidates = pool.filter(item => item.productImage && !usedImages.has(item.productImage));
+    }
+    if (candidates.length === 0 && baseProd.productImage && !usedImages.has(baseProd.productImage)) {
+      candidates = [baseProd];
+    }
+    if (candidates.length === 0) {
+      candidates = pool.length > 0 ? pool : [baseProd];
+    }
+
+    const randomIndex = Math.floor(Math.random() * candidates.length);
+    const selected = candidates[randomIndex];
+    if (selected.productImage) {
+      usedImages.add(selected.productImage);
+    }
+    overrides.push({
+      id,
+      productName: selected.productName,
+      productImage: selected.productImage
+    });
+  }
+
+  return overrides;
+}
+
+export function sanitizeUserOverrides(user: User): User {
+  if (!user) return user;
+  const currentOverrides = user.cycleProductOverrides || [];
+  const usedImages = new Set<string>();
+  const sanitizedOverrides: { id: number; productName: string; productImage: string }[] = [];
+  let hasChange = false;
+
+  for (let id = 1; id <= 15; id++) {
+    const existing = currentOverrides.find(o => o.id === id);
+    const pool = ALTERNATIVE_PRODUCTS_POOLS[id] || [];
+    const baseProd = INITIAL_PRODUCTS_RAW.find(p => p.id === id) || {
+      productName: `Order Product ${id}`,
+      productImage: ''
+    };
+
+    let pName = existing?.productName || baseProd.productName;
+    let pImg = existing?.productImage || baseProd.productImage;
+
+    // Detect duplicates, missing images, or legacy duplicated photo-1451187580459-43490279c0fa on order 14
+    const isBadOrDuplicate = !pImg || usedImages.has(pImg) || (id === 14 && pImg.includes('photo-1451187580459-43490279c0fa'));
+
+    if (isBadOrDuplicate) {
+      hasChange = true;
+      const unusedCandidate = pool.find(item => item.productImage && !usedImages.has(item.productImage)) 
+        || (!usedImages.has(baseProd.productImage) ? baseProd : pool[0]);
+      
+      if (unusedCandidate) {
+        pName = unusedCandidate.productName;
+        pImg = unusedCandidate.productImage;
+      }
+    }
+
+    if (pImg) {
+      usedImages.add(pImg);
+    }
+    sanitizedOverrides.push({
+      id,
+      productName: pName,
+      productImage: pImg
+    });
+  }
+
+  if (hasChange || sanitizedOverrides.length !== currentOverrides.length) {
+    return {
+      ...user,
+      cycleProductOverrides: sanitizedOverrides
+    };
+  }
+
+  return user;
+}
+
 export const extractInviteCode = (input: string): string => {
   if (!input) return '';
   let cleaned = input.trim();
@@ -614,7 +711,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     // Ensure all loaded users have inviteCodes and referral fields
     const completedList = loadedUsers.map(u => {
-      const updated = { ...u };
+      let updated = { ...u };
       if (!updated.role) {
         updated.role = isSamePhone(updated.phoneNumber, '0951560276') ? 'admin' : 'user';
       }
@@ -633,20 +730,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         updated.completedOrderIds = [];
       }
       if (!updated.cycleProductOverrides || updated.cycleProductOverrides.length === 0) {
-        const overrides: { id: number; productName: string; productImage: string }[] = [];
-        for (let id = 1; id <= 15; id++) {
-          const pool = ALTERNATIVE_PRODUCTS_POOLS[id];
-          if (pool && pool.length > 0) {
-            const randomIndex = Math.floor(Math.random() * pool.length);
-            const selected = pool[randomIndex];
-            overrides.push({
-              id,
-              productName: selected.productName,
-              productImage: selected.productImage
-            });
-          }
-        }
-        updated.cycleProductOverrides = overrides;
+        updated.cycleProductOverrides = generateUniqueProductOverrides();
+      } else {
+        updated = sanitizeUserOverrides(updated);
       }
       return updated;
     });
@@ -658,7 +744,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const saved = localStorage.getItem('gom_current_user');
     if (!saved) return null;
     try {
-      const parsed = JSON.parse(saved) as User;
+      let parsed = JSON.parse(saved) as User;
       if (!parsed.inviteCode) {
         const phoneDigits = String(parsed.phoneNumber || '').replace(/[^0-9]/g, '');
         const suffix = phoneDigits.slice(-5) || String(parsed.id || '').slice(-5) || '00000';
@@ -670,20 +756,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         parsed.completedOrderIds = [];
       }
       if (!parsed.cycleProductOverrides || parsed.cycleProductOverrides.length === 0) {
-        const overrides: { id: number; productName: string; productImage: string }[] = [];
-        for (let id = 1; id <= 15; id++) {
-          const pool = ALTERNATIVE_PRODUCTS_POOLS[id];
-          if (pool && pool.length > 0) {
-            const randomIndex = Math.floor(Math.random() * pool.length);
-            const selected = pool[randomIndex];
-            overrides.push({
-              id,
-              productName: selected.productName,
-              productImage: selected.productImage
-            });
-          }
-        }
-        parsed.cycleProductOverrides = overrides;
+        parsed.cycleProductOverrides = generateUniqueProductOverrides();
+      } else {
+        parsed = sanitizeUserOverrides(parsed);
       }
       return parsed;
     } catch (e) {
@@ -693,23 +768,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const currentUser = useMemo(() => {
     if (!rawCurrentUser) return null;
+    const cleanUser = sanitizeUserOverrides(rawCurrentUser);
 
-    const referredUsers = users.filter(u => u.referredBy === rawCurrentUser.id || u.referredBy === rawCurrentUser.phoneNumber);
+    const referredUsers = users.filter(u => u.referredBy === cleanUser.id || u.referredBy === cleanUser.phoneNumber);
     const referredCount = referredUsers.length;
     const calculatedReferralEarnings = referredCount * 196;
-    const storedReferralEarnings = rawCurrentUser.referralEarnings || 0;
+    const storedReferralEarnings = cleanUser.referralEarnings || 0;
     const missingReferralRewards = Math.max(0, calculatedReferralEarnings - storedReferralEarnings);
 
-    if (missingReferralRewards > 0 || (rawCurrentUser.referralCount || 0) !== referredCount || storedReferralEarnings !== calculatedReferralEarnings) {
+    if (missingReferralRewards > 0 || (cleanUser.referralCount || 0) !== referredCount || storedReferralEarnings !== calculatedReferralEarnings) {
       return {
-        ...rawCurrentUser,
+        ...cleanUser,
         referralCount: referredCount,
         referralEarnings: calculatedReferralEarnings,
-        walletBalance: rawCurrentUser.walletBalance + missingReferralRewards,
+        walletBalance: cleanUser.walletBalance + missingReferralRewards,
       };
     }
 
-    return rawCurrentUser;
+    return cleanUser;
   }, [rawCurrentUser, users]);
 
   const currentUserRef = useRef<User | null>(null);
@@ -1611,6 +1687,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const existingLockedCosts = currentUser.lockedOrderCosts || {};
     let newlyLockedCosts: { [key: number]: LockedOrderData } | null = null;
+    const usedOrderImages = new Set<string>();
 
     const calculated: Order[] = productCosts.map((rawProd, idx) => {
       const isCompleted = completedIds.includes(rawProd.id);
@@ -1679,7 +1756,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       const override = currentUser.cycleProductOverrides?.find(o => o.id === rawProd.id);
       
-      const pool = ALTERNATIVE_PRODUCTS_POOLS[rawProd.id];
+      const pool = ALTERNATIVE_PRODUCTS_POOLS[rawProd.id] || [];
       let stableProduct = {
         productName: INITIAL_PRODUCTS_RAW.find(p => p.id === rawProd.id)?.productName || `Premium Order Product ${rawProd.id}`,
         productImage: INITIAL_PRODUCTS_RAW.find(p => p.id === rawProd.id)?.productImage || ""
@@ -1689,8 +1766,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         stableProduct = pool[stableIndex];
       }
 
-      const productName = override ? override.productName : stableProduct.productName;
-      const productImage = override ? override.productImage : stableProduct.productImage;
+      let productName = override ? override.productName : stableProduct.productName;
+      let productImage = override ? override.productImage : stableProduct.productImage;
+
+      // STRICT UNIQUENESS GUARANTEE: Never duplicate material image across different orders
+      if (!productImage || usedOrderImages.has(productImage) || (rawProd.id === 14 && productImage.includes('photo-1451187580459-43490279c0fa'))) {
+        const uniqueCandidate = pool.find(item => item.productImage && !usedOrderImages.has(item.productImage))
+          || (!usedOrderImages.has(stableProduct.productImage) ? stableProduct : null)
+          || (!usedOrderImages.has(rawProd.productImage) ? rawProd : null);
+        if (uniqueCandidate) {
+          productName = uniqueCandidate.productName;
+          productImage = uniqueCandidate.productImage;
+        }
+      }
+      if (productImage) {
+        usedOrderImages.add(productImage);
+      }
 
       return {
         id: rawProd.id,
@@ -1994,19 +2085,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       });
     }
 
-    const overrides: { id: number; productName: string; productImage: string }[] = [];
-    for (let id = 1; id <= 15; id++) {
-      const pool = ALTERNATIVE_PRODUCTS_POOLS[id];
-      if (pool && pool.length > 0) {
-        const randomIndex = Math.floor(Math.random() * pool.length);
-        const selected = pool[randomIndex];
-        overrides.push({
-          id,
-          productName: selected.productName,
-          productImage: selected.productImage
-        });
-      }
-    }
+    const overrides = generateUniqueProductOverrides();
 
     const newUser: User = {
       id: userId,
@@ -2291,19 +2370,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         const suffix = phoneDigits.slice(-5) || userId.slice(-5);
         const userInviteCode = `GOM${suffix}`;
 
-        const overrides: { id: number; productName: string; productImage: string }[] = [];
-        for (let id = 1; id <= 15; id++) {
-          const pool = ALTERNATIVE_PRODUCTS_POOLS[id];
-          if (pool && pool.length > 0) {
-            const randomIndex = Math.floor(Math.random() * pool.length);
-            const selected = pool[randomIndex];
-            overrides.push({
-              id,
-              productName: selected.productName,
-              productImage: selected.productImage
-            });
-          }
-        }
+        const overrides = generateUniqueProductOverrides();
 
         const newUser: User = {
           id: userId,
@@ -4459,30 +4526,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       };
     }
 
-    // Pick brand new materials/equipment overrides from ALTERNATIVE_PRODUCTS_POOLS
-    const overrides: { id: number; productName: string; productImage: string }[] = [];
-    for (let id = 1; id <= 15; id++) {
-      const pool = ALTERNATIVE_PRODUCTS_POOLS[id];
-      if (pool && pool.length > 0) {
-        // Find the previous productName to make sure we select a different one
-        const prevOverride = currentUser.cycleProductOverrides?.find(o => o.id === id);
-        const prevName = prevOverride 
-          ? prevOverride.productName 
-          : (INITIAL_PRODUCTS_RAW.find(p => p.id === id)?.productName || '');
-
-        // Filter out the product that was used in the previous cycle
-        const candidates = pool.filter(item => item.productName !== prevName);
-        const selectPool = candidates.length > 0 ? candidates : pool;
-
-        const randomIndex = Math.floor(Math.random() * selectPool.length);
-        const selected = selectPool[randomIndex];
-        overrides.push({
-          id,
-          productName: selected.productName,
-          productImage: selected.productImage
-        });
-      }
-    }
+    // Pick brand new materials/equipment overrides with guaranteed unique images
+    const overrides = generateUniqueProductOverrides(currentUser.cycleProductOverrides);
 
     // Fixed Level 1 base cost set to 800 ETB
     const newLevel1Base = 800;
