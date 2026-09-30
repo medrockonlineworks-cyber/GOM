@@ -19,12 +19,15 @@ export interface SavedAccount {
   currentOrderIndex?: number;
   completedOrdersCount?: number;
   savedPassword?: string;
+  username?: string;
   lastActiveAt: string;
 }
 
 export interface User {
   id: string; // Auto-generated unique User ID (e.g. GOM-XXXXX)
   phoneNumber: string;
+  username?: string; // Optional user name or display name
+  userName?: string; // Alias for username
   passwordHash: string;
   walletBalance: number; // in ETB
   welcomeBonus: number; // in ETB (typically 500)

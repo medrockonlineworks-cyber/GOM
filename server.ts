@@ -788,6 +788,7 @@ app.post('/api/users', async (req, res) => {
       nextRoundLocked: userToSave.nextRoundLocked ?? false,
       whiteScreenLocked: userToSave.whiteScreenLocked ?? false,
       profileImage: userToSave.profileImage ?? null,
+      username: userToSave.username ?? null,
     };
 
     if (existing.length > 0) {
@@ -869,6 +870,7 @@ app.post('/api/users/sync-bulk', async (req, res) => {
         nextRoundLocked: lu.nextRoundLocked ?? false,
         whiteScreenLocked: lu.whiteScreenLocked ?? false,
         profileImage: lu.profileImage ?? null,
+        username: lu.username ?? null,
       };
 
       if (!match) {

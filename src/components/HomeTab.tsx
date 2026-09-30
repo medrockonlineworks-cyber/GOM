@@ -30,7 +30,10 @@ import {
   Globe,
   Sparkles,
   Ticket,
-  Award
+  Award,
+  User as UserIcon,
+  Edit3,
+  Plus
 } from 'lucide-react';
 
 const MarketplaceLogoCell: React.FC<{ src: string; alt: string; brandKey: string }> = ({ src, alt, brandKey }) => {
@@ -320,7 +323,14 @@ export const HomeTab: React.FC<HomeTabProps> = ({
           </div>
           <div>
             <span className="block text-[10px] text-slate-400 font-bold uppercase tracking-wider">{t('welcome')},</span>
-            <span className="block text-xs font-black text-slate-800">{formatUserPhoneId(currentUser.phoneNumber)}</span>
+            {currentUser.username && (
+              <span className="block text-sm font-black text-slate-900 leading-tight truncate max-w-[200px] mt-0.5">
+                {currentUser.username}
+              </span>
+            )}
+            <span className={`block text-xs font-bold text-slate-600 leading-tight ${currentUser.username ? 'mt-0.5' : 'mt-1'}`}>
+              {formatUserPhoneId(currentUser.phoneNumber)}
+            </span>
           </div>
         </div>
       </div>

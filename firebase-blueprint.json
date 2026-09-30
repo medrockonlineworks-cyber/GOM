@@ -7,6 +7,7 @@
       "properties": {
         "id": { "type": "string", "maxLength": 128 },
         "phoneNumber": { "type": "string", "maxLength": 20 },
+        "username": { "type": "string", "maxLength": 100 },
         "password": { "type": "string", "maxLength": 256 },
         "role": { "type": "string", "enum": ["user", "admin"] },
         "stage": { "type": "integer" },

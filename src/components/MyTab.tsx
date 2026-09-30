@@ -237,6 +237,7 @@ export const MyTab: React.FC<MyTabProps> = ({
     factoryReset,
     language,
     updateAccountDetails,
+    updateUsername,
     updateProfileImage,
     registerWithdrawalAccount,
     removeWithdrawalAccount,
@@ -691,6 +692,7 @@ export const MyTab: React.FC<MyTabProps> = ({
   // Settings states
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [settingsPhone, setSettingsPhone] = useState('');
+  const [settingsUsername, setSettingsUsername] = useState(currentUser?.username || '');
   const [settingsPassword, setSettingsPassword] = useState('');
   const [settingsProfileImage, setSettingsProfileImage] = useState<string | null | undefined>(undefined);
   const [settingsError, setSettingsError] = useState('');
@@ -888,6 +890,7 @@ export const MyTab: React.FC<MyTabProps> = ({
 
   const openSettings = () => {
     setSettingsPhone(currentUser.phoneNumber);
+    setSettingsUsername(currentUser.username || '');
     setSettingsPassword('');
     setSettingsProfileImage(currentUser.profileImage || null);
     setSettingsError('');
@@ -943,7 +946,7 @@ export const MyTab: React.FC<MyTabProps> = ({
 
     setSettingsLoading('true');
     try {
-      const res = await updateAccountDetails(trimmedPhone, settingsPassword, settingsProfileImage);
+      const res = await updateAccountDetails(trimmedPhone, settingsPassword, settingsProfileImage, settingsUsername.trim());
       if (res.success) {
         setSettingsSuccess(localT[language].successUpdate);
         setSettingsPassword('');
@@ -996,7 +999,14 @@ export const MyTab: React.FC<MyTabProps> = ({
                 <ShieldCheck size={10} /> {t('verifiedId')}
               </span>
             </div>
-            <h3 className="text-base font-black text-slate-800 mt-1">{formatUserPhoneId(currentUser.phoneNumber)}</h3>
+            {currentUser.username && (
+              <h2 className="text-base font-black text-slate-900 leading-tight truncate max-w-[200px] mt-0.5">
+                {currentUser.username}
+              </h2>
+            )}
+            <h3 className={`text-xs font-bold text-slate-500 ${currentUser.username ? 'mt-0.5' : 'mt-1'}`}>
+              {formatUserPhoneId(currentUser.phoneNumber)}
+            </h3>
             <span className="text-[10px] text-slate-400 font-bold block mt-0.5">{t('joined')}: {new Date(currentUser.createdAt).toLocaleDateString()}</span>
           </div>
         </div>
@@ -1806,6 +1816,24 @@ export const MyTab: React.FC<MyTabProps> = ({
 
                   <p className="text-[9px] text-slate-400 font-medium">
                     {localT[language].photoHint}
+                  </p>
+                </div>
+
+                {/* User Name Input */}
+                <div className="space-y-1.5">
+                  <label className="block text-[9px] font-black uppercase tracking-wider text-slate-400">
+                    User Name
+                  </label>
+                  <input
+                    type="text"
+                    value={settingsUsername}
+                    onChange={(e) => setSettingsUsername(e.target.value)}
+                    placeholder="e.g. Leykun Jemaneh"
+                    maxLength={32}
+                    className="w-full bg-slate-50 border border-slate-200 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 focus:outline-none transition-all font-semibold"
+                  />
+                  <p className="text-[9px] text-slate-400 font-medium">
+                    Displayed above your phone number across Homepage and My page.
                   </p>
                 </div>
 

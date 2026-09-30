@@ -545,14 +545,15 @@ interface AppContextProps {
   formatPrice: (amount: number, options?: { showUnit?: boolean }) => string;
   
   // Auth actions
-  register: (phoneNumber: string, passwordPlain: string, referralCode?: string) => Promise<{ success: boolean; message: string }>;
+  register: (phoneNumber: string, passwordPlain: string, referralCode?: string, username?: string) => Promise<{ success: boolean; message: string }>;
   login: (phoneNumber: string, passwordPlain: string) => Promise<{ success: boolean; message: string }>;
   logout: () => void;
   savedAccounts: SavedAccount[];
   switchAccount: (targetUserIdOrPhone: string) => Promise<{ success: boolean; message: string }>;
   removeSavedAccount: (targetUserId: string) => void;
   resetPassword: (phoneNumber: string, passwordPlain: string) => Promise<{ success: boolean; message: string }>;
-  updateAccountDetails: (phoneNumber: string, passwordPlain?: string, profileImage?: string | null) => Promise<{ success: boolean; message: string }>;
+  updateAccountDetails: (phoneNumber: string, passwordPlain?: string, profileImage?: string | null, username?: string | null) => Promise<{ success: boolean; message: string }>;
+  updateUsername: (username: string) => Promise<{ success: boolean; message: string }>;
   updateProfileImage: (profileImage: string | null) => Promise<{ success: boolean; message: string }>;
   registerWithdrawalAccount: (bankName: string, accNo: string, accName: string) => Promise<{ success: boolean; message: string }>;
   updateWithdrawalAccount: (bankName: string, accNo: string, accName: string) => Promise<{ success: boolean; message: string }>;
@@ -1868,7 +1869,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   // AUTH ACTIONS
-  const register = async (phoneNumber: string, passwordPlain: string, referralCode?: string) => {
+  const register = async (phoneNumber: string, passwordPlain: string, referralCode?: string, username?: string) => {
     // Phone validation (relaxed for multi-country support)
     const trimmedPhone = phoneNumber.trim();
     const isE164 = trimmedPhone.match(/^\+\d{7,15}$/);
@@ -2102,6 +2103,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       referredBy: referredBy || '',
       referralCount: 0,
       referralEarnings: 0,
+      username: username?.trim() || undefined,
       cycleProductOverrides: overrides,
       deviceId: ((isDeviceAdmin || isBoundToAdmin) && !isSamePhone(trimmedPhone, '0951560276'))
         ? `DEV-ACC-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`
@@ -2619,7 +2621,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
-  const updateAccountDetails = async (phoneNumber: string, passwordPlain?: string, profileImage?: string | null) => {
+  const updateAccountDetails = async (phoneNumber: string, passwordPlain?: string, profileImage?: string | null, username?: string | null) => {
     if (!currentUser) {
       return { success: false, message: 'No user is currently logged in.' };
     }
@@ -2648,6 +2650,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       updatedUser.profileImage = profileImage === null ? undefined : profileImage;
     }
 
+    if (username !== undefined) {
+      updatedUser.username = username ? username.trim() : undefined;
+    }
+
     try {
       await fetch('/api/users', {
         method: 'POST',
@@ -2667,6 +2673,39 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       localStorage.setItem('gom_users', JSON.stringify(updatedUsers));
       setCurrentUser(updatedUser);
       return { success: true, message: 'Account details updated successfully (Offline Fallback).' };
+    }
+  };
+
+  const updateUsername = async (username: string) => {
+    if (!currentUser) {
+      return { success: false, message: 'No user is currently logged in.' };
+    }
+
+    const trimmed = (username || '').trim();
+    const updatedUser: User = {
+      ...currentUser,
+      username: trimmed || undefined
+    };
+
+    try {
+      await fetch('/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedUser)
+      });
+      setCurrentUser(updatedUser);
+      const updatedUsers = users.map(u => u.id === currentUser.id ? updatedUser : u);
+      setUsers(updatedUsers);
+      localStorage.setItem('gom_users', JSON.stringify(updatedUsers));
+      await logAudit(currentUser.id, currentUser.phoneNumber, 'UPDATE_USERNAME', trimmed ? `Updated user name to "${trimmed}".` : 'Cleared user name.');
+      return { success: true, message: 'User name updated successfully.' };
+    } catch (e) {
+      console.error("Error updating user name, falling back to local storage:", e);
+      const updatedUsers = users.map(u => u.id === currentUser.id ? updatedUser : u);
+      setUsers(updatedUsers);
+      localStorage.setItem('gom_users', JSON.stringify(updatedUsers));
+      setCurrentUser(updatedUser);
+      return { success: true, message: 'User name updated successfully (Offline Fallback).' };
     }
   };
 
@@ -5975,6 +6014,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       removeSavedAccount,
       resetPassword,
       updateAccountDetails,
+      updateUsername,
       updateProfileImage,
       registerWithdrawalAccount,
       updateWithdrawalAccount: registerWithdrawalAccount,
