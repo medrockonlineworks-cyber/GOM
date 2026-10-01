@@ -692,7 +692,9 @@ export const AuthScreens: React.FC = () => {
                   )}
 
                   <div>
-                    <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-widest mb-1.5">User Name (Optional)</label>
+                    <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-widest mb-1.5">
+                      {t('userNameOptional') || 'User Name (Optional)'}
+                    </label>
                     <div className="relative group">
                       <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 group-focus-within:text-bronze transition-colors">
                         <User size={16} />
@@ -700,7 +702,7 @@ export const AuthScreens: React.FC = () => {
                       <input
                         type="text"
                         maxLength={32}
-                        placeholder="e.g. Leykun Jemaneh"
+                        placeholder={t('userNamePlaceholder') || "e.g. Abeba Kebede"}
                         value={registerUsername}
                         onChange={(e) => setRegisterUsername(e.target.value)}
                         className="w-full bg-slate-50 text-slate-800 text-sm pl-10 pr-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-bronze/40 focus:border-bronze focus:bg-white transition-all font-medium placeholder-slate-400/80 shadow-xs"

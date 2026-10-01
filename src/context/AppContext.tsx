@@ -1035,7 +1035,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const [language, setLanguageState] = useState<Language>(() => {
     const saved = localStorage.getItem('gom_lang') as Language;
-    return ['en', 'am', 'ar', 'zh', 'es', 'fr'].includes(saved) ? saved : 'en';
+    return ['en', 'am', 'ar', 'zh', 'es', 'fr', 'sw', 'so', 'pt'].includes(saved) ? saved : 'en';
   });
 
   const setLanguage = (lang: Language) => {

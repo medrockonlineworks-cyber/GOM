@@ -295,7 +295,10 @@ export const MyTab: React.FC<MyTabProps> = ({
       giftBoxCenterSub: 'Redeem promo codes & claim daily gift box rewards',
       giftCenter: 'Gift Center',
       enterGiftCode: 'Enter Gift Code',
-      redeem: 'Redeem'
+      redeem: 'Redeem',
+      userNameLabel: 'User Name',
+      userNamePlaceholder: 'e.g. Abeba Kebede',
+      userNameHint: 'Displayed above your phone number across Homepage and My page.'
     },
     am: {
       accountSettings: 'የመለያ ቅንብሮች',
@@ -338,7 +341,10 @@ export const MyTab: React.FC<MyTabProps> = ({
       giftBoxCenterSub: 'የማስተዋወቂያ ኮዶችን ይጠቀሙ እና ዕለታዊ የስጦታ ሽልማቶችን ይቀበሉ',
       giftCenter: 'የስጦታ ማዕከል',
       enterGiftCode: 'የስጦታ ኮድ ያስገቡ',
-      redeem: 'ተቀበል'
+      redeem: 'ተቀበል',
+      userNameLabel: 'የተጠቃሚ ስም',
+      userNamePlaceholder: 'ምሳሌ፦ አበበ ከበደ',
+      userNameHint: 'በመነሻ ገጽ እና በእኔ ገጽ ላይ ከስልክ ቁጥርዎ በላይ ይታያል።'
     },
     ar: {
       accountSettings: 'إعدادات الحساب',
@@ -381,7 +387,10 @@ export const MyTab: React.FC<MyTabProps> = ({
       giftBoxCenterSub: 'استرداد الرموز الترويجية والمطالبة بمكافآت صندوق الهدايا اليومية',
       giftCenter: 'مركز الهدايا',
       enterGiftCode: 'أدخل رمز الهدية',
-      redeem: 'استرداد'
+      redeem: 'استرداد',
+      userNameLabel: 'اسم المستخدم',
+      userNamePlaceholder: 'مثال: Abeba Kebede',
+      userNameHint: 'يظهر فوق رقم هاتفك في الصفحة الرئيسية وصفحتي.'
     },
     zh: {
       accountSettings: '账户设置',
@@ -424,7 +433,10 @@ export const MyTab: React.FC<MyTabProps> = ({
       giftBoxCenterSub: '兑换促销代码并领取每日礼品盒奖励',
       giftCenter: '礼品中心',
       enterGiftCode: '输入礼品代码',
-      redeem: '兑换'
+      redeem: '兑换',
+      userNameLabel: '用户名',
+      userNamePlaceholder: '例如：Abeba Kebede',
+      userNameHint: '显示在首页与“我的”页面中的手机号码上方。'
     },
     es: {
       accountSettings: 'Configuración de la Cuenta',
@@ -467,7 +479,10 @@ export const MyTab: React.FC<MyTabProps> = ({
       giftBoxCenterSub: 'Canjear códigos promocionales y reclamar recompensas diarias',
       giftCenter: 'Centro de Regalos',
       enterGiftCode: 'Ingresar Código de Regalo',
-      redeem: 'Canjear'
+      redeem: 'Canjear',
+      userNameLabel: 'Nombre de Usuario',
+      userNamePlaceholder: 'ej. Abeba Kebede',
+      userNameHint: 'Se muestra arriba de su número de teléfono en la página de Inicio y Mi página.'
     },
     fr: {
       accountSettings: 'Paramètres du Compte',
@@ -510,7 +525,10 @@ export const MyTab: React.FC<MyTabProps> = ({
       giftBoxCenterSub: 'Utiliser des codes promo et réclamer des récompenses quotidiennes',
       giftCenter: 'Centre de Cadeaux',
       enterGiftCode: 'Saisir le Code Cadeau',
-      redeem: 'Utiliser'
+      redeem: 'Utiliser',
+      userNameLabel: "Nom d'utilisateur",
+      userNamePlaceholder: 'ex. Abeba Kebede',
+      userNameHint: 'Affiché au-dessus de votre numéro de téléphone sur la page d’accueil et Ma page.'
     },
     sw: {
       accountSettings: 'Mipangilio ya Akaunti',
@@ -553,7 +571,10 @@ export const MyTab: React.FC<MyTabProps> = ({
       giftBoxCenterSub: 'Komboa misimbo ya kukuza na udai tuzo za kila siku',
       giftCenter: 'Kituo cha Zawadi',
       enterGiftCode: 'Weka Msimbo wa Zawadi',
-      redeem: 'Komboa'
+      redeem: 'Komboa',
+      userNameLabel: 'Jina la Mtumiaji',
+      userNamePlaceholder: 'mfano Abeba Kebede',
+      userNameHint: 'Inaonyeshwa juu ya nambari yako ya simu kwenye Ukurasa wa Kwanza na Ukurasa Wangu.'
     },
     so: {
       accountSettings: 'Habaynta Koontada',
@@ -596,7 +617,10 @@ export const MyTab: React.FC<MyTabProps> = ({
       giftBoxCenterSub: 'Foorno koodhadhka xayeysiinta oo sheego abaalmarinta maalinlaha ah',
       giftCenter: 'Xarunta Hadiyadaha',
       enterGiftCode: 'Geli Koodhka Hadiyadda',
-      redeem: 'Foorno'
+      redeem: 'Foorno',
+      userNameLabel: 'Magaca Isticmaalaha',
+      userNamePlaceholder: 'tusaale Abeba Kebede',
+      userNameHint: 'Waxaa lagu soo bandhigaa lambarkaaga taleefanka dusheeda bogga Hore iyo Boggeyga.'
     },
     pt: {
       accountSettings: 'Configurações da Conta',
@@ -639,9 +663,14 @@ export const MyTab: React.FC<MyTabProps> = ({
       giftBoxCenterSub: 'Resgatar códigos promocionais e obter recompensas diárias',
       giftCenter: 'Centro de Presentes',
       enterGiftCode: 'Insira o Código de Presente',
-      redeem: 'Resgatar'
+      redeem: 'Resgatar',
+      userNameLabel: 'Nome de Usuário',
+      userNamePlaceholder: 'ex. Abeba Kebede',
+      userNameHint: 'Exibido acima do seu número de telefone na Página Inicial e na Minha Página.'
     }
   };
+
+  const lt = (localT as any)[language] || localT.en;
 
   const [activeHistoryPanel, setActiveHistoryPanel] = useState<'none' | 'recharges' | 'withdrawals' | 'transactions' | 'orders' | 'referrals' | 'bonuses'>('none');
   const [copiedLink, setCopiedLink] = useState(false);
@@ -1822,18 +1851,18 @@ export const MyTab: React.FC<MyTabProps> = ({
                 {/* User Name Input */}
                 <div className="space-y-1.5">
                   <label className="block text-[9px] font-black uppercase tracking-wider text-slate-400">
-                    User Name
+                    {lt.userNameLabel || 'User Name'}
                   </label>
                   <input
                     type="text"
                     value={settingsUsername}
                     onChange={(e) => setSettingsUsername(e.target.value)}
-                    placeholder="e.g. Leykun Jemaneh"
+                    placeholder={lt.userNamePlaceholder || "e.g. Abeba Kebede"}
                     maxLength={32}
                     className="w-full bg-slate-50 border border-slate-200 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 focus:outline-none transition-all font-semibold"
                   />
                   <p className="text-[9px] text-slate-400 font-medium">
-                    Displayed above your phone number across Homepage and My page.
+                    {lt.userNameHint || 'Displayed above your phone number across Homepage and My page.'}
                   </p>
                 </div>
 
