@@ -2262,7 +2262,7 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
                     <div className="flex gap-2">
                       <input
                         type="number"
-                        placeholder="Amount in ETB (e.g. 750)"
+                        placeholder="Amount in ETB (e.g. 1500)"
                         value={adjustAmounts[user.id] || ''}
                         onChange={(e) => setAdjustAmounts(prev => ({ ...prev, [user.id]: e.target.value }))}
                         className="flex-1 min-w-0 bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-bronze"

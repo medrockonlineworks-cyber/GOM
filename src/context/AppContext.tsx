@@ -395,7 +395,7 @@ export const getSimulatedCostAndBalanceForUser = (
     15: 50000
   };
 
-  let currentWallet = 750;
+  let currentWallet = 1500;
 
   for (let k = 1; k <= 15; k++) {
     const isRechargeOrder = recharges[k] !== undefined;
@@ -2018,8 +2018,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const suffix = phoneDigits.slice(-5) || userId.slice(-5);
     const userInviteCode = `GOM${suffix}`;
 
-    let baseWelcomeBonus = 750;
-    let initialBalance = 750;
+    let baseWelcomeBonus = 1500;
+    let initialBalance = 1500;
     let referredBy: string | undefined = undefined;
     const additionalTxs: Transaction[] = [];
     let freshUsers = [...users];
@@ -2059,7 +2059,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
 
       referredBy = referrer.id;
-      initialBalance = 946; // 750 welcome + 196 bonus
+      initialBalance = 1696; // 1500 welcome + 196 bonus
 
       // Referral bonus transaction for new user
       additionalTxs.push({
@@ -2115,10 +2115,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       userId: userId,
       userPhone: trimmedPhone,
       type: 'welcome_bonus',
-      amount: 750,
+      amount: 1500,
       status: 'completed',
       createdAt: new Date().toISOString(),
-      description: 'Registration 750 ETB Welcome Bonus credited.'
+      description: 'Registration 1500 ETB Welcome Bonus credited.'
     };
 
     try {
@@ -2168,7 +2168,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         localStorage.setItem('gom_device_registered_phone', trimmedPhone);
       }
 
-      await logAudit(userId, trimmedPhone, 'REGISTER', `Successfully registered. Automatically credited 750 Welcome Bonus.${referredBy ? ' Plus 196 referral bonus.' : ''}`);
+      await logAudit(userId, trimmedPhone, 'REGISTER', `Successfully registered. Automatically credited 1500 Welcome Bonus.${referredBy ? ' Plus 196 referral bonus.' : ''}`);
       if (referredBy) {
         const referrerToUpdate = freshUsers.find(u => u.id === referredBy);
         if (referrerToUpdate) {
@@ -2176,7 +2176,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
       }
 
-      return { success: true, message: `Registration successful! Welcome bonus of 750 ETB credited.${referredBy ? ' Additional 196 ETB referral bonus credited!' : ''}` };
+      return { success: true, message: `Registration successful! Welcome bonus of 1500 ETB credited.${referredBy ? ' Additional 196 ETB referral bonus credited!' : ''}` };
     } catch (e) {
       console.error("Error committing registration batch to Firestore, falling back to local storage:", e);
       
@@ -2217,7 +2217,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           userId: newUser.id,
           userPhone: trimmedPhone,
           action: 'REGISTER',
-          details: `Successfully registered (Local Fallback). Automatically credited 750 Welcome Bonus.${referredBy ? ' Plus 196 referral bonus.' : ''}`,
+          details: `Successfully registered (Local Fallback). Automatically credited 1500 Welcome Bonus.${referredBy ? ' Plus 196 referral bonus.' : ''}`,
           createdAt: new Date().toISOString()
         },
         ...(referredBy ? [{
@@ -2233,7 +2233,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setAuditLogs(localLogs);
       localStorage.setItem('gom_audit_logs', JSON.stringify(localLogs));
 
-      return { success: true, message: `Registration successful (Offline Fallback)! Welcome bonus of 750 ETB credited.${referredBy ? ' Additional 196 ETB referral bonus credited!' : ''}` };
+      return { success: true, message: `Registration successful (Offline Fallback)! Welcome bonus of 1500 ETB credited.${referredBy ? ' Additional 196 ETB referral bonus credited!' : ''}` };
     }
   };
 
@@ -2378,8 +2378,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           id: userId,
           phoneNumber: trimmedPhone,
           passwordHash: hashed,
-          walletBalance: 750,
-          welcomeBonus: 750,
+          walletBalance: 1500,
+          welcomeBonus: 1500,
           totalEarnings: 0,
           role: 'user',
           createdAt: new Date().toISOString(),
@@ -5897,7 +5897,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return { success: true, message: 'User reactivated locally for Next Round.' };
   };
 
-  const adminCreateUser = async (phone: string, passwordPlain: string, initialBalance: number = 750, referralCode?: string) => {
+  const adminCreateUser = async (phone: string, passwordPlain: string, initialBalance: number = 1500, referralCode?: string) => {
     try {
       const trimmedPhone = phone.trim();
       const hashed = await hashPassword(passwordPlain);
@@ -5950,13 +5950,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const phoneDigits = trimmedPhone.replace(/[^0-9]/g, '');
       const suffix = phoneDigits.slice(-5) || userId.slice(-5);
       const inviteCode = `GOM${suffix}`;
-      const startingBalance = Number(initialBalance ?? 750);
+      const startingBalance = Number(initialBalance ?? 1500);
       const newLocalUser: User = {
         id: userId,
         phoneNumber: trimmedPhone,
         passwordHash: hashed,
         walletBalance: startingBalance,
-        welcomeBonus: 750,
+        welcomeBonus: 1500,
         totalEarnings: 0,
         role: 'user',
         currentOrderIndex: 0,

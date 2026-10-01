@@ -505,7 +505,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                 const ann = activeAnnouncements[announcementIndex] || activeAnnouncements[0];
                 if (!ann) return '';
                 if (ann.id === 'ann-1' || ann.content?.includes('thrilled to launch') || ann.content?.includes('excited to introduce')) {
-                  return t('welcomeGomContent', { reward: formatPrice(750) });
+                  return t('welcomeGomContent', { reward: formatPrice(1500) });
                 }
                 if (ann.id === 'ann-2' || ann.content?.includes('processed within 1-2 hours') || ann.content?.includes('secure deposit and withdrawal')) {
                   return t('supportedBanksContent');

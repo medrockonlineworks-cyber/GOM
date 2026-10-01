@@ -539,7 +539,7 @@ app.put('/api/transactions/:id/status', async (req, res) => {
             phoneNumber: tx.userPhone,
             passwordHash: '5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8', // default fallback hash for 'Password123'
             walletBalance: Number(tx.amount),
-            welcomeBonus: 750, // default fallback
+            welcomeBonus: 1500, // default fallback
             totalEarnings: 0,
             role: 'user',
             createdAt: new Date(),
@@ -979,7 +979,7 @@ app.post('/api/admin/create-user', async (req, res) => {
     const phoneDigits = trimmedPhone.replace(/[^0-9]/g, '');
     const suffix = phoneDigits.slice(-5) || newUserId.slice(-5);
     const inviteCode = `GOM${suffix}`;
-    const startingBalance = Number(initialBalance ?? 750);
+    const startingBalance = Number(initialBalance ?? 1500);
     const userRole = role === 'admin' ? 'admin' : 'user';
     const assignedDeviceId = deviceId || `DEV-ACC-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
 
@@ -988,7 +988,7 @@ app.post('/api/admin/create-user', async (req, res) => {
       phoneNumber: trimmedPhone,
       passwordHash: passwordHash || 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855', // default or custom
       walletBalance: startingBalance,
-      welcomeBonus: 750,
+      welcomeBonus: 1500,
       totalEarnings: 0,
       role: userRole,
       createdAt: new Date(),
@@ -1012,10 +1012,10 @@ app.post('/api/admin/create-user', async (req, res) => {
       userId: newUserId,
       userPhone: trimmedPhone,
       type: 'welcome_bonus',
-      amount: 750,
+      amount: 1500,
       status: 'completed',
       createdAt: new Date(),
-      description: 'Registration 750 ETB Welcome Bonus credited.',
+      description: 'Registration 1500 ETB Welcome Bonus credited.',
     });
 
     await dbLogAudit('ADMIN', 'ADMIN', 'ADMIN_CREATE_USER', `Admin created account for phone ${trimmedPhone} (ID: ${newUserId}, Balance: ${startingBalance} ETB)`);
@@ -1096,7 +1096,7 @@ app.post('/api/users/update-stage', async (req, res) => {
       15: 50000
     };
 
-    let currentWallet = 750;
+    let currentWallet = 1500;
 
     for (let k = 1; k <= 15; k++) {
       const isRechargeOrder = recharges[k] !== undefined;
@@ -1132,7 +1132,7 @@ app.post('/api/users/update-stage', async (req, res) => {
       const reward = simulatedRewards[k] || 0;
       const isRechargeOrder = recharges[k] !== undefined;
       const requiredRecharge = isRechargeOrder ? recharges[k] : 0;
-      const walletBefore = k === 1 ? 750 : (simulatedBalances[k - 1] || 750);
+      const walletBefore = k === 1 ? 1500 : (simulatedBalances[k - 1] || 1500);
       updatedLockedCosts[k] = { 
         materialCost: cost, 
         reward, 
@@ -2528,7 +2528,7 @@ app.post('/api/unlock-codes/redeem', async (req, res) => {
       const simulatedRewards: { [key: number]: number } = {};
       const simulatedBalances: { [key: number]: number } = {};
 
-      let currentWallet = 750;
+      let currentWallet = 1500;
       for (let k = 1; k <= 15; k++) {
         const isRechargeOrder = recharges[k] !== undefined;
         const existingLock = existingLockedCosts[k];
@@ -2628,7 +2628,7 @@ app.post('/api/unlock-codes/redeem', async (req, res) => {
             phoneNumber: phone,
             passwordHash: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
             walletBalance: finalWalletBalance,
-            welcomeBonus: 750,
+            welcomeBonus: 1500,
             totalEarnings: finalTotalEarnings,
             role: 'user',
             currentOrderIndex: isAll ? 15 : maxStage,
