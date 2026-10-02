@@ -257,8 +257,8 @@ const paymentGuideTranslations: Record<string, {
       "Copy the exact transaction reference number or transaction ID from your provider's SMS or receipt.",
       "Enter the reference number below, and click 'Submit' for manual verification."
     ],
-    reminderTitle: "⚠️ CRITICAL SECURITY REMINDER & MANDATORY NOTICE:",
-    reminderText: "DO NOT save or attempt to use this account for another deposit! Official deposit accounts are dynamically rotated and subject to change at any time without notice. Always check and verify the currently active account directly from this Recharge Center before initiating each recharge. Transfers made to previously saved or expired accounts cannot be recognized or credited."
+    reminderTitle: "Notice:",
+    reminderText: "Do not save or reuse this account as details change. Always check the active account here before recharge."
   },
   am: {
     cbeTitle: "የኢትዮጵያ ንግድ ባንክ (CBE) - ይፋዊ የደረጃ በደረጃ የማስቀመጫ መመሪያ",
@@ -300,8 +300,8 @@ const paymentGuideTranslations: Record<string, {
       "ከአቅራቢዎ የክፍያ ማረጋገጫ አጭር መልእክት (SMS) ወይም ደረሰኝ ላይ የማጣቀሻ ቁጥሩን ወይም የግብይት መለያውን ይቅዱ።",
       "የማጣቀሻ ቁጥሩን ከታች ያስገቡ እና በእጅ እንዲረጋገጥ 'Submit' የሚለውን ይጫኑ።"
     ],
-    reminderTitle: "⚠️ እጅግ አስፈላጊ ጥንቃቄ እና የደህንነት ማሳሰቢያ፦",
-    reminderText: "ይህንን የባንክ ሂሳብ ለቀጣይ ተቀማጭ እንዳያስቀምጡ ወይም ደግመው እንዳይጠቀሙበት! ይፋዊ የገንዘብ መቀበያ ሂሳባችን በማንኛውም ጊዜ ስለሚቀየር፣ ከእያንዳንዱ ሪቻርጅ በፊት ሁልጊዜ እዚህ በሪቻርጅ ማዕከል የሚታየውን አዲስ ሂሳብ ማረጋገጥ ግዴታ ነው። ወደ ቀድሞ ወይም ወደ ተቀየረ ሂሳብ የተላከ ገንዘብ በሲስተሙ ሊታወቅ አይችልም።"
+    reminderTitle: "ማሳሰቢያ፦",
+    reminderText: "መረጃው በማንኛውም ጊዜ ስለሚቀየር ይህንን ሂሳብ ለቀጣይ አያስቀምጡ። ከመሙላትዎ በፊት ሁልጊዜ እዚህ ያለውን ያረጋግጡ።"
   },
   ar: {
     cbeTitle: "البنك التجاري الإثيوبي (CBE) - دليل الإيداع الرسمي خطوة بخطوة",
@@ -343,8 +343,8 @@ const paymentGuideTranslations: Record<string, {
       "انسخ رقم مرجع المعاملة أو معرف المعاملة بالضبط من رسالة التأكيد أو إيصال مزود الخدمة الخاص بك.",
       "أدخل رقم المرجع أدناه، وانقر فوق 'إرسال' للتحقق اليدوي."
     ],
-    reminderTitle: "⚠️ تنبيه أمني وإشعار إيداع بالغ الأهمية:",
-    reminderText: "لا تقم إطلاقاً بحفظ أو إعادة استخدام هذا الحساب البنكي لأي إيداع مستقبلي! تتغير وتُحدّث حسابات الاستلام الرسمية في أي وقت لأغراض الأمان والتشغيل. يجب دائمًا فحص ونسخ الحساب النشط المعروض في هذه الصفحة قبل كل عملية شحن. التحويلات المرسلة إلى حسابات محفوظة مسبقًا أو منتهية الصلاحية لن يتم قيدها."
+    reminderTitle: "تنبيه:",
+    reminderText: "لا تحفظ هذا الحساب أو تعيد استخدامه حيث يتغير باستمرار. يرجى التحقق من الحساب النشط هنا قبل كل إيداع."
   },
   zh: {
     cbeTitle: "埃塞俄比亚商业银行 (CBE) - 官方充值步骤指南",
@@ -386,8 +386,8 @@ const paymentGuideTranslations: Record<string, {
       "从您的运营商短信或收据中复制准确的交易参考号或交易 ID。",
       "在下方输入参考号，然后点击'提交'以进行人工审核。"
     ],
-    reminderTitle: "⚠️ 重要安全警示与充值必读须知：",
-    reminderText: "切勿将此银行账户保存至常用收款人或用于日后其他充值！为确保资金安全，官方收款账户会随时轮换变更。每次充值前，必须在本充值页面仔细核对并复制当前显示的最新收款账号。转账至已变更或历史保存账户的款项将无法入账。"
+    reminderTitle: "提示：",
+    reminderText: "收款账户会定期更换，请勿保存或重复使用。每次充值前请在此核对最新有效账户。"
   },
   es: {
     cbeTitle: "Banco Comercial de Etiopía (CBE) - Guía Oficial de Depósito Paso a Paso",
@@ -429,8 +429,8 @@ const paymentGuideTranslations: Record<string, {
       "Copie el número de referencia de transacción exacto o el ID de transacción del SMS o recibo de su proveedor.",
       "Ingrese el número de referencia a continuación y haga clic en 'Enviar' para verificación manual."
     ],
-    reminderTitle: "⚠️ AVISO CRÍTICO DE SEGURIDAD Y RECORDATORIO DE DEPÓSITO:",
-    reminderText: "¡NO guarde ni intente reutilizar esta cuenta bancaria para otro depósito posterior! Las cuentas oficiales de depósito cambian en cualquier momento por motivos de seguridad y rotación. Verifique y copie siempre la cuenta activa mostrada directamente aquí antes de cada recarga. Los depósitos enviados a cuentas guardadas previamente o inactivas no podrán ser acreditados."
+    reminderTitle: "Aviso:",
+    reminderText: "No guarde ni reutilice esta cuenta ya que puede cambiar. Verifique siempre la cuenta activa aquí antes de cada recarga."
   },
   fr: {
     cbeTitle: "Banque Commerciale d'Éthiopie (CBE) - Guide Officiel de Dépôt",
@@ -472,8 +472,8 @@ const paymentGuideTranslations: Record<string, {
       "Copiez le numéro de référence de transaction exact ou l'ID de transaction du SMS ou du reçu de votre fournisseur.",
       "Saisissez le numéro de référence ci-dessous, puis cliquez sur 'Soumettre' pour une vérification manuelle."
     ],
-    reminderTitle: "⚠️ RAPPEL DE SÉCURITÉ CRITIQUE & AVIS OBLIGATOIRE :",
-    reminderText: "N'enregistrez PAS et ne réutilisez PAS ce compte bancaire pour un autre dépôt ! Les comptes de réception officiels changent à tout moment pour des raisons de sécurité et de rotation. Vérifiez et copiez toujours le compte actif affiché directement ici avant chaque recharge. Les dépôts effectués sur des comptes précédemment enregistrés ou expirés ne peuvent pas être crédités."
+    reminderTitle: "Avis :",
+    reminderText: "N'enregistrez pas ce compte car il change régulièrement. Vérifiez toujours le compte actif ici avant chaque recharge."
   },
   sw: {
     cbeTitle: "Commercial Bank of Ethiopia (CBE) - Mwongozo Rasmi wa Kuweka Pesa",
@@ -515,8 +515,8 @@ const paymentGuideTranslations: Record<string, {
       "Nakili nambari kamili ya marejeleo ya muamala au ID ya muamala kutoka kwenye SMS au risiti ya mtoa huduma wako.",
       "Weka nambari ya marejeleo hapa chini, na bonyeza 'Wasilisha' kwa uthibitishaji wa mikono."
     ],
-    reminderTitle: "⚠️ ILANI MUHIMU YA USALAMA NA KIKUMBUSHO CHA LAZIMA:",
-    reminderText: "USIHIFADHI wala kujaribu kutumia akaunti hii ya benki kwa amana nyingine ya baadaye! Akaunti rasmi za kupokea pesa hubadilika wakati wowote kwa sababu za usalama na mzunguko. Kila mara kagua na unakili akaunti inayoonyeshwa hapa moja kwa moja kabla ya kila muamala. Pesa zilizotumwa kwa akaunti za zamani au zilizohifadhiwa haziwezi kuingizwa kwenye salio lako."
+    reminderTitle: "Taarifa:",
+    reminderText: "Usihifadhi akaunti hii kwani hubadilika mara kwa mara. Kagua akaunti inayotumika hapa kabla ya kila malipo."
   },
   so: {
     cbeTitle: "Bangiga Ganacsiga ee Itoobiya (CBE) - Hagaha Rasmiga ah ee Dhigashada",
@@ -558,8 +558,8 @@ const paymentGuideTranslations: Record<string, {
       "Koobi garee lambarka tixraaca muamala-ka ee saxda ah ama ID-ga muamala-ka ee ka yimid SMS-ka ama rasiidhka bixiyahaaga.",
       "Geli lambarka tixraaca hoose, dabadeedna guji 'Gudbi' si loo xaqiijiyo gacanta."
     ],
-    reminderTitle: "⚠️ DIGNIIN AMNI EE MUHIIMKA AH & XASUUSIN WAAJIB AH:",
-    reminderText: "HA KEYDSAN hana isku dayin inaad koontadan bangiga u isticmaasho lacag dhigasho kale oo dambe! Koontooyinka rasmiga ah ee lacagta lagu shubo way isbeddeli karaan wakhti kasta sababo amni iyo wareeg awgood. Had iyo jeer kaga fiirso oo koobi garee koontada rasmiga ah ee halkan ka muuqata ka hor inta aadan lacag dirin. Lacagaha loo diro koontooyin hore oo la keydiyay lama xaqiijin karo."
+    reminderTitle: "Ogeysiis:",
+    reminderText: "Ha kaydsan koontadan maadaama ay isbeddesho. Had iyo jeer halkan ka hubi ka hor inta aadan lacag shubin."
   },
   pt: {
     cbeTitle: "Banco Comercial da Etiópia (CBE) - Guia Oficial de Depósito",
@@ -601,8 +601,8 @@ const paymentGuideTranslations: Record<string, {
       "Copie o número de referência da transação exato ou ID da transação do SMS ou recibo do seu provedor.",
       "Insira o número de referência abaixo e clique em 'Enviar' para verificação manual."
     ],
-    reminderTitle: "⚠️ LEMBRETE CRÍTICO DE SEGURANÇA E AVISO OBRIGATÓRIO:",
-    reminderText: "NÃO salve nem tente reutilizar esta conta bancária para outro depósito futuro! As contas oficiais de recebimento são alteradas a qualquer momento por motivos de segurança e rotatividade. Sempre verifique e copie a conta ativa exibida diretamente nesta página antes de cada recarga. Depósitos enviados para contas salvas anteriormente ou expiradas não poderão ser creditados."
+    reminderTitle: "Aviso:",
+    reminderText: "Não salve esta conta pois os dados mudam com frequência. Sempre verifique a conta ativa aqui antes de cada recarga."
   }
 };
 
@@ -2369,48 +2369,14 @@ function AppContent() {
                           ))}
                         </div>
 
-                        {/* High-Priority Security Reminder */}
-                        <div className="bg-gradient-to-br from-amber-500/15 via-rose-500/10 to-amber-500/15 border-2 border-amber-400/80 rounded-2xl p-4 text-amber-950 space-y-3 shadow-md">
-                          <div className="flex items-center justify-between border-b border-amber-300/50 pb-2">
-                            <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-amber-900">
-                              <span className="p-1 bg-amber-500 text-white rounded-lg shadow-xs flex items-center justify-center">
-                                <AlertTriangle size={14} className="shrink-0" />
-                              </span>
-                              <span>{g.reminderTitle}</span>
-                            </div>
-                            <span className="text-[8.5px] font-black uppercase tracking-wider bg-rose-600 text-white px-2 py-0.5 rounded-full shadow-xs">
-                              MANDATORY
-                            </span>
-                          </div>
-
-                          <p className="text-[11px] leading-relaxed font-bold text-amber-950">
-                            {g.reminderText}
+                        {/* Security & Processing Notices */}
+                        <div className="pt-2.5 border-t border-slate-200/60 space-y-1.5 text-[9.5px] leading-relaxed">
+                          <p className="text-slate-600 font-medium">
+                            <strong className="text-amber-700 font-bold">{g.reminderTitle}</strong> {g.reminderText}
                           </p>
-
-                          {/* Quick Key Takeaway Highlights */}
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 border-t border-amber-300/40 text-[10px] font-extrabold">
-                            <div className="bg-white/85 rounded-xl p-2.5 border border-amber-200/80 text-rose-950 flex items-start gap-2 shadow-2xs">
-                              <span className="text-sm shrink-0">🚫</span>
-                              <div className="leading-snug">
-                                <strong className="text-rose-700 block uppercase text-[9px]">Do Not Save / Reuse</strong>
-                                Never reuse this account for another deposit — accounts rotate at any time.
-                              </div>
-                            </div>
-                            <div className="bg-white/85 rounded-xl p-2.5 border border-amber-200/80 text-emerald-950 flex items-start gap-2 shadow-2xs">
-                              <span className="text-sm shrink-0">🔄</span>
-                              <div className="leading-snug">
-                                <strong className="text-emerald-700 block uppercase text-[9px]">Check Before Every Recharge</strong>
-                                Always verify and copy the current active account displayed right here.
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="pt-2 border-t border-slate-200/40 text-[9px] text-slate-400 font-semibold flex items-center gap-1.5">
-                          <span>✨</span>
-                          <span>
+                          <p className="text-slate-400 font-medium">
                             {t('depositCreditedNotice')}
-                          </span>
+                          </p>
                         </div>
                       </motion.div>
                     );
