@@ -298,7 +298,13 @@ export const MyTab: React.FC<MyTabProps> = ({
       redeem: 'Redeem',
       userNameLabel: 'User Name',
       userNamePlaceholder: 'e.g. Abeba Kebede',
-      userNameHint: 'Displayed above your phone number across Homepage and My page.'
+      userNameHint: 'Displayed above your phone number across Homepage and My page.',
+      telebirrRulesTitle: 'Telebirr Payout Rules',
+      telebirrMinRule: 'Minimum withdrawal: 50,000 ETB',
+      telebirrMaxRule: 'Maximum per single transaction: 75,000 ETB',
+      telebirrDailyRule: 'Daily total limit: 150,000 ETB',
+      telebirrAccPlaceholder: 'e.g. 09xxxxxxxx (Telebirr Phone Number)',
+      accPlaceholder: 'e.g. Bank Account or Wallet number'
     },
     am: {
       accountSettings: 'የመለያ ቅንብሮች',
@@ -344,7 +350,13 @@ export const MyTab: React.FC<MyTabProps> = ({
       redeem: 'ተቀበል',
       userNameLabel: 'የተጠቃሚ ስም',
       userNamePlaceholder: 'ምሳሌ፦ አበበ ከበደ',
-      userNameHint: 'በመነሻ ገጽ እና በእኔ ገጽ ላይ ከስልክ ቁጥርዎ በላይ ይታያል።'
+      userNameHint: 'በመነሻ ገጽ እና በእኔ ገጽ ላይ ከስልክ ቁጥርዎ በላይ ይታያል።',
+      telebirrRulesTitle: 'የቴሌብር የክፍያ ደንቦች',
+      telebirrMinRule: 'ዝቅተኛው ማውጣት፦ 50,000 ብር',
+      telebirrMaxRule: 'በአንድ ግብይት ከፍተኛው፦ 75,000 ብር',
+      telebirrDailyRule: 'የቀን አጠቃላይ ገደብ፦ 150,000 ብር',
+      telebirrAccPlaceholder: 'ምሳሌ፦ 09xxxxxxxx (የቴሌብር ስልክ ቁጥር)',
+      accPlaceholder: 'ምሳሌ፦ የባንክ ሂሳብ ቁጥር ወይም የኪስ ቁጥር'
     },
     ar: {
       accountSettings: 'إعدادات الحساب',
@@ -390,7 +402,13 @@ export const MyTab: React.FC<MyTabProps> = ({
       redeem: 'استرداد',
       userNameLabel: 'اسم المستخدم',
       userNamePlaceholder: 'مثال: Abeba Kebede',
-      userNameHint: 'يظهر فوق رقم هاتفك في الصفحة الرئيسية وصفحتي.'
+      userNameHint: 'يظهر فوق رقم هاتفك في الصفحة الرئيسية وصفحتي.',
+      telebirrRulesTitle: 'قواعد الدفع عبر Telebirr',
+      telebirrMinRule: 'الحد الأدنى للسحب: 50,000 بر إثيوبي',
+      telebirrMaxRule: 'الحد الأقصى لكل معاملة: 75,000 بر إثيوبي',
+      telebirrDailyRule: 'الحد اليومي الإجمالي: 150,000 بر إثيوبي',
+      telebirrAccPlaceholder: 'مثال: 09xxxxxxxx (رقم هاتف Telebirr)',
+      accPlaceholder: 'مثال: رقم الحساب البنكي أو المحفظة'
     },
     zh: {
       accountSettings: '账户设置',
@@ -436,7 +454,13 @@ export const MyTab: React.FC<MyTabProps> = ({
       redeem: '兑换',
       userNameLabel: '用户名',
       userNamePlaceholder: '例如：Abeba Kebede',
-      userNameHint: '显示在首页与“我的”页面中的手机号码上方。'
+      userNameHint: '显示在首页与“我的”页面中的手机号码上方。',
+      telebirrRulesTitle: 'Telebirr 提现规则',
+      telebirrMinRule: '最低提现金额：50,000 ETB',
+      telebirrMaxRule: '单笔交易最高限额：75,000 ETB',
+      telebirrDailyRule: '每日累计总限额：150,000 ETB',
+      telebirrAccPlaceholder: '例如：09xxxxxxxx（Telebirr 手机号码）',
+      accPlaceholder: '例如：银行账户或钱包账号'
     },
     es: {
       accountSettings: 'Configuración de la Cuenta',
@@ -482,7 +506,13 @@ export const MyTab: React.FC<MyTabProps> = ({
       redeem: 'Canjear',
       userNameLabel: 'Nombre de Usuario',
       userNamePlaceholder: 'ej. Abeba Kebede',
-      userNameHint: 'Se muestra arriba de su número de teléfono en la página de Inicio y Mi página.'
+      userNameHint: 'Se muestra arriba de su número de teléfono en la página de Inicio y Mi página.',
+      telebirrRulesTitle: 'Reglas de pago de Telebirr',
+      telebirrMinRule: 'Retiro mínimo: 50,000 ETB',
+      telebirrMaxRule: 'Máximo por transacción individual: 75,000 ETB',
+      telebirrDailyRule: 'Límite total diario: 150,000 ETB',
+      telebirrAccPlaceholder: 'ej. 09xxxxxxxx (Número de teléfono de Telebirr)',
+      accPlaceholder: 'ej. Número de cuenta bancaria o billetera'
     },
     fr: {
       accountSettings: 'Paramètres du Compte',
@@ -528,7 +558,13 @@ export const MyTab: React.FC<MyTabProps> = ({
       redeem: 'Utiliser',
       userNameLabel: "Nom d'utilisateur",
       userNamePlaceholder: 'ex. Abeba Kebede',
-      userNameHint: 'Affiché au-dessus de votre numéro de téléphone sur la page d’accueil et Ma page.'
+      userNameHint: 'Affiché au-dessus de votre numéro de téléphone sur la page d’accueil et Ma page.',
+      telebirrRulesTitle: 'Règles de paiement Telebirr',
+      telebirrMinRule: 'Retrait minimum : 50 000 ETB',
+      telebirrMaxRule: 'Maximum par transaction : 75 000 ETB',
+      telebirrDailyRule: 'Limite totale quotidienne : 150 000 ETB',
+      telebirrAccPlaceholder: 'ex. 09xxxxxxxx (Numéro de téléphone Telebirr)',
+      accPlaceholder: 'ex. Numéro de compte bancaire ou portefeuille'
     },
     sw: {
       accountSettings: 'Mipangilio ya Akaunti',
@@ -574,7 +610,13 @@ export const MyTab: React.FC<MyTabProps> = ({
       redeem: 'Komboa',
       userNameLabel: 'Jina la Mtumiaji',
       userNamePlaceholder: 'mfano Abeba Kebede',
-      userNameHint: 'Inaonyeshwa juu ya nambari yako ya simu kwenye Ukurasa wa Kwanza na Ukurasa Wangu.'
+      userNameHint: 'Inaonyeshwa juu ya nambari yako ya simu kwenye Ukurasa wa Kwanza na Ukurasa Wangu.',
+      telebirrRulesTitle: 'Kanuni za Malipo ya Telebirr',
+      telebirrMinRule: 'Kiwango cha chini cha kutoa: 50,000 ETB',
+      telebirrMaxRule: 'Kiwango cha juu kwa muamala mmoja: 75,000 ETB',
+      telebirrDailyRule: 'Kikomo cha jumla cha kila siku: 150,000 ETB',
+      telebirrAccPlaceholder: 'mfano 09xxxxxxxx (Nambari ya Simu ya Telebirr)',
+      accPlaceholder: 'mfano Nambari ya Akaunti ya Benki au Pochi'
     },
     so: {
       accountSettings: 'Habaynta Koontada',
@@ -620,7 +662,13 @@ export const MyTab: React.FC<MyTabProps> = ({
       redeem: 'Foorno',
       userNameLabel: 'Magaca Isticmaalaha',
       userNamePlaceholder: 'tusaale Abeba Kebede',
-      userNameHint: 'Waxaa lagu soo bandhigaa lambarkaaga taleefanka dusheeda bogga Hore iyo Boggeyga.'
+      userNameHint: 'Waxaa lagu soo bandhigaa lambarkaaga taleefanka dusheeda bogga Hore iyo Boggeyga.',
+      telebirrRulesTitle: 'Xeerarka Lacag Bixinta Telebirr',
+      telebirrMinRule: 'Kala bixidda ugu yar: 50,000 ETB',
+      telebirrMaxRule: 'Ugu badnaan hal macaamil: 75,000 ETB',
+      telebirrDailyRule: 'Wadarta guud ee xadka maalinlaha ah: 150,000 ETB',
+      telebirrAccPlaceholder: 'tusaale 09xxxxxxxx (Lambarka Telefoonka ee Telebirr)',
+      accPlaceholder: 'tusaale Koontada Bangiga ama Jeebka'
     },
     pt: {
       accountSettings: 'Configurações da Conta',
@@ -666,7 +714,13 @@ export const MyTab: React.FC<MyTabProps> = ({
       redeem: 'Resgatar',
       userNameLabel: 'Nome de Usuário',
       userNamePlaceholder: 'ex. Abeba Kebede',
-      userNameHint: 'Exibido acima do seu número de telefone na Página Inicial e na Minha Página.'
+      userNameHint: 'Exibido acima do seu número de telefone na Página Inicial e na Minha Página.',
+      telebirrRulesTitle: 'Regras de pagamento Telebirr',
+      telebirrMinRule: 'Retirada mínima: 50.000 ETB',
+      telebirrMaxRule: 'Máximo por transação única: 75.000 ETB',
+      telebirrDailyRule: 'Limite total diário: 150.000 ETB',
+      telebirrAccPlaceholder: 'ex: 09xxxxxxxx (Número de telefone Telebirr)',
+      accPlaceholder: 'ex: Número da conta bancária ou carteira'
     }
   };
 
@@ -2169,6 +2223,19 @@ export const MyTab: React.FC<MyTabProps> = ({
                             ))}
                           </motion.div>
                         )}
+
+                        {withdrawalBank.toLowerCase().includes('telebirr') && (
+                          <div className="mt-2 bg-emerald-50 border border-emerald-200/80 rounded-xl p-2.5 text-[9px] font-bold text-emerald-900 space-y-1">
+                            <div className="flex items-center gap-1.5 text-emerald-800 font-extrabold uppercase tracking-wider">
+                              <span>📱 {localT[language].telebirrRulesTitle || 'Telebirr Payout Rules'}</span>
+                            </div>
+                            <ul className="list-disc list-inside space-y-0.5 text-emerald-700 font-medium">
+                              <li>{localT[language].telebirrMinRule || 'Minimum withdrawal: 50,000 ETB'}</li>
+                              <li>{localT[language].telebirrMaxRule || 'Maximum per single transaction: 75,000 ETB'}</li>
+                              <li>{localT[language].telebirrDailyRule || 'Daily total limit: 150,000 ETB'}</li>
+                            </ul>
+                          </div>
+                        )}
                       </div>
 
                       {/* Account Holder Name Input */}
@@ -2181,7 +2248,7 @@ export const MyTab: React.FC<MyTabProps> = ({
                           required
                           value={withdrawalAccName}
                           onChange={(e) => setWithdrawalAccName(e.target.value)}
-                          placeholder="e.g. John Doe"
+                          placeholder={localT[language].userNamePlaceholder || "e.g. Abeba Kebede"}
                           className="w-full bg-slate-50 border border-slate-200 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 focus:outline-none transition-all font-semibold"
                         />
                       </div>
@@ -2196,7 +2263,7 @@ export const MyTab: React.FC<MyTabProps> = ({
                           required
                           value={withdrawalAccNo}
                           onChange={(e) => setWithdrawalAccNo(e.target.value)}
-                          placeholder="e.g. Bank Account or Wallet number"
+                          placeholder={withdrawalBank.toLowerCase().includes('telebirr') ? (localT[language].telebirrAccPlaceholder || 'e.g. 09xxxxxxxx (Telebirr Phone Number)') : (localT[language].accPlaceholder || 'e.g. Bank Account or Wallet number')}
                           className="w-full bg-slate-50 border border-slate-200 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 focus:outline-none transition-all font-semibold"
                         />
                       </div>

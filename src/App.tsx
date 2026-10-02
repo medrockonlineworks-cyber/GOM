@@ -214,22 +214,24 @@ const paymentGuideTranslations: Record<string, {
   intSteps: string[];
   otherTitle: string;
   otherSteps: string[];
+  reminderTitle: string;
+  reminderText: string;
 }> = {
   en: {
-    cbeTitle: "Commercial Bank of Ethiopia (CBE) - Step-by-Step Guide",
+    cbeTitle: "Commercial Bank of Ethiopia (CBE) - Official Deposit Guide",
     cbeSteps: [
-      "Copy our official CBE Account Number shown above: 1000419524747.",
-      "Open your CBE Mobile Banking app, or dial *889#.",
-      "Transfer your desired recharge amount to Ethiopia agent.",
-      "Copy the 12-digit transaction reference ID (usually starts with 'FT' or is purely numeric) from your confirmation SMS/receipt.",
-      "Enter that exact 12-digit reference ID in the field below, and click 'Submit'."
+      "Verify the official account details shown above: Bank name :- Commercial Bank of Ethiopia | Bank account number:- 1000419524747.",
+      "Open your CBE Mobile Banking app or dial *889#.",
+      "Transfer your desired recharge amount to the active account.",
+      "Copy the 12-digit transaction reference ID (usually starts with 'FT' or numeric digits) from your confirmation SMS or receipt.",
+      "Enter that exact 12-digit reference ID in the field below, and click 'Submit' for immediate verification."
     ],
     telebirrTitle: "Telebirr Mobile Money - Step-by-Step Guide",
     telebirrSteps: [
       "Copy our official Telebirr Number shown above: 0926193920.",
       "Open your Telebirr app or dial *127# on your phone.",
       "Select 'Send Money', choose 'To mobile number', and enter our agent number.",
-      "Send the desired recharge amount to Ethiopia agent.",
+      "Send the desired recharge amount to the official agent.",
       "Copy the 10-digit transaction ID from your confirmation SMS/receipt (usually starts with 'PP' or 'TX').",
       "Enter the exact 10-digit ID in the field below, and click 'Submit'."
     ],
@@ -254,15 +256,17 @@ const paymentGuideTranslations: Record<string, {
       "Send your desired deposit amount using your local mobile money (e.g., M-Pesa, EVC) or local bank app.",
       "Copy the exact transaction reference number or transaction ID from your provider's SMS or receipt.",
       "Enter the reference number below, and click 'Submit' for manual verification."
-    ]
+    ],
+    reminderTitle: "⚠️ CRITICAL SECURITY REMINDER & MANDATORY NOTICE:",
+    reminderText: "DO NOT save or attempt to use this account for another deposit! Official deposit accounts are dynamically rotated and subject to change at any time without notice. Always check and verify the currently active account directly from this Recharge Center before initiating each recharge. Transfers made to previously saved or expired accounts cannot be recognized or credited."
   },
   am: {
-    cbeTitle: "የኢትዮጵያ ንግድ ባንክ (CBE) - የደረጃ በደረጃ መመሪያ",
+    cbeTitle: "የኢትዮጵያ ንግድ ባንክ (CBE) - ይፋዊ የደረጃ በደረጃ የማስቀመጫ መመሪያ",
     cbeSteps: [
-      "ከላይ የሚታየውን ይፋዊ የCBE አካውንት ቁጥራችንን ይቅዱ፡ 1000419524747።",
+      "ከላይ የሚታየውን ይፋዊ የባንክ መረጃ ያረጋግጡ፦ Bank name :- Commercial Bank of Ethiopia | Bank account number:- 1000419524747።",
       "የCBE ሞባይል ባንኪንግ መተግበሪያን ይክፈቱ ወይም *889# ይደውሉ።",
-      "የሚፈልጉትን የማስቀመጫ መጠን ወደ Ethiopia agent ያስተላልፉ።",
-      "ከተላከ በኋላ ከክፍያ ማረጋገጫ አጭር መልእክት (SMS) ወይም ደረሰኝ ላይ ባለ 12-ባህሪ የማጣቀሻ መለያውን (በ 'FT' የሚጀምር ወይም ሙሉ ቁጥር) ይቅዱ።",
+      "የሚፈልጉትን የማስቀመጫ መጠን ወደ ወኪሉ ያስተላልፉ።",
+      "ከተላከ በኋላ ከክፍያ ማረጋገጫ አጭር መልእክት (SMS) ወይም ደረሰኝ ላይ ባለ 12-ባህሪ የማጣቀሻ መለያውን (በ 'FT' የሚጀምር ወይም ቁጥር) ይቅዱ።",
       "ያንን ትክክለኛ ባለ 12-ባህሪ የማጣቀሻ መለያ ከታች ባለው ቦታ ላይ ያስገቡ እና 'Submit' የሚለውን በመጫን ይላኩ።"
     ],
     telebirrTitle: "የቴሌብር ሞባይል ገንዘብ - የደረጃ በደረጃ መመሪያ",
@@ -270,7 +274,7 @@ const paymentGuideTranslations: Record<string, {
       "ከላይ የሚታየውን ይፋዊ የቴሌብር ቁጥራችንን ይቅዱ፡ 0926193920።",
       "የቴሌብር (telebirr) መተግበሪያዎን ይክፈቱ ወይም በስልክዎ ላይ *127# ይደውሉ።",
       "'Send Money' የሚለውን ይምረጡ፣ በመቀጠል 'To mobile number' መርጠው የኛን ወኪል ቁጥር ያስገቡ።",
-      "የሚፈልጉትን የገንዘብ መጠን ወደ Ethiopia agent ያስተላልፉ።",
+      "የሚፈልጉትን የገንዘብ መጠን ወደ ወኪሉ ያስተላልፉ።",
       "ከክፍያ ማረጋገጫ አጭር መልእክት (SMS) ወይም ከደረሰኙ ላይ ባለ 10-ባህሪ የግብይት መለያውን (በ 'PP' ወይም 'TX' የሚጀምር) ይቅዱ።",
       "ያንን ትክክለኛ ባለ 10-ባህሪ የግብይት መለያ ከታች ያስገቡ እና 'Submit' የሚለውን በመጫን ይላኩ።"
     ],
@@ -295,23 +299,25 @@ const paymentGuideTranslations: Record<string, {
       "የአካባቢዎን የሞባይል ገንዘብ (ለምሳሌ M-Pesa, EVC) ወይም ባንክ መተግበሪያ በመጠቀም ገንዘቡን ያስተላልፉ።",
       "ከአቅራቢዎ የክፍያ ማረጋገጫ አጭር መልእክት (SMS) ወይም ደረሰኝ ላይ የማጣቀሻ ቁጥሩን ወይም የግብይት መለያውን ይቅዱ።",
       "የማጣቀሻ ቁጥሩን ከታች ያስገቡ እና በእጅ እንዲረጋገጥ 'Submit' የሚለውን ይጫኑ።"
-    ]
+    ],
+    reminderTitle: "⚠️ እጅግ አስፈላጊ ጥንቃቄ እና የደህንነት ማሳሰቢያ፦",
+    reminderText: "ይህንን የባንክ ሂሳብ ለቀጣይ ተቀማጭ እንዳያስቀምጡ ወይም ደግመው እንዳይጠቀሙበት! ይፋዊ የገንዘብ መቀበያ ሂሳባችን በማንኛውም ጊዜ ስለሚቀየር፣ ከእያንዳንዱ ሪቻርጅ በፊት ሁልጊዜ እዚህ በሪቻርጅ ማዕከል የሚታየውን አዲስ ሂሳብ ማረጋገጥ ግዴታ ነው። ወደ ቀድሞ ወይም ወደ ተቀየረ ሂሳብ የተላከ ገንዘብ በሲስተሙ ሊታወቅ አይችልም።"
   },
   ar: {
-    cbeTitle: "البنك التجاري الإثيوبي (CBE) - دليل خطوة بخطوة",
+    cbeTitle: "البنك التجاري الإثيوبي (CBE) - دليل الإيداع الرسمي خطوة بخطوة",
     cbeSteps: [
-      "انسخ رقم حساب CBE الرسمي الموضح أعلاه: 1000419524747.",
+      "تحقق من بيانات حساب CBE الرسمي النشط أعلاه: Bank name :- Commercial Bank of Ethiopia | Bank account number:- 1000419524747.",
       "افتح تطبيق الخدمات المصرفية عبر الهاتف المحمول من CBE، أو اتصل بالرمز *889#.",
-      "قم بتحويل مبلغ الشحن المطلوب إلى وكيل إثيوبيا Ethiopia agent.",
-      "انسخ معرف مرجع المعاملة المكون من 12 رقمًا (يبدأ عادةً بـ 'FT' أو أرقام فقط) من رسالة التأكيد النصية/الإيصال.",
-      "أدخل معرف المرجع المكون من 12 رقمًا بالضبط في الحقل أدناه، وانقر فوق 'إرسال'."
+      "قم بتحويل مبلغ الشحن المطلوب إلى الحساب النشط.",
+      "انسخ معرف مرجع المعاملة المكون من 12 رقمًا (يبدأ عادةً بـ 'FT' أو أرقام فقط) من رسالة التأكيد النصية أو الإيصال.",
+      "أدخل معرف المرجع المكون من 12 رقمًا بالضبط في الحقل أدناه، وانقر فوق 'إرسال' للإيداع الفوري."
     ],
     telebirrTitle: "تيلبير موبايل موني (Telebirr) - دليل خطوة بخطوة",
     telebirrSteps: [
       "انسخ رقم تيلبير الرسمي الموضح أعلاه: 0926193920.",
       "افتح تطبيق تيلبير الخاص بك أو اتصل بالرمز *127# على هاتفك.",
       "اختر 'إرسال الأموال'، واختر 'إلى رقم الهاتف المحمول'، وأدخل رقم وكيلنا.",
-      "أرسل مبلغ الشحن المطلوب إلى وكيل إثيوبيا Ethiopia agent.",
+      "أرسل مبلغ الشحن المطلوب إلى الوكيل المعتمد.",
       "انسخ معرف المعاملة المكون من 10 أرقام من رسالة التأكيد النصية/الإيصال (يبدأ عادةً بـ 'PP' أو 'TX').",
       "أدخل المعرف المكون من 10 أرقام بالضبط في الحقل أدناه، وانقر فوق 'إرسال'."
     ],
@@ -336,23 +342,25 @@ const paymentGuideTranslations: Record<string, {
       "أرسل مبلغ الإيداع المطلوب باستخدام محفظة الجوال المحلية (مثل M-Pesa، EVC) أو تطبيق البنك المحلي الخاص بك.",
       "انسخ رقم مرجع المعاملة أو معرف المعاملة بالضبط من رسالة التأكيد أو إيصال مزود الخدمة الخاص بك.",
       "أدخل رقم المرجع أدناه، وانقر فوق 'إرسال' للتحقق اليدوي."
-    ]
+    ],
+    reminderTitle: "⚠️ تنبيه أمني وإشعار إيداع بالغ الأهمية:",
+    reminderText: "لا تقم إطلاقاً بحفظ أو إعادة استخدام هذا الحساب البنكي لأي إيداع مستقبلي! تتغير وتُحدّث حسابات الاستلام الرسمية في أي وقت لأغراض الأمان والتشغيل. يجب دائمًا فحص ونسخ الحساب النشط المعروض في هذه الصفحة قبل كل عملية شحن. التحويلات المرسلة إلى حسابات محفوظة مسبقًا أو منتهية الصلاحية لن يتم قيدها."
   },
   zh: {
-    cbeTitle: "埃塞俄比亚商业银行 (CBE) - 步骤指南",
+    cbeTitle: "埃塞俄比亚商业银行 (CBE) - 官方充值步骤指南",
     cbeSteps: [
-      "复制我们上面显示的官方 CBE 账号：1000419524747。",
+      "核对上方显示的官方收款信息：Bank name :- Commercial Bank of Ethiopia | Bank account number:- 1000419524747。",
       "打开您的 CBE 手机银行应用，或拨打 *889#。",
-      "将您想要充值的金额转账给埃塞俄比亚代理 Ethiopia agent。",
-      "从您的确认短信/收据中复制 12 位交易参考 ID（通常以 'FT' 开头或纯数字）。",
-      "在下方字段中输入准确的 12 位参考 ID，然后点击'提交'。",
+      "将您想要充值的确切金额转账至上述有效账户。",
+      "从您的确认短信/回单中复制 12 位交易参考 ID（通常以 'FT' 开头或纯数字）。",
+      "在下方字段中输入准确的 12 位参考 ID，然后点击'提交'进行核验。"
     ],
     telebirrTitle: "Telebirr 移动货币 - 步骤指南",
     telebirrSteps: [
       "复制我们上面显示的官方 Telebirr 号码：0926193920。",
       "在手机上打开您的 Telebirr 应用或拨打 *127#。",
       "选择'发送资金'，选择'发送至手机号'，然后输入我们的代理号码。",
-      "将您想要充值的金额发送给埃塞俄比亚代理 Ethiopia agent。",
+      "将您想要充值的金额发送给指定代理。",
       "从您的确认短信/收据中复制 10 位交易 ID（通常以 'PP' 或 'TX' 开头）。",
       "在下方字段中输入准确的 10 位 ID，然后点击'提交'。"
     ],
@@ -377,15 +385,17 @@ const paymentGuideTranslations: Record<string, {
       "使用您本地的移动货币（如 M-Pesa、EVC）或本地银行应用发送您想要充值的金额。",
       "从您的运营商短信或收据中复制准确的交易参考号或交易 ID。",
       "在下方输入参考号，然后点击'提交'以进行人工审核。"
-    ]
+    ],
+    reminderTitle: "⚠️ 重要安全警示与充值必读须知：",
+    reminderText: "切勿将此银行账户保存至常用收款人或用于日后其他充值！为确保资金安全，官方收款账户会随时轮换变更。每次充值前，必须在本充值页面仔细核对并复制当前显示的最新收款账号。转账至已变更或历史保存账户的款项将无法入账。"
   },
   es: {
-    cbeTitle: "Banco Comercial de Etiopía (CBE) - Guía Paso a Paso",
+    cbeTitle: "Banco Comercial de Etiopía (CBE) - Guía Oficial de Depósito Paso a Paso",
     cbeSteps: [
-      "Copie nuestro número de cuenta oficial de CBE que se muestra arriba: 1000419524747.",
+      "Verifique los datos oficiales mostrados arriba: Bank name :- Commercial Bank of Ethiopia | Bank account number:- 1000419524747.",
       "Abra su aplicación de banca móvil de CBE, o marque *889#.",
-      "Transfiera el monto de recarga deseado al agente de Etiopía Ethiopia agent.",
-      "Copie el ID de referencia de transacción de 12 dígitos (generalmente comienza con 'FT' o es puramente numérico) de su SMS o recibo de confirmación.",
+      "Transfiera el monto de recarga deseado a la cuenta activa.",
+      "Copie el ID de referencia de transacción de 12 dígitos (generalmente comienza con 'FT' o es numérico) de su SMS o recibo.",
       "Ingrese ese ID de referencia exacto de 12 dígitos en el campo a continuación y haga clic en 'Enviar'."
     ],
     telebirrTitle: "Telebirr Mobile Money - Guía Paso a Paso",
@@ -393,7 +403,7 @@ const paymentGuideTranslations: Record<string, {
       "Copie nuestro número oficial de Telebirr que se muestra arriba: 0926193920.",
       "Abra su aplicación Telebirr o marque *127# en su teléfono.",
       "Seleccione 'Enviar dinero', elija 'A número móvil' e ingrese nuestro número de agente.",
-      "Envíe el monto de recarga deseado al agente de Etiopía Ethiopia agent.",
+      "Envíe el monto de recarga deseado al agente de recarga.",
       "Copie el ID de transacción de 10 dígitos de su SMS o recibo de confirmación (generalmente comienza con 'PP' o 'TX').",
       "Ingrese el ID exacto de 10 dígitos en el campo a continuación y haga clic en 'Enviar'."
     ],
@@ -418,15 +428,17 @@ const paymentGuideTranslations: Record<string, {
       "Envíe el monto de depósito deseado utilizando su dinero móvil local (por ejemplo, M-Pesa, EVC) o la aplicación de su banco local.",
       "Copie el número de referencia de transacción exacto o el ID de transacción del SMS o recibo de su proveedor.",
       "Ingrese el número de referencia a continuación y haga clic en 'Enviar' para verificación manual."
-    ]
+    ],
+    reminderTitle: "⚠️ AVISO CRÍTICO DE SEGURIDAD Y RECORDATORIO DE DEPÓSITO:",
+    reminderText: "¡NO guarde ni intente reutilizar esta cuenta bancaria para otro depósito posterior! Las cuentas oficiales de depósito cambian en cualquier momento por motivos de seguridad y rotación. Verifique y copie siempre la cuenta activa mostrada directamente aquí antes de cada recarga. Los depósitos enviados a cuentas guardadas previamente o inactivas no podrán ser acreditados."
   },
   fr: {
-    cbeTitle: "Banque Commerciale d'Éthiopie (CBE) - Guide Étape par Étape",
+    cbeTitle: "Banque Commerciale d'Éthiopie (CBE) - Guide Officiel de Dépôt",
     cbeSteps: [
-      "Copiez notre numéro de compte CBE officiel affiché ci-dessus : 1000419524747.",
+      "Vérifiez les coordonnées officielles affichées ci-dessus : Bank name :- Commercial Bank of Ethiopia | Bank account number:- 1000419524747.",
       "Ouvrez votre application de banque mobile CBE, ou composez le *889#.",
-      "Transférez le montant de recharge souhaité à l'agent d'Éthiopie Ethiopia agent.",
-      "Copiez l'ID de référence de transaction à 12 chiffres (commence généralement par 'FT' ou est purement numérique) à partir de votre SMS/reçu de confirmation.",
+      "Transférez le montant de recharge souhaité sur le compte actif.",
+      "Copiez l'ID de référence de transaction à 12 chiffres (commence généralement par 'FT' ou numérique) à partir de votre SMS ou reçu.",
       "Saisissez cet ID de référence exact à 12 chiffres dans le champ ci-dessous, puis cliquez sur 'Soumettre'."
     ],
     telebirrTitle: "Telebirr Mobile Money - Guide Étape par Étape",
@@ -434,7 +446,7 @@ const paymentGuideTranslations: Record<string, {
       "Copiez notre numéro Telebirr officiel affiché ci-dessus : 0926193920.",
       "Ouvrez votre application Telebirr ou composez le *127# sur votre téléphone.",
       "Sélectionnez 'Envoyer de l'argent', choisissez 'Vers un numéro de mobile', puis saisissez notre numéro d'agent.",
-      "Envoyez le montant de recharge souhaité à l'agent d'Éthiopie Ethiopia agent.",
+      "Envoyez le montant de recharge souhaité à l'agent officiel.",
       "Copiez l'ID de transaction à 10 chiffres de votre SMS/reçu de confirmation (commence généralement par 'PP' ou 'TX').",
       "Saisissez l'ID exact à 10 chiffres dans le champ ci-dessous, puis cliquez sur 'Soumettre'."
     ],
@@ -459,15 +471,17 @@ const paymentGuideTranslations: Record<string, {
       "Envoyez le montant de dépôt souhaité en utilisant votre portefeuille mobile local (ex. M-Pesa, EVC) ou votre application bancaire locale.",
       "Copiez le numéro de référence de transaction exact ou l'ID de transaction du SMS ou du reçu de votre fournisseur.",
       "Saisissez le numéro de référence ci-dessous, puis cliquez sur 'Soumettre' pour une vérification manuelle."
-    ]
+    ],
+    reminderTitle: "⚠️ RAPPEL DE SÉCURITÉ CRITIQUE & AVIS OBLIGATOIRE :",
+    reminderText: "N'enregistrez PAS et ne réutilisez PAS ce compte bancaire pour un autre dépôt ! Les comptes de réception officiels changent à tout moment pour des raisons de sécurité et de rotation. Vérifiez et copiez toujours le compte actif affiché directement ici avant chaque recharge. Les dépôts effectués sur des comptes précédemment enregistrés ou expirés ne peuvent pas être crédités."
   },
   sw: {
-    cbeTitle: "Commercial Bank of Ethiopia (CBE) - Mwongozo wa Hatua kwa Hatua",
+    cbeTitle: "Commercial Bank of Ethiopia (CBE) - Mwongozo Rasmi wa Kuweka Pesa",
     cbeSteps: [
-      "Nakili Nambari yetu rasmi ya Akaunti ya CBE iliyoonyeshwa hapo juu: 1000419524747.",
+      "Thibitisha maelezo rasmi ya akaunti yaliyoonyeshwa hapo juu: Bank name :- Commercial Bank of Ethiopia | Bank account number:- 1000419524747.",
       "Fungua programu yako ya CBE Mobile Banking, au piga *889#.",
-      "Tuma kiasi chako cha recharge unachotaka kwa msimamizi wa Ethiopia Ethiopia agent.",
-      "Nakili msimbo wa marejeleo wa muamala wa tarakimu 12 (kawaida huanza na 'FT' au huwa nambari tupu) kutoka kwenye SMS au risiti ya uthibitisho.",
+      "Tuma kiasi chako cha recharge unachotaka kwa akaunti halisi.",
+      "Nakili msimbo wa marejeleo wa muamala wa tarakimu 12 (kawaida huanza na 'FT' au nambari) kutoka kwenye SMS au risiti ya CBE.",
       "Weka msimbo huo sahihi wa marejeleo wa tarakimu 12 kwenye sehemu iliyo hapa chini, na bonyeza 'Wasilisha'."
     ],
     telebirrTitle: "Telebirr Mobile Money - Mwongozo wa Hatua kwa Hatua",
@@ -475,7 +489,7 @@ const paymentGuideTranslations: Record<string, {
       "Nakili Nambari yetu rasmi ya Telebirr iliyoonyeshwa hapo juu: 0926193920.",
       "Fungua programu yako ya Telebirr au piga *127# kwenye simu yako.",
       "Chagua 'Tuma Pesa', chagua 'Kwa nambari ya simu', na uweke nambari ya msimamizi wetu.",
-      "Tuma kiasi chako cha recharge unachotaka kwa msimamizi wa Ethiopia Ethiopia agent.",
+      "Tuma kiasi chako cha recharge unachotaka kwa msimamizi rasmi.",
       "Nakili msimbo wa muamala wa tarakimu 10 kutoka kwenye SMS au risiti ya uthibitisho (kawaida huanza na 'PP' au 'TX').",
       "Weka msimbo huo sahihi wa tarakimu 10 kwenye sehemu iliyo hapa chini, na bonyeza 'Wasilisha'."
     ],
@@ -500,15 +514,17 @@ const paymentGuideTranslations: Record<string, {
       "Tuma kiasi unachotaka kuweka ukitumia huduma ya pesa kwenye simu ya humu nchini (mfano M-Pesa, EVC) au programu ya benki ya nchini.",
       "Nakili nambari kamili ya marejeleo ya muamala au ID ya muamala kutoka kwenye SMS au risiti ya mtoa huduma wako.",
       "Weka nambari ya marejeleo hapa chini, na bonyeza 'Wasilisha' kwa uthibitishaji wa mikono."
-    ]
+    ],
+    reminderTitle: "⚠️ ILANI MUHIMU YA USALAMA NA KIKUMBUSHO CHA LAZIMA:",
+    reminderText: "USIHIFADHI wala kujaribu kutumia akaunti hii ya benki kwa amana nyingine ya baadaye! Akaunti rasmi za kupokea pesa hubadilika wakati wowote kwa sababu za usalama na mzunguko. Kila mara kagua na unakili akaunti inayoonyeshwa hapa moja kwa moja kabla ya kila muamala. Pesa zilizotumwa kwa akaunti za zamani au zilizohifadhiwa haziwezi kuingizwa kwenye salio lako."
   },
   so: {
-    cbeTitle: "Bangiga Ganacsiga ee Itoobiya (CBE) - Hagaha Tallaabo-Tallaabo ah",
+    cbeTitle: "Bangiga Ganacsiga ee Itoobiya (CBE) - Hagaha Rasmiga ah ee Dhigashada",
     cbeSteps: [
-      "Koobi garee Lambarka rasmiga ah ee CBE ee kor ku xusan: 1000419524747.",
+      "Xaqiiji faahfaahinta rasmiga ah ee sare ku cad: Bank name :- Commercial Bank of Ethiopia | Bank account number:- 1000419524747.",
       "Fur app-ka CBE Mobile Banking, ama wac *889#.",
-      "U wareeji lacagta aad rabto inaad ku shubato wakiilka Itoobiya Ethiopia agent.",
-      "Koobi garee 12-ka lambar ee tixraaca muamala-ka (badanaa wuxuu ku bilaabmaa 'FT' ama waa lambar kaliya) ee SMS-ka xaqiijinta ama rasiidhkaaga.",
+      "U wareeji lacagta aad rabto inaad ku shubato koontada firfircoon.",
+      "Koobi garee 12-ka lambar ee tixraaca muamala-ka (badanaa wuxuu ku bilaabmaa 'FT' ama lambar) ee SMS-ka xaqiijinta ama rasiidhkaaga.",
       "Geli 12-kaas lambar ee saxda ah ee tixraaca garoonka hoose, dabadeedna guji 'Gudbi'."
     ],
     telebirrTitle: "Telebirr Mobile Money - Hagaha Tallaabo-Tallaabo ah",
@@ -516,7 +532,7 @@ const paymentGuideTranslations: Record<string, {
       "Koobi garee Lambarkayaga rasmiga ah ee Telebirr ee kor ku xusan: 0926193920.",
       "Fur app-kaaga Telebirr ama wac *127# taleefankaaga.",
       "Dooro 'Send Money', dooro 'To mobile number', kuna qor lambarka wakiilkayaga.",
-      "U dir lacagta aad rabto inaad ku shubato wakiilka Itoobiya Ethiopia agent.",
+      "U dir lacagta aad rabto inaad ku shubato wakiilka rasmiga ah.",
       "Koobi garee 10-ka lambar ee tixraaca ee SMS-ka xaqiijinta ama rasiidhkaaga (badanaa wuxuu ku bilaabmaa 'PP' ama 'TX').",
       "Geli lambarkaas saxda ah ee 10-ka ah garoonka hoose, dabadeedna guji 'Gudbi'."
     ],
@@ -541,23 +557,25 @@ const paymentGuideTranslations: Record<string, {
       "U dir qadarka aad rabto inaad ku shubato adoo isticmaalaya lacagta mobile-ka ee deegaankaaga (tusaale M-Pesa, EVC) ama app-ka bangigaaga deegaanka.",
       "Koobi garee lambarka tixraaca muamala-ka ee saxda ah ama ID-ga muamala-ka ee ka yimid SMS-ka ama rasiidhka bixiyahaaga.",
       "Geli lambarka tixraaca hoose, dabadeedna guji 'Gudbi' si loo xaqiijiyo gacanta."
-    ]
+    ],
+    reminderTitle: "⚠️ DIGNIIN AMNI EE MUHIIMKA AH & XASUUSIN WAAJIB AH:",
+    reminderText: "HA KEYDSAN hana isku dayin inaad koontadan bangiga u isticmaasho lacag dhigasho kale oo dambe! Koontooyinka rasmiga ah ee lacagta lagu shubo way isbeddeli karaan wakhti kasta sababo amni iyo wareeg awgood. Had iyo jeer kaga fiirso oo koobi garee koontada rasmiga ah ee halkan ka muuqata ka hor inta aadan lacag dirin. Lacagaha loo diro koontooyin hore oo la keydiyay lama xaqiijin karo."
   },
   pt: {
-    cbeTitle: "Banco Comercial da Etiópia (CBE) - Guia Passo a Passo",
+    cbeTitle: "Banco Comercial da Etiópia (CBE) - Guia Oficial de Depósito",
     cbeSteps: [
-      "Copie nosso número de conta CBE oficial exibido acima: 1000419524747.",
+      "Verifique os dados da conta oficial exibidos acima: Bank name :- Commercial Bank of Ethiopia | Bank account number:- 1000419524747.",
       "Abra seu aplicativo de mobile banking do CBE ou disque *889#.",
-      "Transfira o valor de recarga desejado para o agente da Etiópia Ethiopia agent.",
-      "Copie o ID de referência da transação de 12 dígitos (geralmente começa com 'FT' ou é puramente numérico) do seu SMS ou recibo de confirmação.",
-      "Insira o ID de referência exato de 12 dígitos no campo abaixo e clique em 'Enviar'."
+      "Transfira o valor de recarga desejado para a conta ativa.",
+      "Copie o ID de referência de 12 dígitos da transação (geralmente começa com 'FT' ou numérico) do seu SMS ou recibo do CBE.",
+      "Insira o ID de referência no campo abaixo e clique em 'Enviar'."
     ],
     telebirrTitle: "Telebirr Mobile Money - Guia Passo a Passo",
     telebirrSteps: [
       "Copie nosso número oficial do Telebirr exibido acima: 0926193920.",
       "Abra seu aplicativo Telebirr ou disque *127# no seu telefone.",
       "Selecione 'Enviar Dinheiro', escolha 'Para número de celular' e insira o número do nosso agente.",
-      "Envie o valor de recarga desejado para o agente da Etiópia Ethiopia agent.",
+      "Envie o valor de recarga desejado para o agente oficial.",
       "Copie o ID de transação de 10 dígitos do seu SMS ou recibo de confirmação (geralmente começa com 'PP' ou 'TX').",
       "Insira o ID exato de 10 dígitos no campo abaixo e clique em 'Enviar'."
     ],
@@ -582,7 +600,9 @@ const paymentGuideTranslations: Record<string, {
       "Envie o valor de depósito desejado usando sua carteira digital local (ex: M-Pesa, EVC) ou aplicativo do seu banco local.",
       "Copie o número de referência da transação exato ou ID da transação do SMS ou recibo do seu provedor.",
       "Insira o número de referência abaixo e clique em 'Enviar' para verificação manual."
-    ]
+    ],
+    reminderTitle: "⚠️ LEMBRETE CRÍTICO DE SEGURANÇA E AVISO OBRIGATÓRIO:",
+    reminderText: "NÃO salve nem tente reutilizar esta conta bancária para outro depósito futuro! As contas oficiais de recebimento são alteradas a qualquer momento por motivos de segurança e rotatividade. Sempre verifique e copie a conta ativa exibida diretamente nesta página antes de cada recarga. Depósitos enviados para contas salvas anteriormente ou expiradas não poderão ser creditados."
   }
 };
 
@@ -975,6 +995,7 @@ function AppContent() {
   const [dragActive, setDragActive] = useState(false);
   const [showChannelDropdown, setShowChannelDropdown] = useState(false);
   const [lastSubmittedRecharge, setLastSubmittedRecharge] = useState<{ amount: number; bank: string; ref: string } | null>(null);
+  const [rechargeAccountCopied, setRechargeAccountCopied] = useState(false);
 
   const [inlineVerifyCode, setInlineVerifyCode] = useState('');
   const [inlineVerifyError, setInlineVerifyError] = useState('');
@@ -986,6 +1007,7 @@ function AppContent() {
     if (rechargeModalOpen) {
       setRechargeSuccess(false);
       setLastSubmittedRecharge(null);
+      setRechargeAccountCopied(false);
       setRechargeError('');
       setRechargeScreenshot(null);
       setDragActive(false);
@@ -1208,24 +1230,34 @@ function AppContent() {
     }
 
     const baseAmt = currency === 'USD' ? inputAmt * 196 : inputAmt;
-    if (baseAmt < 100000) {
-      setWithdrawError(currency === 'USD'
-        ? 'The minimum withdrawal amount is $510.20 (100,000 ETB).'
-        : (t('withdrawMinError') || 'The minimum withdrawal amount is 100,000 ETB.')
+    const isTelebirr = withdrawBank.toLowerCase().includes('telebirr') || Boolean(currentUser?.withdrawalBank && currentUser.withdrawalBank.toLowerCase().includes('telebirr'));
+    const minWithdrawETB = isTelebirr ? 50000 : 100000;
+    const maxWithdrawETB = isTelebirr ? 75000 : 600000;
+    const dailyLimitETB = isTelebirr ? 150000 : 600000;
+
+    if (baseAmt < minWithdrawETB) {
+      setWithdrawError(
+        isTelebirr
+          ? (t('telebirrMinError') || `The minimum withdrawal amount for Telebirr is ${formatPrice(minWithdrawETB)}.`)
+          : `The minimum withdrawal amount for ${withdrawBank} is ${formatPrice(minWithdrawETB)}.`
       );
       return;
     }
 
-    const isTelebirr = withdrawBank.toLowerCase().includes('telebirr');
-    const maxWithdraw = 600000;
-    if (baseAmt > maxWithdraw) {
-      setWithdrawError(`The maximum withdrawal amount per single order for ${withdrawBank} is ${formatPrice(maxWithdraw)}.`);
+    if (baseAmt > maxWithdrawETB) {
+      setWithdrawError(
+        isTelebirr
+          ? (t('telebirrMaxError') || `The maximum withdrawal amount per single transaction for Telebirr is ${formatPrice(maxWithdrawETB)}.`)
+          : `The maximum withdrawal amount per single transaction for ${withdrawBank} is ${formatPrice(maxWithdrawETB)}.`
+      );
       return;
     }
 
-    const dailyLimit = 600000;
     const withdrawnToday = (transactions || []).filter(t => {
       if (t.userId !== currentUser?.id || t.type !== 'withdraw' || t.status === 'rejected') {
+        return false;
+      }
+      if (isTelebirr && !t.bankName?.toLowerCase().includes('telebirr')) {
         return false;
       }
       try {
@@ -1235,11 +1267,14 @@ function AppContent() {
       } catch (e) {
         return false;
       }
-    }).reduce((sum, t) => sum + t.amount, 0);
+    }).reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
 
-    if (withdrawnToday + baseAmt > dailyLimit) {
-      const remainingLimit = Math.max(0, dailyLimit - withdrawnToday);
-      setWithdrawError(`This request exceeds your remaining daily limit of ${formatPrice(remainingLimit)}.`);
+    if (withdrawnToday + baseAmt > dailyLimitETB) {
+      const remainingLimit = Math.max(0, dailyLimitETB - withdrawnToday);
+      setWithdrawError(
+        t('telebirrDailyErrorDesc', { remaining: formatPrice(remainingLimit), bank: isTelebirr ? 'Telebirr' : withdrawBank, dailyMax: formatPrice(dailyLimitETB) }) ||
+        `This request exceeds your remaining daily limit of ${formatPrice(remainingLimit)} for ${isTelebirr ? 'Telebirr' : withdrawBank}. (Daily limit: ${formatPrice(dailyLimitETB)}).`
+      );
       return;
     }
 
@@ -2083,44 +2118,68 @@ function AppContent() {
                         key={selectedAccount.bank}
                         initial={{ opacity: 0, scale: 0.98 }}
                         animate={{ opacity: 1, scale: 1 }}
-                        className="bg-gradient-to-br from-[#0F2022] via-[#162E30] to-[#0C1A1C] text-white p-4.5 rounded-2xl border border-emerald-900/40 shadow-lg relative overflow-hidden space-y-3"
+                        className="bg-gradient-to-br from-[#0c1f20] via-[#122b2d] to-[#081718] text-white p-4 rounded-2xl border border-emerald-500/30 shadow-xl relative overflow-hidden"
                       >
-                        <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none" />
-                        
-                        <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
-                          <div className="flex items-center gap-2">
-                            <span className="text-base">🇪🇹</span>
-                            <span className="text-xs font-black tracking-tight text-amber-400 uppercase">
-                              {selectedAccount.bank}
+                        <div className="bg-black/50 border border-amber-500/20 rounded-xl p-3.5 space-y-3 backdrop-blur-md shadow-inner">
+                          {/* Row 1: Bank Name */}
+                          <div className="flex items-center justify-between text-xs pb-2.5 border-b border-white/10">
+                            <span className="text-slate-300 font-bold text-xs">
+                              Bank name :-
                             </span>
-                          </div>
-                          <span className="text-[9px] font-black uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full">
-                            Official Deposit Account
-                          </span>
-                        </div>
-
-                        <div className="space-y-2">
-                          {/* Account Number Row with Copy Button */}
-                          <div className="flex justify-between items-center bg-white/5 border border-white/10 rounded-xl p-3">
-                            <div className="space-y-0.5">
-                              <span className="block text-[9px] uppercase tracking-wider text-slate-400 font-extrabold">
-                                Account Number / Phone No
+                            <div className="flex items-center gap-2">
+                              <span className="text-amber-300 font-black text-xs sm:text-sm tracking-wide text-right">
+                                Commercial Bank of Ethiopia
                               </span>
-                              <span className="block text-lg font-mono font-black tracking-wider text-white select-all">
-                                {maskAccountNumber(selectedAccount.accNo)}
-                              </span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  navigator.clipboard.writeText('Commercial Bank of Ethiopia');
+                                  alert('Bank name copied: Commercial Bank of Ethiopia');
+                                }}
+                                className="p-1 rounded-md bg-white/10 hover:bg-white/20 text-slate-300 hover:text-amber-300 cursor-pointer transition-colors active:scale-95 shrink-0"
+                                title="Copy bank name"
+                              >
+                                <Copy size={13} />
+                              </button>
                             </div>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                navigator.clipboard.writeText(selectedAccount.accNo);
-                                alert(`${selectedAccount.bank} account number copied: ${maskAccountNumber(selectedAccount.accNo)}`);
-                              }}
-                              className="bg-amber-400 hover:bg-amber-300 text-slate-950 px-3.5 py-2 rounded-xl font-black cursor-pointer active:scale-95 transition-all text-xs flex items-center gap-1.5 shrink-0 shadow-md"
-                            >
-                              <Copy size={13} />
-                              <span>Copy Account</span>
-                            </button>
+                          </div>
+
+                          {/* Row 2: Bank Account Number */}
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                            <span className="text-slate-300 font-bold text-xs">
+                              Bank account number:-
+                            </span>
+                            <div className="flex items-center justify-between sm:justify-end gap-2.5">
+                              <span className="text-base sm:text-lg font-mono font-black tracking-widest text-white select-all bg-white/5 px-2.5 py-1 rounded-lg border border-white/10">
+                                {selectedAccount.accNo || '1000419524747'}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(selectedAccount.accNo || '1000419524747');
+                                  setRechargeAccountCopied(true);
+                                  setTimeout(() => setRechargeAccountCopied(false), 2500);
+                                }}
+                                className={`px-3 py-1.5 rounded-lg font-black transition-all text-xs flex items-center gap-1.5 shrink-0 cursor-pointer shadow-md ${
+                                  rechargeAccountCopied
+                                    ? 'bg-emerald-500 text-white ring-2 ring-emerald-300'
+                                    : 'bg-amber-400 hover:bg-amber-300 text-slate-950 active:scale-95'
+                                }`}
+                                title="Copy bank account number"
+                              >
+                                {rechargeAccountCopied ? (
+                                  <>
+                                    <Check size={13} className="text-white shrink-0" />
+                                    <span>Copied!</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Copy size={13} className="shrink-0" />
+                                    <span>Copy</span>
+                                  </>
+                                )}
+                              </button>
+                            </div>
                           </div>
                         </div>
                       </motion.div>
@@ -2308,6 +2367,43 @@ function AppContent() {
                               </p>
                             </div>
                           ))}
+                        </div>
+
+                        {/* High-Priority Security Reminder */}
+                        <div className="bg-gradient-to-br from-amber-500/15 via-rose-500/10 to-amber-500/15 border-2 border-amber-400/80 rounded-2xl p-4 text-amber-950 space-y-3 shadow-md">
+                          <div className="flex items-center justify-between border-b border-amber-300/50 pb-2">
+                            <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-amber-900">
+                              <span className="p-1 bg-amber-500 text-white rounded-lg shadow-xs flex items-center justify-center">
+                                <AlertTriangle size={14} className="shrink-0" />
+                              </span>
+                              <span>{g.reminderTitle}</span>
+                            </div>
+                            <span className="text-[8.5px] font-black uppercase tracking-wider bg-rose-600 text-white px-2 py-0.5 rounded-full shadow-xs">
+                              MANDATORY
+                            </span>
+                          </div>
+
+                          <p className="text-[11px] leading-relaxed font-bold text-amber-950">
+                            {g.reminderText}
+                          </p>
+
+                          {/* Quick Key Takeaway Highlights */}
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 border-t border-amber-300/40 text-[10px] font-extrabold">
+                            <div className="bg-white/85 rounded-xl p-2.5 border border-amber-200/80 text-rose-950 flex items-start gap-2 shadow-2xs">
+                              <span className="text-sm shrink-0">🚫</span>
+                              <div className="leading-snug">
+                                <strong className="text-rose-700 block uppercase text-[9px]">Do Not Save / Reuse</strong>
+                                Never reuse this account for another deposit — accounts rotate at any time.
+                              </div>
+                            </div>
+                            <div className="bg-white/85 rounded-xl p-2.5 border border-amber-200/80 text-emerald-950 flex items-start gap-2 shadow-2xs">
+                              <span className="text-sm shrink-0">🔄</span>
+                              <div className="leading-snug">
+                                <strong className="text-emerald-700 block uppercase text-[9px]">Check Before Every Recharge</strong>
+                                Always verify and copy the current active account displayed right here.
+                              </div>
+                            </div>
+                          </div>
                         </div>
 
                         <div className="pt-2 border-t border-slate-200/40 text-[9px] text-slate-400 font-semibold flex items-center gap-1.5">
@@ -2660,16 +2756,21 @@ function AppContent() {
                       const completedCount = currentUser?.completedOrderIds ? currentUser.completedOrderIds.length : 0;
                       const isLocked = completedCount < 15;
 
-                      // Daily and single-order limit calculation
-                      const isTelebirr = withdrawBank.toLowerCase().includes('telebirr');
-                      const dailyLimitETB = isTelebirr ? 150000 : 600000;
-                      const dailyLimit = currency === 'USD' ? dailyLimitETB / 196 : dailyLimitETB;
+                      // Daily, min, and single-order limit calculation
+                      const isTelebirr = withdrawBank.toLowerCase().includes('telebirr') || Boolean(currentUser?.withdrawalBank && currentUser.withdrawalBank.toLowerCase().includes('telebirr'));
+                      const minWithdrawETB = isTelebirr ? 50000 : 100000;
+                      const minWithdraw = currency === 'USD' ? minWithdrawETB / 196 : minWithdrawETB;
                       const singleOrderLimitETB = isTelebirr ? 75000 : 600000;
                       const singleOrderLimit = currency === 'USD' ? singleOrderLimitETB / 196 : singleOrderLimitETB;
+                      const dailyLimitETB = isTelebirr ? 150000 : 600000;
+                      const dailyLimit = currency === 'USD' ? dailyLimitETB / 196 : dailyLimitETB;
 
                       // sum of today's withdrawals (excluding rejected ones)
                       const withdrawnToday = (transactions || []).filter(t => {
                         if (t.userId !== currentUser?.id || t.type !== 'withdraw' || t.status === 'rejected') {
+                          return false;
+                        }
+                        if (isTelebirr && !t.bankName?.toLowerCase().includes('telebirr')) {
                           return false;
                         }
                         try {
@@ -2679,13 +2780,15 @@ function AppContent() {
                         } catch (e) {
                           return false;
                         }
-                      }).reduce((sum, t) => sum + t.amount, 0);
+                      }).reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
 
                       const withdrawnTodayConverted = currency === 'USD' ? withdrawnToday / 196 : withdrawnToday;
                       const attemptedAmount = Number(withdrawAmount) || 0;
                       const totalProjected = withdrawnTodayConverted + attemptedAmount;
                       const remainingLimit = Math.max(0, dailyLimit - withdrawnTodayConverted);
+                      const belowMin = attemptedAmount > 0 && attemptedAmount < minWithdraw;
                       const exceedsSingleOrder = attemptedAmount > singleOrderLimit;
+                      const exceedsDaily = totalProjected > dailyLimit;
 
                       return (
                         <>
@@ -2784,6 +2887,20 @@ function AppContent() {
                                 ⚠️ Ethiopian Bank payouts are only available for users registered in Ethiopia. Please select your own country's local method or international options.
                               </div>
                             )}
+
+                            {/* Telebirr Rule Notice Card */}
+                            {isTelebirr && (
+                              <div className="mt-2 bg-emerald-50 border border-emerald-200/80 rounded-xl p-2.5 text-[9px] font-bold text-emerald-900 space-y-1">
+                                <div className="flex items-center gap-1.5 text-emerald-800 font-extrabold uppercase tracking-wider">
+                                  <span>📱 {t('telebirrRulesTitle') || 'Telebirr Withdrawal Rules'}</span>
+                                </div>
+                                <ul className="list-disc list-inside space-y-0.5 text-emerald-700 font-medium">
+                                  <li>{t('telebirrMinRule') || 'Minimum withdrawal: 50,000 ETB'}</li>
+                                  <li>{t('telebirrMaxRule') || 'Maximum in one transaction: 75,000 ETB'}</li>
+                                  <li>{t('telebirrDailyRule') || 'Daily maximum in total: 150,000 ETB'} ({t('telebirrRemainingToday') || 'Remaining today:'} {formatPrice(currency === 'USD' ? remainingLimit * 196 : remainingLimit)})</li>
+                                </ul>
+                              </div>
+                            )}
                           </div>
 
                           <div>
@@ -2792,7 +2909,7 @@ function AppContent() {
                               type="text"
                               required
                               disabled={isLocked}
-                              placeholder="e.g. John Doe"
+                              placeholder={t('userNamePlaceholder') || "e.g. Abeba Kebede"}
                               value={withdrawAccName}
                               onChange={(e) => setWithdrawAccName(e.target.value)}
                               className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-bronze disabled:opacity-50"
@@ -2806,7 +2923,7 @@ function AppContent() {
                                 type="text"
                                 required
                                 disabled={isLocked}
-                                placeholder="e.g. 1000xxxxxxxxx"
+                                placeholder={isTelebirr ? (t('telebirrAccPlaceholder') || "e.g. 09xxxxxxxx (Telebirr No)") : "e.g. 1000xxxxxxxxx"}
                                 value={withdrawAccNo}
                                 onChange={(e) => setWithdrawAccNo(e.target.value)}
                                 className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-bronze disabled:opacity-50"
@@ -2817,15 +2934,15 @@ function AppContent() {
                               <input
                                 type="number"
                                 required
-                                min={currency === 'USD' ? "510.20" : "100000"}
+                                min={currency === 'USD' ? (minWithdrawETB / 196).toFixed(2) : minWithdrawETB.toString()}
                                 max={currency === 'USD' 
-                                  ? (600000 / 196).toFixed(2) 
-                                  : "600000"
+                                  ? (singleOrderLimitETB / 196).toFixed(2) 
+                                  : singleOrderLimitETB.toString()
                                 }
                                 disabled={isLocked}
                                 placeholder={currency === 'USD' 
-                                  ? `Min 510.20 - Max ${(600000 / 196).toFixed(1)}` 
-                                  : "Min 100k - Max 600k"
+                                  ? `Min $${(minWithdrawETB / 196).toFixed(1)} - Max $${(singleOrderLimitETB / 196).toFixed(1)}` 
+                                  : `Min ${minWithdrawETB.toLocaleString()} - Max ${singleOrderLimitETB.toLocaleString()}`
                                 }
                                 value={withdrawAmount}
                                 onChange={(e) => setWithdrawAmount(e.target.value)}
@@ -2833,43 +2950,51 @@ function AppContent() {
                               />
                               <span className="text-[9px] text-slate-400 mt-1 block leading-normal">
                                 {currency === 'USD' 
-                                  ? `Min: $510.20 | Max: $${(600000 / 196).toLocaleString(undefined, { maximumFractionDigits: 2 })} USD`
-                                  : `Min: 100,000 | Max: 600,000 ETB`
+                                  ? `Min: $${(minWithdrawETB / 196).toFixed(2)} | Max: $${(singleOrderLimitETB / 196).toFixed(2)} USD`
+                                  : `Min: ${minWithdrawETB.toLocaleString()} | Max: ${singleOrderLimitETB.toLocaleString()} ETB`
                                 }
                               </span>
                             </div>
                           </div>
 
                           {/* Limit Violation Alerts */}
-                          {totalProjected > dailyLimit && (
+                          {belowMin && !isLocked && (
                             <div className="bg-red-50 text-red-700 border border-red-100 rounded-lg p-2 text-[9px] font-black flex items-center gap-1.5 leading-relaxed mb-2.5 animate-pulse">
                               <AlertCircle size={12} className="shrink-0" />
-                              <span>This request exceeds your remaining daily limit of {formatPrice(currency === 'USD' ? remainingLimit * 196 : remainingLimit)}.</span>
+                              <span>{isTelebirr ? (t('telebirrMinError') || `Minimum withdrawal amount for Telebirr is ${formatPrice(minWithdrawETB)}.`) : `Minimum withdrawal amount for ${withdrawBank} is ${formatPrice(minWithdrawETB)}.`}</span>
                             </div>
                           )}
                           {exceedsSingleOrder && !isLocked && (
                             <div className="bg-red-50 text-red-700 border border-red-100 rounded-lg p-2 text-[9px] font-black flex items-center gap-1.5 leading-relaxed mb-2.5 animate-pulse">
                               <AlertCircle size={12} className="shrink-0" />
-                              <span>Single order limit for {withdrawBank} is {formatPrice(singleOrderLimitETB)}.</span>
+                              <span>{isTelebirr ? (t('telebirrMaxError') || `Maximum withdrawal in one transaction for Telebirr is ${formatPrice(singleOrderLimitETB)}.`) : `Maximum withdrawal in one transaction for ${withdrawBank} is ${formatPrice(singleOrderLimitETB)}.`}</span>
+                            </div>
+                          )}
+                          {exceedsDaily && !isLocked && (
+                            <div className="bg-red-50 text-red-700 border border-red-100 rounded-lg p-2 text-[9px] font-black flex items-center gap-1.5 leading-relaxed mb-2.5 animate-pulse">
+                              <AlertCircle size={12} className="shrink-0" />
+                              <span>{t('telebirrDailyErrorDesc', { remaining: formatPrice(currency === 'USD' ? remainingLimit * 196 : remainingLimit), bank: isTelebirr ? 'Telebirr' : withdrawBank, dailyMax: formatPrice(dailyLimitETB) }) || `This request exceeds your remaining daily limit of ${formatPrice(currency === 'USD' ? remainingLimit * 196 : remainingLimit)} for ${isTelebirr ? 'Telebirr' : withdrawBank}. (Daily maximum: ${formatPrice(dailyLimitETB)}).`}</span>
                             </div>
                           )}
 
                           <button
                             type="submit"
-                            disabled={isLocked || totalProjected > dailyLimit || exceedsSingleOrder}
+                            disabled={isLocked || belowMin || exceedsSingleOrder || exceedsDaily}
                             className={`w-full font-bold py-3 rounded-xl shadow transition-all text-xs cursor-pointer ${
-                              isLocked || totalProjected > dailyLimit || exceedsSingleOrder
+                              isLocked || belowMin || exceedsSingleOrder || exceedsDaily
                                 ? 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none border border-slate-300/50' 
                                 : 'bg-bronze hover:bg-bronze-hover active:opacity-90 text-white'
                             }`}
                           >
                             {isLocked 
                               ? t('complete10TasksToWithdraw', { completedCount }) 
-                              : totalProjected > dailyLimit 
-                                ? 'Daily Limit Exceeded' 
+                              : belowMin
+                                ? (isTelebirr ? (t('telebirrMinRule') || `Minimum is ${formatPrice(minWithdrawETB)}`) : `Minimum is ${formatPrice(minWithdrawETB)}`)
                                 : exceedsSingleOrder
-                                  ? 'Single Order Limit Exceeded'
-                                  : t('submitPayoutRequest')
+                                  ? (isTelebirr ? (t('telebirrMaxRule') || `Single Order Limit is ${formatPrice(singleOrderLimitETB)}`) : `Single Order Limit is ${formatPrice(singleOrderLimitETB)}`)
+                                  : exceedsDaily 
+                                    ? (t('telebirrDailyLimitExceeded') || 'Daily Limit Exceeded') 
+                                    : t('submitPayoutRequest')
                             }
                           </button>
                         </>

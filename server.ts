@@ -410,6 +410,40 @@ app.post('/api/transactions', async (req, res) => {
       }
     }
 
+    // Enforce withdrawal rules (Telebirr: min 50,000 ETB, max 75,000 ETB per tx, daily max 150,000 ETB)
+    if (type === 'withdraw') {
+      const numAmount = Number(amount) || 0;
+      const isTelebirr = bankName?.toLowerCase().includes('telebirr');
+      const minLimit = isTelebirr ? 50000 : 100000;
+      const maxLimit = isTelebirr ? 75000 : 600000;
+      const dailyLimit = isTelebirr ? 150000 : 600000;
+
+      if (numAmount < minLimit) {
+        return res.status(400).json({ error: `The minimum withdrawal amount for ${bankName || 'Telebirr'} is ${minLimit.toLocaleString()} ETB.` });
+      }
+      if (numAmount > maxLimit) {
+        return res.status(400).json({ error: `The maximum withdrawal amount per single transaction for ${bankName || 'Telebirr'} is ${maxLimit.toLocaleString()} ETB.` });
+      }
+
+      // Check daily total for user
+      const userTxs = await db.select().from(transactions).where(eq(transactions.userId, userId));
+      const todayStr = new Date().toDateString();
+      const withdrawnToday = (userTxs || []).filter((t: any) => {
+        if (t.type !== 'withdraw' || t.status === 'rejected') return false;
+        if (isTelebirr && !t.bankName?.toLowerCase().includes('telebirr')) return false;
+        try {
+          return new Date(t.createdAt).toDateString() === todayStr;
+        } catch {
+          return false;
+        }
+      }).reduce((sum: number, t: any) => sum + (Number(t.amount) || 0), 0);
+
+      if (withdrawnToday + numAmount > dailyLimit) {
+        const remaining = Math.max(0, dailyLimit - withdrawnToday);
+        return res.status(400).json({ error: `This request exceeds your remaining daily limit of ${remaining.toLocaleString()} ETB for ${isTelebirr ? 'Telebirr' : bankName}. (Daily limit: ${dailyLimit.toLocaleString()} ETB).` });
+      }
+    }
+
     await db.insert(transactions).values({
       id,
       userId,

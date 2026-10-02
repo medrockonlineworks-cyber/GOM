@@ -2918,6 +2918,53 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       };
     }
 
+    const isTelebirr = (bankName || '').toLowerCase().includes('telebirr') || Boolean(currentUser?.withdrawalBank && currentUser.withdrawalBank.toLowerCase().includes('telebirr'));
+    const minWithdrawETB = isTelebirr ? 50000 : 100000;
+    const maxWithdrawETB = isTelebirr ? 75000 : 600000;
+    const dailyLimitETB = isTelebirr ? 150000 : 600000;
+
+    if (amount < minWithdrawETB) {
+      return {
+        success: false,
+        message: isTelebirr 
+          ? `The minimum withdrawal amount for Telebirr is 50,000 ETB.`
+          : `The minimum withdrawal amount for ${bankName} is ${minWithdrawETB.toLocaleString()} ETB.`
+      };
+    }
+
+    if (amount > maxWithdrawETB) {
+      return {
+        success: false,
+        message: isTelebirr
+          ? `The maximum withdrawal amount per single transaction for Telebirr is 75,000 ETB.`
+          : `The maximum withdrawal amount per single transaction for ${bankName} is ${maxWithdrawETB.toLocaleString()} ETB.`
+      };
+    }
+
+    const withdrawnToday = (transactions || []).filter(t => {
+      if (t.userId !== currentUser.id || t.type !== 'withdraw' || t.status === 'rejected') {
+        return false;
+      }
+      if (isTelebirr && !t.bankName?.toLowerCase().includes('telebirr')) {
+        return false;
+      }
+      try {
+        const txDate = new Date(t.createdAt);
+        const today = new Date();
+        return txDate.toDateString() === today.toDateString();
+      } catch (e) {
+        return false;
+      }
+    }).reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+
+    if (withdrawnToday + amount > dailyLimitETB) {
+      const remainingLimit = Math.max(0, dailyLimitETB - withdrawnToday);
+      return {
+        success: false,
+        message: `This request exceeds your remaining daily limit of ${remainingLimit.toLocaleString()} ETB for ${isTelebirr ? 'Telebirr' : bankName}. (Daily limit: ${dailyLimitETB.toLocaleString()} ETB).`
+      };
+    }
+
     if (currentUser.walletBalance < amount) {
       return { success: false, message: 'Insufficient wallet balance.' };
     }
