@@ -167,7 +167,7 @@ const generateRandomWithdrawal = () => {
 export const TELEGRAM_COUNTRIES = [
   { country: 'China', flag: '🇨🇳', prefix: '+86', code: '86', channel: 'https://t.me/+AMh69NGQsABhYjY0', support: 'GOM_China_Support' },
   { country: 'Djibouti', flag: '🇩🇯', prefix: '+253', code: '253', channel: 'https://t.me/+AMh69NGQsABhYjY0', support: 'GOM_Djibouti_Support' },
-  { country: 'Ethiopia', flag: '🇪🇹', prefix: '+251', code: '251', channel: 'https://t.me/+AMh69NGQsABhYjY0', support: 'gom_support_et' },
+  { country: 'Ethiopia', flag: '🇪🇹', prefix: '+251', code: '251', channel: 'https://t.me/+rkq4wxWUMWNlN2Zk', support: 'gom_support_et' },
   { country: 'Kenya', flag: '🇰🇪', prefix: '+254', code: '254', channel: 'https://t.me/+AMh69NGQsABhYjY0', support: 'GOM_Kenya_Support' },
   { country: 'Nigeria', flag: '🇳🇬', prefix: '+234', code: '234', channel: 'https://t.me/+AMh69NGQsABhYjY0', support: 'GOM_Nigeria_Support' },
   { country: 'Saudi Arabia', flag: '🇸🇦', prefix: '+966', code: '966', channel: 'https://t.me/+AMh69NGQsABhYjY0', support: 'GOM_Saudi_Arabia_Support' },
