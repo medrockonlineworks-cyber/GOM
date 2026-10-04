@@ -3108,7 +3108,7 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
                       <AlertTriangle size={14} className="text-rose-500" /> Tax Time-Lock Code
                     </span>
                     <span className="text-[10px] text-slate-500 mt-1">
-                      For accounts deactivated due to unpaid tax past 2 minutes.
+                      For accounts deactivated due to unpaid tax past 2 hours.
                     </span>
                   </button>
 
