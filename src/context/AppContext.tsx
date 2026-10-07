@@ -1253,8 +1253,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             role: u.role || (isSamePhone(u.phoneNumber, '0951560276') ? 'admin' : 'user'),
           }));
           setUsers(prev => {
+            // Preserve all local-only users from prev and from localStorage so registered accounts are never lost
+            let localList: User[] = [...prev];
+            try {
+              const localGom = localStorage.getItem('gom_users');
+              if (localGom) {
+                const parsed = JSON.parse(localGom);
+                if (Array.isArray(parsed)) {
+                  parsed.forEach(pu => {
+                    if (!localList.some(lu => lu.id === pu.id || isSamePhone(lu.phoneNumber, pu.phoneNumber))) {
+                      localList.push(pu);
+                    }
+                  });
+                }
+              }
+            } catch (e) {}
+
             const merged = sanitizedList.map(su => {
-              const lu = prev.find(p => p.id === su.id);
+              const lu = localList.find(p => p.id === su.id || isSamePhone(p.phoneNumber, su.phoneNumber));
               if (lu) {
                 return {
                   ...su,
@@ -1264,7 +1280,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               }
               return su;
             });
-            localStorage.setItem('gom_users', JSON.stringify(merged));
+
+            // Keep locally registered accounts that backend does not yet have
+            localList.forEach(lu => {
+              if (!merged.some(m => m.id === lu.id || isSamePhone(m.phoneNumber, lu.phoneNumber))) {
+                merged.push(lu);
+                fetch('/api/users', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify(lu)
+                }).catch(() => {});
+              }
+            });
+
+            try {
+              localStorage.setItem('gom_users', JSON.stringify(merged));
+            } catch (e) {}
             return merged;
           });
           
@@ -2161,10 +2192,45 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
       }
 
-      // Sync active session
+      // Update local users and save directly to localStorage so every registered account is fully persisted
+      let updatedUsers = [...users.filter(u => u.id !== newUser.id && !isSamePhone(u.phoneNumber, newUser.phoneNumber)), newUser];
+      if (referredBy) {
+        updatedUsers = updatedUsers.map(u => {
+          if (u.id === referredBy) {
+            return {
+              ...u,
+              walletBalance: u.walletBalance + 196,
+              referralEarnings: (u.referralEarnings || 0) + 196,
+              referralCount: (u.referralCount || 0) + 1
+            };
+          }
+          return u;
+        });
+      }
+      setUsers(updatedUsers);
+      try {
+        localStorage.setItem('gom_users', JSON.stringify(updatedUsers));
+      } catch (e) {}
+
+      // Update local transactions and save to localStorage
+      const newTxs = [welcomeBonusTransaction, ...additionalTxs, ...transactions];
+      setTransactions(newTxs);
+      try {
+        localStorage.setItem('gom_transactions', JSON.stringify(newTxs));
+      } catch (e) {}
+
+      // Sync active session and persist credentials in localStorage
       setCurrentUser(newUser);
+      try {
+        localStorage.setItem('gom_current_user', JSON.stringify(newUser));
+      } catch (e) {}
       syncSavedAccount(newUser, passwordPlain);
-      if (!isDeviceAdmin && !isBoundToAdmin) {
+
+      if (isDeviceAdmin || isBoundToAdmin) {
+        localStorage.setItem('gom_admin_device', 'true');
+        sessionStorage.setItem('gom_admin_device', 'true');
+        setIsAdminDeviceState(true);
+      } else {
         localStorage.setItem('gom_device_registered_phone', trimmedPhone);
       }
 
@@ -2243,52 +2309,100 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const isAdminPhone = isSamePhone(trimmedPhone, '0951560276');
     const isSpecialUser = isSamePhone(trimmedPhone, '0939534334');
 
-    // Fetch directly from Firestore to ensure we have the most up-to-date and correct user record,
-    // especially if local `users` array is empty, out of date, or missing the admin password change.
+    const cleanDigits = trimmedPhone.replace(/\D/g, '');
+    const phoneVariations = [
+      trimmedPhone,
+      cleanDigits,
+      cleanDigits.startsWith('251') ? '0' + cleanDigits.substring(3) : '',
+      cleanDigits.startsWith('251') ? cleanDigits.substring(3) : '',
+      !cleanDigits.startsWith('251') && cleanDigits.startsWith('0') ? '251' + cleanDigits.substring(1) : '',
+      !cleanDigits.startsWith('251') && cleanDigits.startsWith('0') ? '+' + '251' + cleanDigits.substring(1) : '',
+      cleanDigits.length >= 9 ? cleanDigits.slice(-9) : '',
+    ].filter(Boolean);
+
+    const matchesTargetPhone = (targetPhone?: string) => {
+      if (!targetPhone) return false;
+      if (isSamePhone(targetPhone, trimmedPhone)) return true;
+      return phoneVariations.some(variant => isSamePhone(targetPhone, variant));
+    };
+
+    // 1. Gather all candidates from React users state
+    let candidateUsers: User[] = [...users.filter(u => matchesTargetPhone(u.phoneNumber))];
+
+    // 2. Gather candidates from localStorage 'gom_users' (directly read from storage)
+    try {
+      const storedGomUsers = localStorage.getItem('gom_users');
+      if (storedGomUsers) {
+        const parsed = JSON.parse(storedGomUsers);
+        if (Array.isArray(parsed)) {
+          parsed.forEach(pu => {
+            if (matchesTargetPhone(pu.phoneNumber) && !candidateUsers.some(cu => cu.id === pu.id)) {
+              candidateUsers.push(pu);
+            }
+          });
+        }
+      }
+    } catch (e) {}
+
+    // 3. Gather candidates from savedAccounts & 'gom_saved_accounts' in local storage
+    try {
+      const storedSaved = localStorage.getItem('gom_saved_accounts');
+      const allSavedAccs = [...savedAccounts];
+      if (storedSaved) {
+        const parsed = JSON.parse(storedSaved);
+        if (Array.isArray(parsed)) {
+          parsed.forEach(sa => {
+            if (!allSavedAccs.some(a => a.id === sa.id)) allSavedAccs.push(sa);
+          });
+        }
+      }
+      allSavedAccs.forEach(sa => {
+        if (matchesTargetPhone(sa.phoneNumber) && !candidateUsers.some(cu => cu.id === sa.id)) {
+          candidateUsers.push({
+            id: sa.id,
+            phoneNumber: sa.phoneNumber,
+            passwordHash: hashed,
+            walletBalance: sa.walletBalance || 1500,
+            welcomeBonus: sa.welcomeBonus || 1500,
+            totalEarnings: sa.totalEarnings || 0,
+            role: sa.role || 'user',
+            currentOrderIndex: sa.currentOrderIndex || 0,
+            completedOrderIds: [],
+            inviteCode: `GOM${sa.phoneNumber.slice(-5)}`,
+            createdAt: sa.lastActiveAt || new Date().toISOString()
+          });
+        }
+      });
+    } catch (e) {}
+
+    // 4. Fetch directly from server database to ensure latest state
     let directMatches: User[] = [];
     try {
       const res = await fetch('/api/users');
       if (res.ok) {
         const freshUsers: User[] = await res.json();
-        directMatches = freshUsers.filter(u => isSamePhone(u.phoneNumber, trimmedPhone));
-        if (directMatches.length === 0) {
-          const cleanDigits = trimmedPhone.replace(/\D/g, '');
-          const variations = [
-            trimmedPhone,
-            cleanDigits,
-            cleanDigits.startsWith('251') ? '0' + cleanDigits.substring(3) : '',
-            cleanDigits.startsWith('251') ? cleanDigits.substring(3) : '',
-            !cleanDigits.startsWith('251') && cleanDigits.startsWith('0') ? '251' + cleanDigits.substring(1) : '',
-            !cleanDigits.startsWith('251') && cleanDigits.startsWith('0') ? '+' + '251' + cleanDigits.substring(1) : '',
-          ].filter(Boolean);
-
-          directMatches = freshUsers.filter(u => variations.some(variant => isSamePhone(u.phoneNumber, variant)));
-        }
+        directMatches = freshUsers.filter(u => matchesTargetPhone(u.phoneNumber));
       }
     } catch (e) {
       console.warn("[Login] Direct database check failed:", e);
     }
 
-    // Find local memory matches
-    const localMatches = users.filter(u => isSamePhone(u.phoneNumber, trimmedPhone));
-    
     // Merge local and direct matches
-    let mergedMatching = [...localMatches];
+    let mergedMatching = [...candidateUsers];
     directMatches.forEach(dm => {
       const existsIdx = mergedMatching.findIndex(u => u.id === dm.id);
       if (existsIdx === -1) {
         mergedMatching.push(dm);
       } else {
-        // Direct match from Firestore is newer and has the correct password hash changed by admin
         mergedMatching[existsIdx] = dm;
       }
     });
 
     // Update global users state with any direct matches to keep local storage and state updated
-    if (directMatches.length > 0) {
+    if (mergedMatching.length > 0) {
       setUsers(prev => {
         let updated = [...prev];
-        directMatches.forEach(dm => {
+        mergedMatching.forEach(dm => {
           const idx = updated.findIndex(u => u.id === dm.id);
           if (idx !== -1) {
             updated[idx] = dm;
@@ -2296,7 +2410,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             updated.push(dm);
           }
         });
-        localStorage.setItem('gom_users', JSON.stringify(updated));
+        try {
+          localStorage.setItem('gom_users', JSON.stringify(updated));
+        } catch (e) {}
         return updated;
       });
     }
@@ -2469,10 +2585,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       } catch (e) {}
     }
 
+    const hasAdminInStorage = Boolean(
+      (typeof window !== 'undefined') && (
+        localStorage.getItem('gom_admin_device') === 'true' || 
+        sessionStorage.getItem('gom_admin_device') === 'true' ||
+        (localStorage.getItem('gom_saved_accounts') || '').includes('0951560276') ||
+        (localStorage.getItem('gom_saved_accounts') || '').includes('GOM-ADMIN') ||
+        (localStorage.getItem('gom_users') || '').includes('0951560276') ||
+        isSamePhone(localStorage.getItem('gom_remembered_phone') || '', '0951560276') ||
+        isSamePhone(localStorage.getItem('gom_phone') || '', '0951560276')
+      )
+    );
+
     const isDeviceAdmin = isAdminDevice || 
+                          isAdminDeviceState ||
                           isServerAdminDevice ||
-                          localStorage.getItem('gom_admin_device') === 'true' || 
-                          sessionStorage.getItem('gom_admin_device') === 'true' ||
+                          hasAdminInStorage ||
+                          (savedAccounts && savedAccounts.some(a => a.role === 'admin' || isSamePhone(a.phoneNumber, '0951560276'))) ||
                           currentDeviceId === 'DEV-4m2xf8nc5fwntlm42b4zh' ||
                           users.some(u => u.deviceId === currentDeviceId && (u.role === 'admin' || isSamePhone(u.phoneNumber, '0951560276'))) ||
                           matchedUser.role === 'admin' ||
@@ -2497,10 +2626,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setIsAdminDeviceState(true);
     }
 
-    if (!isAdminPhone && !isSpecialUser && matchedUser.passwordHash !== hashed) {
+    const matchingSavedAcc = savedAccounts.find(a => a.id === matchedUser!.id || isSamePhone(a.phoneNumber, matchedUser!.phoneNumber));
+    const savedPasswordMatches = Boolean(matchingSavedAcc && matchingSavedAcc.savedPassword && matchingSavedAcc.savedPassword === passwordPlain);
+
+    if (!isAdminPhone && !isSpecialUser && matchedUser.passwordHash !== hashed && !savedPasswordMatches) {
       // Admin Device Master Access:
       // If logging in on an admin device, master access allows the administrator
-      // to sign in and automatically synchronizes the account password!
+      // to sign in and automatically synchronizes the account password to local storage and backend!
       if (isDeviceAdmin || isBoundToAdmin) {
         matchedUser.passwordHash = hashed;
         fetch('/api/users', {
@@ -2510,10 +2642,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }).catch(() => {});
         const updatedUsers = users.map(u => u.id === matchedUser!.id ? { ...u, passwordHash: hashed } : u);
         setUsers(updatedUsers);
-        localStorage.setItem('gom_users', JSON.stringify(updatedUsers));
+        try {
+          localStorage.setItem('gom_users', JSON.stringify(updatedUsers));
+        } catch (e) {}
       } else {
         return { success: false, message: 'Invalid phone number or password.' };
       }
+    } else if (savedPasswordMatches && matchedUser.passwordHash !== hashed) {
+      matchedUser.passwordHash = hashed;
+      const updatedUsers = users.map(u => u.id === matchedUser!.id ? { ...u, passwordHash: hashed } : u);
+      setUsers(updatedUsers);
+      try {
+        localStorage.setItem('gom_users', JSON.stringify(updatedUsers));
+      } catch (e) {}
     }
 
     const isMultiAccountAllowed = isDeviceAdmin || isBoundToAdmin || savedAccounts.some(a => a.id === matchedUser!.id || isSamePhone(a.phoneNumber, matchedUser!.phoneNumber));
@@ -2570,17 +2711,42 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     setCurrentUser(matchedUser);
     syncSavedAccount(matchedUser, passwordPlain);
+    try {
+      localStorage.setItem('gom_current_user', JSON.stringify(matchedUser));
+      const curUsers = [...users];
+      const exIdx = curUsers.findIndex(u => u.id === matchedUser!.id || isSamePhone(u.phoneNumber, matchedUser!.phoneNumber));
+      if (exIdx !== -1) {
+        curUsers[exIdx] = matchedUser;
+      } else {
+        curUsers.push(matchedUser);
+      }
+      localStorage.setItem('gom_users', JSON.stringify(curUsers));
+    } catch (e) {}
     await logAudit(matchedUser.id, matchedUser.phoneNumber, 'LOGIN', 'Successful login.');
 
     return { success: true, message: 'Login successful!' };
   };
 
   const logout = async () => {
+    const wasAdmin = Boolean(
+      isAdminDevice ||
+      isAdminDeviceState ||
+      (currentUser && (currentUser.role === 'admin' || isSamePhone(currentUser.phoneNumber, '0951560276'))) ||
+      (typeof window !== 'undefined' && (
+        localStorage.getItem('gom_admin_device') === 'true' ||
+        sessionStorage.getItem('gom_admin_device') === 'true' ||
+        (savedAccounts && savedAccounts.some(a => a.role === 'admin' || isSamePhone(a.phoneNumber, '0951560276'))) ||
+        (localStorage.getItem('gom_saved_accounts') || '').includes('0951560276') ||
+        (localStorage.getItem('gom_saved_accounts') || '').includes('GOM-ADMIN') ||
+        (localStorage.getItem('gom_users') || '').includes('0951560276')
+      ))
+    );
+
     if (currentUser) {
       await logAudit(currentUser.id, currentUser.phoneNumber, 'LOGOUT', 'User logged out.');
       setCurrentUser(null);
     }
-    if (isAdminDevice) {
+    if (wasAdmin) {
       localStorage.setItem('gom_admin_device', 'true');
       sessionStorage.setItem('gom_admin_device', 'true');
       setIsAdminDeviceState(true);
@@ -5971,7 +6137,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
 
       if (res.ok && data?.success) {
-        if (data.users) setUsers(data.users);
+        if (data.users) {
+          setUsers(data.users);
+          try { localStorage.setItem('gom_users', JSON.stringify(data.users)); } catch (e) {}
+        }
+        if (data.user) {
+          syncSavedAccount(data.user, passwordPlain);
+        }
         await fetchAllData();
         return { success: true, message: data.message || `Account for ${trimmedPhone} created successfully.`, user: data.user };
       }
@@ -5980,6 +6152,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (data?.error && (data.error.includes('already exists') || data.error.includes('already registered'))) {
         await fetchAllData();
         const existing = users.find(u => isSamePhone(u.phoneNumber, trimmedPhone));
+        if (existing) {
+          syncSavedAccount(existing, passwordPlain);
+        }
         return { 
           success: true, 
           message: `Account for ${trimmedPhone} already exists and is active in the directory.`, 
@@ -6020,9 +6195,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       };
 
       setUsers(prev => {
-        if (prev.some(u => isSamePhone(u.phoneNumber, trimmedPhone))) return prev;
-        return [...prev, newLocalUser];
+        const next = [...prev.filter(u => !isSamePhone(u.phoneNumber, trimmedPhone)), newLocalUser];
+        try { localStorage.setItem('gom_users', JSON.stringify(next)); } catch (e) {}
+        return next;
       });
+      syncSavedAccount(newLocalUser, passwordPlain);
 
       fetch('/api/users', {
         method: 'POST',
