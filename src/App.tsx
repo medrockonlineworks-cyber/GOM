@@ -911,17 +911,17 @@ function AppContent() {
 
   const [activeTab, setActiveTab] = useState<UserTab>('home');
   const [isAdminView, setIsAdminView] = useState(() => {
-    return Boolean(currentUser && (currentUser.role === 'admin' || isSamePhone(currentUser.phoneNumber, '0926193920') || isSamePhone(currentUser.phoneNumber, '0951560276')));
+    return Boolean(currentUser && (currentUser.role === 'admin' || isSamePhone(currentUser.phoneNumber, '0926193920')));
   });
 
-  // When admin logs in, ensure admin view is active; when regular user logs in, ensure regular user view
+  // When admin logs in, ensure admin view is active; any other account will NEVER see the admin console
   React.useEffect(() => {
-    if (currentUser && (currentUser.role === 'admin' || isSamePhone(currentUser.phoneNumber, '0926193920') || isSamePhone(currentUser.phoneNumber, '0951560276'))) {
+    if (currentUser && (currentUser.role === 'admin' || isSamePhone(currentUser.phoneNumber, '0926193920'))) {
       setIsAdminView(true);
-    } else if (currentUser && currentUser.role !== 'admin' && !isSamePhone(currentUser.phoneNumber, '0926193920') && !isSamePhone(currentUser.phoneNumber, '0951560276')) {
+    } else {
       setIsAdminView(false);
     }
-  }, [currentUser?.id, currentUser?.role]);
+  }, [currentUser?.id, currentUser?.role, currentUser?.phoneNumber]);
 
   // PWA & Installation states
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
@@ -1658,7 +1658,7 @@ function AppContent() {
       {/* DYNAMIC SCENE CONTAINER */}
       <div className="flex-1 overflow-y-auto flex flex-col relative">
         <AnimatePresence mode="wait">
-          {isAdminView && (currentUser.role === 'admin' || (typeof window !== 'undefined' && sessionStorage.getItem('gom_admin_auth_active') === 'true')) ? (
+          {isAdminView && currentUser && (currentUser.role === 'admin' || isSamePhone(currentUser.phoneNumber, '0926193920')) ? (
             <motion.div
               key="admin"
               initial={{ opacity: 0, x: 20 }}

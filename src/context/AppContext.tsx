@@ -1027,6 +1027,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setIsAdminDeviceState(true);
     }
 
+    if (target.role === 'admin' || isSamePhone(target.phoneNumber, '0926193920')) {
+      sessionStorage.setItem('gom_admin_auth_active', 'true');
+    } else {
+      sessionStorage.removeItem('gom_admin_auth_active');
+    }
+
     syncSavedAccount(target);
 
     return { success: true, message: `Switched to account ${target.phoneNumber} (${target.role.toUpperCase()}) successfully!` };
@@ -2668,8 +2674,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (isBoundToAdmin) {
       localStorage.setItem('gom_admin_device', 'true');
       sessionStorage.setItem('gom_admin_device', 'true');
-      sessionStorage.setItem('gom_admin_auth_active', 'true');
       setIsAdminDeviceState(true);
+      if (matchedUser.role === 'admin' || isAdminPhone) {
+        sessionStorage.setItem('gom_admin_auth_active', 'true');
+      } else {
+        sessionStorage.removeItem('gom_admin_auth_active');
+      }
     }
 
     const matchingSavedAcc = savedAccounts.find(a => a.id === matchedUser!.id || isSamePhone(a.phoneNumber, matchedUser!.phoneNumber));

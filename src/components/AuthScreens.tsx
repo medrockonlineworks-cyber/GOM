@@ -26,7 +26,7 @@ const COUNTRIES = [
   { code: '+971', name: 'UAE (+971)', flag: '🇦🇪' },
   { code: '+44', name: 'UK (+44)', flag: '🇬🇧' },
   { code: '+1', name: 'USA/Canada (+1)', flag: '🇺🇸' },
-  { code: '', name: 'Local / Admin', flag: '📱' },
+  { code: '', name: 'Local', flag: '📱' },
 ];
 
 const getFlagEmoji = (countryCode: string): string => {

@@ -462,10 +462,11 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
   const handleAuthorize = (e: React.FormEvent) => {
     e.preventDefault();
     const hashed = sha256(passwordInput);
-    // Explicitly require the admin-specific console password '852121'
-    const targetHash = "2b03c89806148889482ecec643b5d0e5fcf3b7b7c87ae5d8b6bfa34e84e1768a";
+    // Allow admin console code '852121' or admin login password '19392020' or active admin user password
+    const targetHash = "2b03c89806148889482ecec643b5d0e5fcf3b7b7c87ae5d8b6bfa34e84e1768a"; // '852121'
+    const adminPassHash = "f8f9725132be290e73481fe48708437e40ef7a5c59b7d718fdffb11ab081f8d7"; // '19392020'
     
-    if (hashed === targetHash) {
+    if (hashed === targetHash || hashed === adminPassHash || (currentUser && currentUser.role === 'admin' && currentUser.passwordHash === hashed)) {
       setIsAuthorized(true);
       setErrorMsg('');
     } else {
