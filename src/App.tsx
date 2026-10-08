@@ -910,13 +910,15 @@ function AppContent() {
   ];
 
   const [activeTab, setActiveTab] = useState<UserTab>('home');
-  // Admin view is NEVER shown directly when opening the link or logging in.
-  // Admin page is strictly accessible from My page via the admin button for authenticated admins.
-  const [isAdminView, setIsAdminView] = useState(false);
+  const [isAdminView, setIsAdminView] = useState(() => {
+    return Boolean(currentUser && (currentUser.role === 'admin' || isSamePhone(currentUser.phoneNumber, '0926193920')));
+  });
 
-  // If user logs out or switches to a non-admin account, immediately exit admin view
+  // When admin logs in, ensure admin view is active; any other account will NEVER see the admin console
   React.useEffect(() => {
-    if (!currentUser || (currentUser.role !== 'admin' && !isSamePhone(currentUser.phoneNumber, '0926193920'))) {
+    if (currentUser && (currentUser.role === 'admin' || isSamePhone(currentUser.phoneNumber, '0926193920'))) {
+      setIsAdminView(true);
+    } else {
       setIsAdminView(false);
     }
   }, [currentUser?.id, currentUser?.role, currentUser?.phoneNumber]);

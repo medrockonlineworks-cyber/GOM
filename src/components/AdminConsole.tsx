@@ -453,9 +453,7 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
   } = useApp();
 
   const { t } = useTranslation(language);
-  const [isAuthorized, setIsAuthorized] = useState(() => {
-    return Boolean(currentUser && (currentUser.role === 'admin' || isSamePhone(currentUser.phoneNumber, '0926193920')));
-  });
+  const [isAuthorized, setIsAuthorized] = useState(false);
   const [passwordInput, setPasswordInput] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
 
