@@ -350,7 +350,20 @@ export const db = new Proxy({}, {
     if (typeof originalValue === 'function') {
       return function (...args: any[]) {
         try {
-          return originalValue.apply(activeDb, args);
+          const res = originalValue.apply(activeDb, args);
+          if (res && typeof res.then === 'function') {
+            return res.catch((err: any) => {
+              console.warn(`[DB Proxy] Async error executing database operation "${String(prop)}".`, err.message);
+              if (activeDb !== mockDb) {
+                console.warn('[DB Proxy] Dynamically switching to Mock local JSON database for resilience.');
+                activeDb = mockDb;
+                const fallbackFunc = Reflect.get(mockDb, prop);
+                return fallbackFunc.apply(mockDb, args);
+              }
+              throw err;
+            });
+          }
+          return res;
         } catch (err: any) {
           console.warn(`[DB Proxy] Error executing database operation "${String(prop)}".`, err.message);
           if (activeDb !== mockDb) {

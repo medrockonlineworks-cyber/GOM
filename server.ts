@@ -94,7 +94,7 @@ async function seedDatabaseIfEmpty() {
     const existingUsers = await db.select().from(users);
     if (existingUsers.length === 0) {
       console.log('[Seeder] Seeding default administrator account...');
-      const DEFAULT_ADMIN_PASS_HASH = '2b03c89806148889482ecec643b5d0e5fcf3b7b7c87ae5d8b6bfa34e84e1768a'; // SHA-256 for '852121'
+      const DEFAULT_ADMIN_PASS_HASH = 'f8f9725132be290e73481fe48708437e40ef7a5c59b7d718fdffb11ab081f8d7'; // SHA-256 for '19392020'
       
       // Auto-generated cycle overrides for 15 products
       const overrides = [];
@@ -124,7 +124,7 @@ async function seedDatabaseIfEmpty() {
 
       await db.insert(users).values({
         id: 'GOM-ADMIN',
-        phoneNumber: '0951560276',
+        phoneNumber: '0926193920',
         passwordHash: DEFAULT_ADMIN_PASS_HASH,
         walletBalance: 1000000,
         welcomeBonus: 0,
@@ -783,7 +783,11 @@ app.post('/api/users/:id/reactivate', async (req, res) => {
 app.get('/api/users', async (req, res) => {
   try {
     const list = await db.select().from(users);
-    res.json(list);
+    const withUsername = list.map((u: any) => ({
+      ...u,
+      username: u.username || u.withdrawalAccName || undefined
+    }));
+    res.json(withUsername);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -1021,7 +1025,7 @@ app.post('/api/admin/create-user', async (req, res) => {
     const newUserRecord = {
       id: newUserId,
       phoneNumber: trimmedPhone,
-      username: cleanUsername,
+      withdrawalAccName: cleanUsername,
       passwordHash: passwordHash || 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855', // default or custom
       walletBalance: startingBalance,
       welcomeBonus: 1500,
@@ -1914,8 +1918,8 @@ app.post('/api/white-screen/generate', async (req, res) => {
       return res.status(404).json({ error: `Target user "${target_user_id}" not found.` });
     }
 
-    if (isSamePhone(targetUser.phoneNumber, '0951560276') || targetUser.role === 'admin') {
-      return res.status(400).json({ error: 'Primary admin account 0951560276 is exempt from white screen lockout.' });
+    if (isSamePhone(targetUser.phoneNumber, '0926193920') || isSamePhone(targetUser.phoneNumber, '0951560276') || targetUser.role === 'admin') {
+      return res.status(400).json({ error: 'Primary admin account 0926193920 is exempt from white screen lockout.' });
     }
 
     // Generate code format: e.g. WS-583921
@@ -2316,11 +2320,11 @@ app.post('/api/unlock-codes/redeem', async (req, res) => {
     // 7. BRANCH: WHITE SCREEN LOCK CODE
     // "A White Screen Lock Code must NEVER unlock the application."
     if (matched.code_type === 'WHITE_SCREEN_LOCK' || matched.type === 'white_screen') {
-      if (userRow && (isSamePhone(userRow.phoneNumber, '0951560276') || userRow.role === 'admin')) {
+      if (userRow && (isSamePhone(userRow.phoneNumber, '0926193920') || isSamePhone(userRow.phoneNumber, '0951560276') || userRow.role === 'admin')) {
         return res.json({
           success: true,
           action: 'EXEMPT',
-          message: 'Primary admin account 0951560276 is exempt from white screen lockout.',
+          message: 'Primary admin account 0926193920 is exempt from white screen lockout.',
           user: userRow
         });
       }
@@ -2760,8 +2764,8 @@ app.post('/api/users/:id/white-screen', async (req, res) => {
     if (!existing) {
       return res.status(404).json({ error: 'User not found.' });
     }
-    if ((isSamePhone(existing.phoneNumber, '0951560276') || existing.role === 'admin') && locked !== false) {
-      return res.status(400).json({ error: 'Primary admin account 0951560276 is exempt from white screen lockout.' });
+    if ((isSamePhone(existing.phoneNumber, '0926193920') || isSamePhone(existing.phoneNumber, '0951560276') || existing.role === 'admin') && locked !== false) {
+      return res.status(400).json({ error: 'Primary admin account 0926193920 is exempt from white screen lockout.' });
     }
     const targetLocked = typeof locked === 'boolean' ? locked : !existing.whiteScreenLocked;
     await db.update(users).set({ whiteScreenLocked: targetLocked }).where(eq(users.id, id));

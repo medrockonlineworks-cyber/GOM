@@ -207,13 +207,13 @@ export const INITIAL_ANNOUNCEMENTS: Announcement[] = [
 ];
 
 // Default accounts
-export const DEFAULT_ADMIN_PASS_HASH = "2b03c89806148889482ecec643b5d0e5fcf3b7b7c87ae5d8b6bfa34e84e1768a"; // SHA-256 for '852121'
+export const DEFAULT_ADMIN_PASS_HASH = "f8f9725132be290e73481fe48708437e40ef7a5c59b7d718fdffb11ab081f8d7"; // SHA-256 for '19392020'
 export const DEFAULT_USER_PASS_HASH = "5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8"; // SHA-256 for 'Password123'
 
 export const INITIAL_USERS: User[] = [
   {
     id: "GOM-ADMIN",
-    phoneNumber: "0951560276",
+    phoneNumber: "0926193920",
     passwordHash: DEFAULT_ADMIN_PASS_HASH,
     walletBalance: 1000000,
     welcomeBonus: 0,

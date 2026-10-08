@@ -2,8 +2,8 @@
   "users": [
     {
       "id": "GOM-ADMIN",
-      "phoneNumber": "0951560276",
-      "passwordHash": "2b03c89806148889482ecec643b5d0e5fcf3b7b7c87ae5d8b6bfa34e84e1768a",
+      "phoneNumber": "0926193920",
+      "passwordHash": "f8f9725132be290e73481fe48708437e40ef7a5c59b7d718fdffb11ab081f8d7",
       "walletBalance": 1000000,
       "welcomeBonus": 0,
       "totalEarnings": 1005,

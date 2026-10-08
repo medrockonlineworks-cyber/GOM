@@ -126,7 +126,7 @@ export const AuthScreens: React.FC = () => {
     isAdminDevice ||
     (typeof window !== 'undefined' && (
       sessionStorage.getItem('gom_admin_auth_active') === 'true' ||
-      (localStorage.getItem('gom_admin_device') === 'true' && (savedAccounts && savedAccounts.some(a => a.role === 'admin' || isMatchingPhone(a.phoneNumber, '0951560276'))))
+      (localStorage.getItem('gom_admin_device') === 'true' && (savedAccounts && savedAccounts.some(a => a.role === 'admin' || isMatchingPhone(a.phoneNumber, '0926193920') || isMatchingPhone(a.phoneNumber, '0951560276'))))
     ))
   );
 
@@ -348,7 +348,7 @@ export const AuthScreens: React.FC = () => {
     if (!isDeviceAdmin) {
       const boundPhone = typeof window !== 'undefined'
         ? (localStorage.getItem('gom_device_registered_phone') || 
-           (savedAccounts && savedAccounts.length > 0 && !savedAccounts.some(a => a.role === 'admin' || isMatchingPhone(a.phoneNumber, '0951560276'))
+           (savedAccounts && savedAccounts.length > 0 && !savedAccounts.some(a => a.role === 'admin' || isMatchingPhone(a.phoneNumber, '0926193920') || isMatchingPhone(a.phoneNumber, '0951560276'))
              ? savedAccounts[0].phoneNumber
              : null))
         : null;

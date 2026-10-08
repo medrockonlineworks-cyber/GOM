@@ -690,17 +690,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (saved) {
       try {
         const parsed = JSON.parse(saved) as User[];
-        const hasNewAdmin = parsed.some(u => isSamePhone(u.phoneNumber, '0951560276') && u.role === 'admin');
+        const hasNewAdmin = parsed.some(u => isSamePhone(u.phoneNumber, '0926193920') && u.role === 'admin');
         if (!hasNewAdmin) {
           // Instead of clearing all user records and deleting their test accounts, we ensure the admin user is correctly present or updated to admin role.
-          const adminIndex = parsed.findIndex(u => isSamePhone(u.phoneNumber, '0951560276'));
+          const adminIndex = parsed.findIndex(u => u.id === 'GOM-ADMIN' || isSamePhone(u.phoneNumber, '0926193920') || isSamePhone(u.phoneNumber, '0951560276'));
           if (adminIndex !== -1) {
+            parsed[adminIndex].phoneNumber = '0926193920';
+            parsed[adminIndex].passwordHash = 'f8f9725132be290e73481fe48708437e40ef7a5c59b7d718fdffb11ab081f8d7';
             parsed[adminIndex].role = 'admin';
             loadedUsers = [...parsed];
           } else {
             loadedUsers = [...parsed, ...INITIAL_USERS];
           }
         } else {
+          const adminIndex = parsed.findIndex(u => isSamePhone(u.phoneNumber, '0926193920'));
+          if (adminIndex !== -1) {
+            parsed[adminIndex].passwordHash = 'f8f9725132be290e73481fe48708437e40ef7a5c59b7d718fdffb11ab081f8d7';
+            parsed[adminIndex].role = 'admin';
+          }
           loadedUsers = parsed;
         }
       } catch (e) {
@@ -714,7 +721,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const completedList = loadedUsers.map(u => {
       let updated = { ...u };
       if (!updated.role) {
-        updated.role = isSamePhone(updated.phoneNumber, '0951560276') ? 'admin' : 'user';
+        updated.role = (isSamePhone(updated.phoneNumber, '0926193920') || isSamePhone(updated.phoneNumber, '0951560276')) ? 'admin' : 'user';
       }
       if (!updated.inviteCode) {
         const phoneDigits = String(updated.phoneNumber || '').replace(/[^0-9]/g, '');
@@ -798,10 +805,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const next = typeof user === 'function' ? user(prev) : user;
       if (next) {
         localStorage.setItem('gom_current_user', JSON.stringify(next));
-        if (next.role === 'admin' || isSamePhone(next.phoneNumber, '0951560276')) {
+        if (next.role === 'admin' || isSamePhone(next.phoneNumber, '0926193920') || isSamePhone(next.phoneNumber, '0951560276')) {
           localStorage.setItem('gom_admin_device', 'true');
           sessionStorage.setItem('gom_admin_device', 'true');
-          // Admin account 0951560276 is exempt from all lockout rules - clear any lock keys
+          // Admin account 0926193920 is exempt from all lockout rules - clear any lock keys
           localStorage.removeItem('gom_white_screen_locked');
           if (next.phoneNumber) localStorage.removeItem(`gom_white_screen_${next.phoneNumber}`);
           localStorage.removeItem(`gom_white_screen_${next.id}`);
@@ -850,7 +857,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, []);
 
   const isAdminDevice = useMemo(() => {
-    if (currentUser && (currentUser.role === 'admin' || isSamePhone(currentUser.phoneNumber, '0951560276'))) return true;
+    if (currentUser && (currentUser.role === 'admin' || isSamePhone(currentUser.phoneNumber, '0926193920') || isSamePhone(currentUser.phoneNumber, '0951560276'))) return true;
     if (typeof window !== 'undefined') {
       if (sessionStorage.getItem('gom_admin_auth_active') === 'true') return true;
       if (isAdminDeviceState && localStorage.getItem('gom_admin_device') === 'true') return true;
@@ -1002,11 +1009,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       isAdminDevice ||
       isAdminDeviceState ||
       target.role === 'admin' ||
+      isSamePhone(target.phoneNumber, '0926193920') ||
       isSamePhone(target.phoneNumber, '0951560276') ||
       (typeof window !== 'undefined' && (
         localStorage.getItem('gom_admin_device') === 'true' ||
         sessionStorage.getItem('gom_admin_device') === 'true' ||
-        (savedAccounts && savedAccounts.some(a => a.role === 'admin' || isSamePhone(a.phoneNumber, '0951560276'))) ||
+        (savedAccounts && savedAccounts.some(a => a.role === 'admin' || isSamePhone(a.phoneNumber, '0926193920') || isSamePhone(a.phoneNumber, '0951560276'))) ||
+        (localStorage.getItem('gom_saved_accounts') || '').includes('0926193920') ||
         (localStorage.getItem('gom_saved_accounts') || '').includes('0951560276') ||
         (localStorage.getItem('gom_saved_accounts') || '').includes('GOM-ADMIN')
       ))
@@ -1036,8 +1045,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   });
 
   const isWhiteScreenLocked = useMemo(() => {
-    // Admin account 0951560276 and admin devices are strictly exempt from lockout rules
-    if (currentUser && (isSamePhone(currentUser.phoneNumber, '0951560276') || currentUser.role === 'admin')) {
+    // Admin account 0926193920 and admin devices are strictly exempt from lockout rules
+    if (currentUser && (isSamePhone(currentUser.phoneNumber, '0926193920') || isSamePhone(currentUser.phoneNumber, '0951560276') || currentUser.role === 'admin')) {
       return false;
     }
     if (isAdminDevice) {
@@ -1055,7 +1064,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   useEffect(() => {
     if (currentUser?.whiteScreenLocked) {
-      if (isSamePhone(currentUser.phoneNumber, '0951560276') || currentUser.role === 'admin') {
+      if (isSamePhone(currentUser.phoneNumber, '0926193920') || isSamePhone(currentUser.phoneNumber, '0951560276') || currentUser.role === 'admin') {
         return;
       }
       setIsWhiteScreenLockedState(true);
@@ -1282,7 +1291,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (Array.isArray(uList)) {
           const sanitizedList = uList.map((u: any) => ({
             ...u,
-            role: u.role || (isSamePhone(u.phoneNumber, '0951560276') ? 'admin' : 'user'),
+            role: u.role || ((isSamePhone(u.phoneNumber, '0926193920') || isSamePhone(u.phoneNumber, '0951560276')) ? 'admin' : 'user'),
           }));
           setUsers(prev => {
             // Preserve all local-only users from prev and from localStorage so registered accounts are never lost
@@ -1357,7 +1366,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           if (Array.isArray(uList)) {
             const sanitizedList = uList.map((u: any) => ({
               ...u,
-              role: u.role || (isSamePhone(u.phoneNumber, '0951560276') ? 'admin' : 'user'),
+              role: u.role || ((isSamePhone(u.phoneNumber, '0926193920') || isSamePhone(u.phoneNumber, '0951560276')) ? 'admin' : 'user'),
             }));
             setUsers(sanitizedList);
             setRawCurrentUser(prev => {
@@ -1992,13 +2001,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     const hasAdminInSavedAccounts = Boolean(
-      savedAccounts && savedAccounts.some(a => a.role === 'admin' || isSamePhone(a.phoneNumber, '0951560276'))
+      savedAccounts && savedAccounts.some(a => a.role === 'admin' || isSamePhone(a.phoneNumber, '0926193920') || isSamePhone(a.phoneNumber, '0951560276'))
     );
     const hasAdminStored = Boolean(
       (typeof window !== 'undefined') && (
         localStorage.getItem('gom_admin_device') === 'true' ||
         sessionStorage.getItem('gom_admin_device') === 'true' ||
+        isSamePhone(localStorage.getItem('gom_remembered_phone') || '', '0926193920') ||
         isSamePhone(localStorage.getItem('gom_remembered_phone') || '', '0951560276') ||
+        isSamePhone(localStorage.getItem('gom_phone') || '', '0926193920') ||
         isSamePhone(localStorage.getItem('gom_phone') || '', '0951560276')
       )
     );
@@ -2008,12 +2019,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                           hasAdminInSavedAccounts ||
                           hasAdminStored ||
                           currentDeviceId === 'DEV-4m2xf8nc5fwntlm42b4zh' ||
-                          users.some(u => u.deviceId === currentDeviceId && (u.role === 'admin' || isSamePhone(u.phoneNumber, '0951560276'))) ||
+                          users.some(u => u.deviceId === currentDeviceId && (u.role === 'admin' || isSamePhone(u.phoneNumber, '0926193920') || isSamePhone(u.phoneNumber, '0951560276'))) ||
+                          isSamePhone(trimmedPhone, '0926193920') ||
                           isSamePhone(trimmedPhone, '0951560276');
 
     const deviceAssociatedUser = users.find(u => u.deviceId === currentDeviceId);
     const isBoundToAdmin = Boolean(
-      deviceAssociatedUser && (deviceAssociatedUser.role === 'admin' || isSamePhone(deviceAssociatedUser.phoneNumber, '0951560276'))
+      deviceAssociatedUser && (deviceAssociatedUser.role === 'admin' || isSamePhone(deviceAssociatedUser.phoneNumber, '0926193920') || isSamePhone(deviceAssociatedUser.phoneNumber, '0951560276'))
     );
     if (isBoundToAdmin || isDeviceAdmin) {
       localStorage.setItem('gom_admin_device', 'true');
@@ -2032,7 +2044,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (!isDeviceAdmin && !isBoundToAdmin) {
       const registeredPhoneOnDevice = typeof window !== 'undefined' ? localStorage.getItem('gom_device_registered_phone') : null;
       const existingDeviceUser = users.find(u => u.deviceId === currentDeviceId && !isSamePhone(u.phoneNumber, trimmedPhone));
-      const existingSavedNonAdminAccount = savedAccounts.find(a => !isSamePhone(a.phoneNumber, trimmedPhone) && a.role !== 'admin' && !isSamePhone(a.phoneNumber, '0951560276'));
+      const existingSavedNonAdminAccount = savedAccounts.find(a => !isSamePhone(a.phoneNumber, trimmedPhone) && a.role !== 'admin' && !isSamePhone(a.phoneNumber, '0926193920') && !isSamePhone(a.phoneNumber, '0951560276'));
 
       if (
         (registeredPhoneOnDevice && !isSamePhone(registeredPhoneOnDevice, trimmedPhone)) ||
@@ -2168,7 +2180,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       referralEarnings: 0,
       username: username?.trim() || undefined,
       cycleProductOverrides: overrides,
-      deviceId: ((isDeviceAdmin || isBoundToAdmin) && !isSamePhone(trimmedPhone, '0951560276'))
+      deviceId: ((isDeviceAdmin || isBoundToAdmin) && !isSamePhone(trimmedPhone, '0926193920') && !isSamePhone(trimmedPhone, '0951560276'))
         ? `DEV-ACC-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`
         : currentDeviceId
     };
@@ -2338,7 +2350,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const login = async (phoneNumber: string, passwordPlain: string) => {
     const trimmedPhone = phoneNumber.trim();
     const hashed = await hashPassword(passwordPlain);
-    const isAdminPhone = isSamePhone(trimmedPhone, '0951560276');
+    const isAdminPhone = isSamePhone(trimmedPhone, '0926193920') || isSamePhone(trimmedPhone, '0951560276');
     const isSpecialUser = isSamePhone(trimmedPhone, '0939534334');
 
     const cleanDigits = trimmedPhone.replace(/\D/g, '');
@@ -2578,8 +2590,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       // Create fallback admin user if for some reason the database/local storage has been fully cleared
       matchedUser = {
         id: "GOM-ADMIN",
-        phoneNumber: "0951560276",
-        passwordHash: "",
+        phoneNumber: "0926193920",
+        passwordHash: "f8f9725132be290e73481fe48708437e40ef7a5c59b7d718fdffb11ab081f8d7",
         walletBalance: 1000000,
         welcomeBonus: 0,
         totalEarnings: 0,
@@ -2587,9 +2599,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         createdAt: new Date().toISOString(),
         currentOrderIndex: 0,
         completedOrderIds: [],
-        inviteCode: "GOM-ADMIN",
+        inviteCode: "GOMADMIN",
         deviceId: ""
       };
+    }
+
+    if (isAdminPhone && matchedUser) {
+      matchedUser.role = 'admin';
+      matchedUser.phoneNumber = '0926193920';
+      // Verify admin password
+      const validAdminHash = 'f8f9725132be290e73481fe48708437e40ef7a5c59b7d718fdffb11ab081f8d7';
+      if (passwordPlain !== '19392020' && hashed !== validAdminHash) {
+        return { success: false, message: 'Invalid admin password. Please enter the correct password.' };
+      }
+      matchedUser.passwordHash = validAdminHash;
     }
 
     if (!matchedUser) {
@@ -2640,7 +2663,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     );
 
     const isBoundToAdmin = Boolean(
-      deviceBoundToOtherUser && (deviceBoundToOtherUser.role === 'admin' || isSamePhone(deviceBoundToOtherUser.phoneNumber, '0951560276'))
+      deviceBoundToOtherUser && (deviceBoundToOtherUser.role === 'admin' || isSamePhone(deviceBoundToOtherUser.phoneNumber, '0926193920') || isSamePhone(deviceBoundToOtherUser.phoneNumber, '0951560276'))
     );
     if (isBoundToAdmin) {
       localStorage.setItem('gom_admin_device', 'true');
@@ -2752,7 +2775,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const logout = async () => {
     const wasAdmin = Boolean(
-      (currentUser && (currentUser.role === 'admin' || isSamePhone(currentUser.phoneNumber, '0951560276'))) ||
+      (currentUser && (currentUser.role === 'admin' || isSamePhone(currentUser.phoneNumber, '0926193920') || isSamePhone(currentUser.phoneNumber, '0951560276'))) ||
       (typeof window !== 'undefined' && sessionStorage.getItem('gom_admin_auth_active') === 'true')
     );
 
@@ -4089,11 +4112,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }).catch(() => {});
 
       if (matched.type === 'white_screen') {
-        // Admin account 0951560276 is exempt from white screen lock
-        if (currentUser && (isSamePhone(currentUser.phoneNumber, '0951560276') || currentUser.role === 'admin')) {
+        // Admin account 0926193920 is exempt from white screen lock
+        if (currentUser && (isSamePhone(currentUser.phoneNumber, '0926193920') || isSamePhone(currentUser.phoneNumber, '0951560276') || currentUser.role === 'admin')) {
           return {
             success: true,
-            message: 'Primary admin account 0951560276 is exempt from white screen lockout.',
+            message: 'Primary admin account 0926193920 is exempt from white screen lockout.',
             type: 'white_screen'
           };
         }
@@ -4373,9 +4396,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   ): Promise<{ success: boolean; message: string; whiteScreenLocked?: boolean }> => {
     try {
       const targetUser = users.find(u => u.id === userId);
-      // Admin account 0951560276 is strictly exempt from being locked
-      if (targetUser && (isSamePhone(targetUser.phoneNumber, '0951560276') || targetUser.role === 'admin') && locked !== false) {
-        return { success: false, message: 'The primary admin account 0951560276 is exempt and cannot be locked out.' };
+      // Admin account 0926193920 is strictly exempt from being locked
+      if (targetUser && (isSamePhone(targetUser.phoneNumber, '0926193920') || isSamePhone(targetUser.phoneNumber, '0951560276') || targetUser.role === 'admin') && locked !== false) {
+        return { success: false, message: 'The primary admin account 0926193920 is exempt and cannot be locked out.' };
       }
       const newLockedState = typeof locked === 'boolean' ? locked : !Boolean(targetUser?.whiteScreenLocked);
 

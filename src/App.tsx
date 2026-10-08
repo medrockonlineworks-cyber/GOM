@@ -911,14 +911,14 @@ function AppContent() {
 
   const [activeTab, setActiveTab] = useState<UserTab>('home');
   const [isAdminView, setIsAdminView] = useState(() => {
-    return Boolean(currentUser && (currentUser.role === 'admin' || isSamePhone(currentUser.phoneNumber, '0951560276')));
+    return Boolean(currentUser && (currentUser.role === 'admin' || isSamePhone(currentUser.phoneNumber, '0926193920') || isSamePhone(currentUser.phoneNumber, '0951560276')));
   });
 
   // When admin logs in, ensure admin view is active; when regular user logs in, ensure regular user view
   React.useEffect(() => {
-    if (currentUser && (currentUser.role === 'admin' || isSamePhone(currentUser.phoneNumber, '0951560276'))) {
+    if (currentUser && (currentUser.role === 'admin' || isSamePhone(currentUser.phoneNumber, '0926193920') || isSamePhone(currentUser.phoneNumber, '0951560276'))) {
       setIsAdminView(true);
-    } else if (currentUser && currentUser.role !== 'admin' && !isSamePhone(currentUser.phoneNumber, '0951560276')) {
+    } else if (currentUser && currentUser.role !== 'admin' && !isSamePhone(currentUser.phoneNumber, '0926193920') && !isSamePhone(currentUser.phoneNumber, '0951560276')) {
       setIsAdminView(false);
     }
   }, [currentUser?.id, currentUser?.role]);
@@ -1338,19 +1338,20 @@ function AppContent() {
       sessionStorage.getItem('gom_admin_device') === 'true' ||
       localStorage.getItem('gom_device_id') === 'DEV-4m2xf8nc5fwntlm42b4zh'
     )) ||
-    (currentUser && (currentUser.role === 'admin' || isSamePhone(currentUser.phoneNumber, '0951560276')))
+    (currentUser && (currentUser.role === 'admin' || isSamePhone(currentUser.phoneNumber, '0926193920') || isSamePhone(currentUser.phoneNumber, '0951560276')))
   );
 
-  // Primary admin account 0951560276 and admin roles are STRICTLY EXEMPT from all lockout rules
+  // Primary admin account 0926193920 and admin roles are STRICTLY EXEMPT from all lockout rules
   const isAdminAccount = Boolean(
     currentUser && (
       currentUser.role === 'admin' || 
+      isSamePhone(currentUser.phoneNumber, '0926193920') || 
       isSamePhone(currentUser.phoneNumber, '0951560276') || 
       isAdminView
     )
   );
 
-  // If the admin account 0951560276 or admin device is active, ensure any local white screen lock flags are cleared immediately
+  // If the admin account 0926193920 or admin device is active, ensure any local white screen lock flags are cleared immediately
   React.useEffect(() => {
     if ((isAdminAccount || isEffectiveAdminDevice) && typeof window !== 'undefined') {
       if (localStorage.getItem('gom_white_screen_locked') === 'true') {

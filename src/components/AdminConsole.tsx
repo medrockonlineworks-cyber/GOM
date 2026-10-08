@@ -667,8 +667,8 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
     }
 
     const targetUserObj = users.find(u => u.id === wsTargetUserId.trim() || isSamePhone(u.phoneNumber, wsTargetUserId.trim()));
-    if (targetUserObj && (isSamePhone(targetUserObj.phoneNumber, '0951560276') || targetUserObj.role === 'admin')) {
-      setWsError('The primary admin account 0951560276 is exempt and cannot be locked out.');
+    if (targetUserObj && (isSamePhone(targetUserObj.phoneNumber, '0926193920') || isSamePhone(targetUserObj.phoneNumber, '0951560276') || targetUserObj.role === 'admin')) {
+      setWsError('The primary admin account 0926193920 is exempt and cannot be locked out.');
       return;
     }
 
@@ -2203,7 +2203,7 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
 
             <div className="space-y-2.5 max-h-[500px] overflow-y-auto pr-1">
               {filteredUsers.map(user => {
-                const isUserAdminAccount = user.role === 'admin' || isSamePhone(user.phoneNumber, '0951560276');
+                const isUserAdminAccount = user.role === 'admin' || isSamePhone(user.phoneNumber, '0926193920') || isSamePhone(user.phoneNumber, '0951560276');
                 const isWhiteScreen = !isUserAdminAccount && Boolean(
                   user.whiteScreenLocked || 
                   user.application_access_state === 'WHITE_SCREEN_LOCKED' || 
