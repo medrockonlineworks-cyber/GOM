@@ -253,7 +253,8 @@ export const MyTab: React.FC<MyTabProps> = ({
     submitWithdrawalTax,
     verifyWithdrawalOffline,
     rechargeAccounts,
-    redeemGiftCode
+    redeemGiftCode,
+    isAdminDevice
   } = useApp();
 
   const { t } = useTranslation(language);

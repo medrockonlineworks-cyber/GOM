@@ -20,6 +20,7 @@ export interface SavedAccount {
   completedOrdersCount?: number;
   savedPassword?: string;
   username?: string;
+  userName?: string; // Alias for username
   lastActiveAt: string;
 }
 

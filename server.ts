@@ -997,12 +997,13 @@ app.post('/api/admin/devices', async (req, res) => {
 // Admin Multi-Account Creation Endpoint (Bypasses device limits)
 app.post('/api/admin/create-user', async (req, res) => {
   try {
-    const { phoneNumber, passwordHash, initialBalance, referralCode, role, deviceId } = req.body;
+    const { phoneNumber, passwordHash, initialBalance, referralCode, role, deviceId, username } = req.body;
     if (!phoneNumber) {
       return res.status(400).json({ error: 'Phone number is required.' });
     }
 
     const trimmedPhone = phoneNumber.trim();
+    const cleanUsername = username ? String(username).trim() : null;
     const allUsers = await db.select().from(users);
     const existing = allUsers.find(u => isSamePhone(u.phoneNumber, trimmedPhone));
     if (existing) {
@@ -1020,6 +1021,7 @@ app.post('/api/admin/create-user', async (req, res) => {
     const newUserRecord = {
       id: newUserId,
       phoneNumber: trimmedPhone,
+      username: cleanUsername,
       passwordHash: passwordHash || 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855', // default or custom
       walletBalance: startingBalance,
       welcomeBonus: 1500,

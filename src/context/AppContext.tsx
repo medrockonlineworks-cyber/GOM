@@ -635,7 +635,7 @@ interface AppContextProps {
   adminChangeUserPassword: (userId: string, newPasswordPlain: string) => Promise<{ success: boolean; message: string }>;
   adminDeleteUser: (userId: string) => Promise<{ success: boolean; message: string }>;
   adminUpdateUserStage: (userId: string, newStage: number) => Promise<{ success: boolean; message: string }>;
-  adminCreateUser: (phone: string, passwordPlain: string, initialBalance?: number, referralCode?: string) => Promise<{ success: boolean; message: string; user?: User }>;
+  adminCreateUser: (phone: string, passwordPlain: string, initialBalance?: number, referralCode?: string, role?: 'admin' | 'user', username?: string) => Promise<{ success: boolean; message: string; user?: User }>;
   isAdminDevice: boolean;
 
   // Offline Verification System
@@ -850,19 +850,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, []);
 
   const isAdminDevice = useMemo(() => {
-    if (isAdminDeviceState) return true;
     if (currentUser && (currentUser.role === 'admin' || isSamePhone(currentUser.phoneNumber, '0951560276'))) return true;
     if (typeof window !== 'undefined') {
-      if (localStorage.getItem('gom_admin_device') === 'true' || sessionStorage.getItem('gom_admin_device') === 'true') return true;
-      const devId = localStorage.getItem('gom_device_id') || '';
-      if (devId === 'DEV-4m2xf8nc5fwntlm42b4zh' || adminDevicesList.includes(devId)) return true;
-      try {
-        const raw = localStorage.getItem('gom_saved_accounts');
-        if (raw && (raw.includes('0951560276') || raw.includes('GOM-ADMIN'))) return true;
-      } catch (e) {}
+      if (sessionStorage.getItem('gom_admin_auth_active') === 'true') return true;
+      if (isAdminDeviceState && localStorage.getItem('gom_admin_device') === 'true') return true;
     }
     return false;
-  }, [isAdminDeviceState, currentUser, adminDevicesList]);
+  }, [isAdminDeviceState, currentUser]);
 
   const [savedAccounts, setSavedAccounts] = useState<SavedAccount[]>(() => {
     if (typeof window === 'undefined') return [];
@@ -870,44 +864,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const raw = localStorage.getItem('gom_saved_accounts');
       if (raw) {
         const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          // Remove legacy dummy accounts that shouldn't appear
+          return parsed.filter(a => a.phoneNumber !== '+251910324589');
+        }
       }
     } catch (e) {}
-    return [
-      {
-        id: 'GOM-ADMIN',
-        phoneNumber: '0951560276',
-        role: 'admin',
-        walletBalance: 1194283,
-        welcomeBonus: 0,
-        totalEarnings: 195288,
-        currentOrderIndex: 15,
-        completedOrdersCount: 15,
-        savedPassword: 'Password123',
-        lastActiveAt: new Date().toISOString()
-      },
-      {
-        id: 'GOM-43052',
-        phoneNumber: '+251910324589',
-        role: 'user',
-        walletBalance: 93725.02,
-        welcomeBonus: 588,
-        totalEarnings: 196678.02,
-        currentOrderIndex: 15,
-        completedOrdersCount: 15,
-        savedPassword: '000000',
-        lastActiveAt: new Date().toISOString()
-      }
-    ];
+    return [];
   });
 
   const syncSavedAccount = (user: User, plainPassword?: string) => {
     if (!user || !user.phoneNumber) return;
     setSavedAccounts(prev => {
       const existing = prev.find(a => a.id === user.id || isSamePhone(a.phoneNumber, user.phoneNumber));
+      const cleanUsername = user.username || user.userName || existing?.username || existing?.userName || undefined;
       const entry: SavedAccount = {
         id: user.id,
         phoneNumber: user.phoneNumber,
+        username: cleanUsername,
+        userName: cleanUsername,
         role: user.role,
         walletBalance: user.walletBalance || 0,
         welcomeBonus: user.welcomeBonus || 0,
@@ -956,17 +931,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (res.ok) {
           const freshUsers: User[] = await res.json();
           target = freshUsers.find(u => u.id === trimmed || isSamePhone(u.phoneNumber, trimmed));
-          if (target) {
-            setUsers(prev => {
-              const idx = prev.findIndex(u => u.id === target!.id);
-              if (idx !== -1) {
-                const copy = [...prev];
-                copy[idx] = target!;
-                return copy;
-              }
-              return [...prev, target!];
-            });
-          }
         }
       } catch (e) {
         console.warn('[SwitchAccount] Database lookup failed:', e);
@@ -974,13 +938,81 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     if (!target) {
+      try {
+        const storedUsers = localStorage.getItem('gom_users');
+        if (storedUsers) {
+          const parsed = JSON.parse(storedUsers);
+          if (Array.isArray(parsed)) {
+            target = parsed.find((u: any) => u.id === trimmed || isSamePhone(u.phoneNumber, trimmed));
+          }
+        }
+      } catch (e) {}
+    }
+
+    if (!target) {
+      const savedMatch = savedAccounts.find(s => s.id === trimmed || isSamePhone(s.phoneNumber, trimmed));
+      if (savedMatch) {
+        target = {
+          id: savedMatch.id,
+          phoneNumber: savedMatch.phoneNumber,
+          role: savedMatch.role || 'user',
+          walletBalance: savedMatch.walletBalance || 1500,
+          welcomeBonus: savedMatch.welcomeBonus || 1500,
+          totalEarnings: savedMatch.totalEarnings || 0,
+          currentOrderIndex: savedMatch.currentOrderIndex || 0,
+          completedOrderIds: [],
+          inviteCode: `GOM${savedMatch.phoneNumber.slice(-5)}`,
+          createdAt: savedMatch.lastActiveAt || new Date().toISOString(),
+          passwordHash: ''
+        };
+      }
+    }
+
+    if (!target) {
       return { success: false, message: 'Account not found. Please verify the phone number or account ID.' };
     }
+
+    setUsers(prev => {
+      const idx = prev.findIndex(u => u.id === target!.id || isSamePhone(u.phoneNumber, target!.phoneNumber));
+      if (idx !== -1) {
+        const copy = [...prev];
+        copy[idx] = target!;
+        return copy;
+      }
+      return [...prev, target!];
+    });
+
+    try {
+      const localUsers = JSON.parse(localStorage.getItem('gom_users') || '[]');
+      if (Array.isArray(localUsers)) {
+        const exIdx = localUsers.findIndex((u: any) => u.id === target!.id || isSamePhone(u.phoneNumber, target!.phoneNumber));
+        if (exIdx !== -1) {
+          localUsers[exIdx] = target;
+        } else {
+          localUsers.push(target);
+        }
+        localStorage.setItem('gom_users', JSON.stringify(localUsers));
+      }
+    } catch (e) {}
 
     setCurrentUser(target);
     localStorage.setItem('gom_current_user', JSON.stringify(target));
 
-    if (target.role === 'admin' || isSamePhone(target.phoneNumber, '0951560276')) {
+    const wasAdminDevice = Boolean(
+      isAdminDevice ||
+      isAdminDeviceState ||
+      target.role === 'admin' ||
+      isSamePhone(target.phoneNumber, '0951560276') ||
+      (typeof window !== 'undefined' && (
+        localStorage.getItem('gom_admin_device') === 'true' ||
+        sessionStorage.getItem('gom_admin_device') === 'true' ||
+        (savedAccounts && savedAccounts.some(a => a.role === 'admin' || isSamePhone(a.phoneNumber, '0951560276'))) ||
+        (localStorage.getItem('gom_saved_accounts') || '').includes('0951560276') ||
+        (localStorage.getItem('gom_saved_accounts') || '').includes('GOM-ADMIN')
+      ))
+    );
+
+    if (wasAdminDevice) {
       localStorage.setItem('gom_admin_device', 'true');
       sessionStorage.setItem('gom_admin_device', 'true');
       setIsAdminDeviceState(true);
@@ -2585,32 +2617,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       } catch (e) {}
     }
 
-    const hasAdminInStorage = Boolean(
-      (typeof window !== 'undefined') && (
-        localStorage.getItem('gom_admin_device') === 'true' || 
-        sessionStorage.getItem('gom_admin_device') === 'true' ||
-        (localStorage.getItem('gom_saved_accounts') || '').includes('0951560276') ||
-        (localStorage.getItem('gom_saved_accounts') || '').includes('GOM-ADMIN') ||
-        (localStorage.getItem('gom_users') || '').includes('0951560276') ||
-        isSamePhone(localStorage.getItem('gom_remembered_phone') || '', '0951560276') ||
-        isSamePhone(localStorage.getItem('gom_phone') || '', '0951560276')
-      )
+    const isDeviceAdmin = Boolean(
+      matchedUser.role === 'admin' ||
+      isAdminPhone ||
+      (typeof window !== 'undefined' && sessionStorage.getItem('gom_admin_auth_active') === 'true')
     );
-
-    const isDeviceAdmin = isAdminDevice || 
-                          isAdminDeviceState ||
-                          isServerAdminDevice ||
-                          hasAdminInStorage ||
-                          (savedAccounts && savedAccounts.some(a => a.role === 'admin' || isSamePhone(a.phoneNumber, '0951560276'))) ||
-                          currentDeviceId === 'DEV-4m2xf8nc5fwntlm42b4zh' ||
-                          users.some(u => u.deviceId === currentDeviceId && (u.role === 'admin' || isSamePhone(u.phoneNumber, '0951560276'))) ||
-                          matchedUser.role === 'admin' ||
-                          isAdminPhone;
 
     if (isDeviceAdmin) {
       localStorage.setItem('gom_admin_device', 'true');
       sessionStorage.setItem('gom_admin_device', 'true');
+      sessionStorage.setItem('gom_admin_auth_active', 'true');
       setIsAdminDeviceState(true);
+    } else {
+      localStorage.removeItem('gom_admin_device');
+      sessionStorage.removeItem('gom_admin_device');
+      sessionStorage.removeItem('gom_admin_auth_active');
+      setIsAdminDeviceState(false);
     }
 
     const deviceBoundToOtherUser = users.find(
@@ -2623,6 +2645,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (isBoundToAdmin) {
       localStorage.setItem('gom_admin_device', 'true');
       sessionStorage.setItem('gom_admin_device', 'true');
+      sessionStorage.setItem('gom_admin_auth_active', 'true');
       setIsAdminDeviceState(true);
     }
 
@@ -2729,32 +2752,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const logout = async () => {
     const wasAdmin = Boolean(
-      isAdminDevice ||
-      isAdminDeviceState ||
       (currentUser && (currentUser.role === 'admin' || isSamePhone(currentUser.phoneNumber, '0951560276'))) ||
-      (typeof window !== 'undefined' && (
-        localStorage.getItem('gom_admin_device') === 'true' ||
-        sessionStorage.getItem('gom_admin_device') === 'true' ||
-        (savedAccounts && savedAccounts.some(a => a.role === 'admin' || isSamePhone(a.phoneNumber, '0951560276'))) ||
-        (localStorage.getItem('gom_saved_accounts') || '').includes('0951560276') ||
-        (localStorage.getItem('gom_saved_accounts') || '').includes('GOM-ADMIN') ||
-        (localStorage.getItem('gom_users') || '').includes('0951560276')
-      ))
+      (typeof window !== 'undefined' && sessionStorage.getItem('gom_admin_auth_active') === 'true')
     );
 
     if (currentUser) {
       await logAudit(currentUser.id, currentUser.phoneNumber, 'LOGOUT', 'User logged out.');
       setCurrentUser(null);
     }
-    if (wasAdmin) {
-      localStorage.setItem('gom_admin_device', 'true');
-      sessionStorage.setItem('gom_admin_device', 'true');
-      setIsAdminDeviceState(true);
-      if (typeof window !== 'undefined') {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('gom_current_user');
+      if (wasAdmin) {
+        localStorage.setItem('gom_admin_device', 'true');
+        sessionStorage.setItem('gom_admin_device', 'true');
+        setIsAdminDeviceState(true);
         localStorage.removeItem('gom_white_screen_locked');
+      } else {
+        localStorage.removeItem('gom_admin_device');
+        sessionStorage.removeItem('gom_admin_device');
+        sessionStorage.removeItem('gom_admin_auth_active');
+        setIsAdminDeviceState(false);
       }
-      setIsWhiteScreenLockedState(false);
     }
+    setIsWhiteScreenLockedState(false);
   };
 
   const resetPassword = async (phoneNumber: string, passwordPlain: string) => {
@@ -6110,18 +6130,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return { success: true, message: 'User reactivated locally for Next Round.' };
   };
 
-  const adminCreateUser = async (phone: string, passwordPlain: string, initialBalance: number = 1500, referralCode?: string) => {
+  const adminCreateUser = async (phone: string, passwordPlain: string, initialBalance: number = 1500, referralCode?: string, role: 'admin' | 'user' = 'user', username?: string) => {
     try {
       const trimmedPhone = phone.trim();
+      const cleanUsername = username ? username.trim() : undefined;
       const hashed = await hashPassword(passwordPlain);
       const res = await fetch('/api/admin/create-user', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           phoneNumber: trimmedPhone,
+          username: cleanUsername,
           passwordHash: hashed,
           initialBalance,
           referralCode,
+          role,
           deviceId: `DEV-ACC-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`
         })
       });
@@ -6142,7 +6165,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           try { localStorage.setItem('gom_users', JSON.stringify(data.users)); } catch (e) {}
         }
         if (data.user) {
-          syncSavedAccount(data.user, passwordPlain);
+          syncSavedAccount({ ...data.user, username: cleanUsername || data.user.username }, passwordPlain);
         }
         await fetchAllData();
         return { success: true, message: data.message || `Account for ${trimmedPhone} created successfully.`, user: data.user };
@@ -6176,11 +6199,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const newLocalUser: User = {
         id: userId,
         phoneNumber: trimmedPhone,
+        username: cleanUsername,
+        userName: cleanUsername,
         passwordHash: hashed,
         walletBalance: startingBalance,
         welcomeBonus: 1500,
         totalEarnings: 0,
-        role: 'user',
+        role: role || 'user',
         currentOrderIndex: 0,
         completedOrderIds: [],
         inviteCode,

@@ -40,7 +40,15 @@ import {
   UserCheck,
   RefreshCw,
   UserPlus,
-  Smartphone
+  Smartphone,
+  Eye,
+  EyeOff,
+  Phone,
+  Sparkles,
+  ChevronDown,
+  ChevronUp,
+  AlertCircle,
+  PlusCircle
 } from 'lucide-react';
 
 import { formatUserPhoneId, useTranslation } from '../utils/translations';
@@ -221,13 +229,14 @@ export const AdminPhonePicker: React.FC<AdminPhonePickerProps> = ({
 
   // Merge unique accounts from users & savedAccounts
   const accountList = useMemo(() => {
-    const map = new Map<string, { id: string; phoneNumber: string; role: string; walletBalance: number; completedCount: number }>();
+    const map = new Map<string, { id: string; phoneNumber: string; username?: string; role: string; walletBalance: number; completedCount: number }>();
     
     users.forEach(u => {
       if (u && u.phoneNumber) {
         map.set(u.phoneNumber, {
           id: u.id,
           phoneNumber: u.phoneNumber,
+          username: u.username || u.userName,
           role: u.role || 'user',
           walletBalance: u.walletBalance || 0,
           completedCount: (u.completedOrderIds || []).length
@@ -240,6 +249,7 @@ export const AdminPhonePicker: React.FC<AdminPhonePickerProps> = ({
         map.set(sa.phoneNumber, {
           id: sa.id,
           phoneNumber: sa.phoneNumber,
+          username: sa.username || sa.userName,
           role: sa.role || 'user',
           walletBalance: sa.walletBalance || 0,
           completedCount: sa.completedOrdersCount || 0
@@ -256,6 +266,7 @@ export const AdminPhonePicker: React.FC<AdminPhonePickerProps> = ({
     return accountList.filter(a => 
       a.phoneNumber.toLowerCase().includes(query) ||
       a.id.toLowerCase().includes(query) ||
+      (a.username && a.username.toLowerCase().includes(query)) ||
       a.role.toLowerCase().includes(query)
     );
   }, [accountList, value]);
@@ -320,10 +331,15 @@ export const AdminPhonePicker: React.FC<AdminPhonePickerProps> = ({
                   }}
                 >
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-mono font-bold text-xs text-slate-900 group-hover:text-amber-900">
                         {acc.phoneNumber}
                       </span>
+                      {acc.username && (
+                        <span className="text-[10px] font-bold text-amber-800 bg-amber-50 border border-amber-200/80 px-1.5 py-0.5 rounded-md flex items-center gap-1">
+                          <span>👤</span> {acc.username}
+                        </span>
+                      )}
                       <span className={`text-[8px] font-extrabold px-1.5 py-0.5 rounded-full uppercase tracking-wider ${
                         acc.role === 'admin' ? 'bg-amber-100 text-amber-800 border border-amber-300' : 'bg-slate-100 text-slate-600'
                       }`}>
@@ -472,6 +488,88 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
   const [unlockSuccessMsg, setUnlockSuccessMsg] = useState('');
   const [unlockError, setUnlockError] = useState('');
   const [copiedUnlockCode, setCopiedUnlockCode] = useState<string | null>(null);
+
+  // Multi-Device Accounts & Switcher Registration States
+  const [regPhone, setRegPhone] = useState('');
+  const [regUsername, setRegUsername] = useState('');
+  const [regCountryCode, setRegCountryCode] = useState('+251');
+  const [regPassword, setRegPassword] = useState('Password123');
+  const [regShowPassword, setRegShowPassword] = useState(false);
+  const [regInitialBalance, setRegInitialBalance] = useState('1500');
+  const [regRole, setRegRole] = useState<'user' | 'admin'>('user');
+  const [regMakeActive, setRegMakeActive] = useState(true);
+  const [regLoading, setRegLoading] = useState(false);
+  const [regSuccessMsg, setRegSuccessMsg] = useState('');
+  const [regErrorMsg, setRegErrorMsg] = useState('');
+  const [switchFeedback, setSwitchFeedback] = useState<string | null>(null);
+  const [isRegFormOpen, setIsRegFormOpen] = useState(true);
+
+  const handleRegisterFromSwitcher = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setRegErrorMsg('');
+    setRegSuccessMsg('');
+
+    const cleanRaw = regPhone.trim().replace(/\s+/g, '');
+    if (!cleanRaw) {
+      setRegErrorMsg('Please enter a phone number.');
+      return;
+    }
+
+    let fullPhone = cleanRaw;
+    if (regCountryCode && !cleanRaw.startsWith('+')) {
+      const numCode = regCountryCode.replace(/\D/g, '');
+      if (numCode && cleanRaw.startsWith(numCode)) {
+        fullPhone = `+${cleanRaw}`;
+      } else if (cleanRaw.startsWith('0')) {
+        fullPhone = `${regCountryCode}${cleanRaw.substring(1)}`;
+      } else {
+        fullPhone = `${regCountryCode}${cleanRaw}`;
+      }
+    }
+
+    if (regPassword.length < 6) {
+      setRegErrorMsg('Password must be at least 6 characters.');
+      return;
+    }
+
+    const initBal = parseFloat(regInitialBalance) || 1500;
+    const cleanRegName = regUsername.trim() || undefined;
+
+    setRegLoading(true);
+    try {
+      const res = await adminCreateUser(fullPhone, regPassword, initBal, undefined, regRole, cleanRegName);
+      if (res.success) {
+        setRegSuccessMsg(`Account ${fullPhone}${cleanRegName ? ` (${cleanRegName})` : ''} [${regRole.toUpperCase()}] registered successfully and saved to local storage!`);
+        setRegPhone('');
+        setRegUsername('');
+
+        if (regMakeActive) {
+          const switchRes = await switchAccount(fullPhone);
+          if (switchRes.success) {
+            setSwitchFeedback(`Switched to ${fullPhone}${cleanRegName ? ` (${cleanRegName})` : ''} (Active Session)!`);
+            setTimeout(() => setSwitchFeedback(null), 4500);
+          }
+        }
+      } else {
+        setRegErrorMsg(res.message || 'Failed to create account.');
+      }
+    } catch (err: any) {
+      setRegErrorMsg(err?.message || 'Failed to create account.');
+    } finally {
+      setRegLoading(false);
+    }
+  };
+
+  const handleSwitchAndMakeActive = async (targetPhoneOrId: string) => {
+    setSwitchFeedback(null);
+    const res = await switchAccount(targetPhoneOrId);
+    if (res.success) {
+      setSwitchFeedback(res.message);
+      setTimeout(() => setSwitchFeedback(null), 4500);
+    } else {
+      alert(res.message);
+    }
+  };
 
   const handleGenerateUnlockCodeSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -3782,8 +3880,14 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
                     {currentUser?.role === 'admin' ? '🛡️ Admin' : '👤 User'}
                   </span>
                 </div>
-                <div className="text-lg font-black tracking-wide font-mono text-white flex items-center gap-2">
-                  {currentUser?.phoneNumber ? formatUserPhoneId(currentUser.phoneNumber) : 'No User Logged In'}
+                <div className="text-lg font-black tracking-wide font-mono text-white flex items-center gap-2.5 flex-wrap">
+                  <span>{currentUser?.phoneNumber ? formatUserPhoneId(currentUser.phoneNumber) : 'No User Logged In'}</span>
+                  {(currentUser?.username || currentUser?.userName) && (
+                    <span className="text-xs font-bold text-amber-300 bg-amber-400/20 border border-amber-400/30 px-2.5 py-0.5 rounded-xl flex items-center gap-1 font-sans">
+                      <span>👤</span>
+                      <span>{currentUser?.username || currentUser?.userName}</span>
+                    </span>
+                  )}
                 </div>
                 <div className="text-xs text-slate-300 font-semibold flex items-center gap-2">
                   <span>Balance: <strong className="text-emerald-400 font-bold">{formatPrice(currentUser?.walletBalance || 0)}</strong></span>
@@ -3795,9 +3899,189 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
               <div className="flex items-center gap-2">
                 <div className="bg-amber-500/10 border border-amber-400/40 rounded-xl px-3 py-1.5 flex items-center gap-1.5 text-[11px] font-bold text-amber-900">
                   <ShieldCheck size={14} className="text-amber-600 shrink-0" />
-                  <span>Admin Multi-Registration: Active on Register Page</span>
+                  <span>Admin Multi-Registration & Switcher: Active In Admin Console Only</span>
                 </div>
               </div>
+            </div>
+
+            {/* SWITCH FEEDBACK NOTIFICATION */}
+            {switchFeedback && (
+              <div className="p-3.5 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-2xl text-xs font-bold flex items-center gap-2 shadow-xs animate-in fade-in slide-in-from-top duration-200">
+                <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
+                <span>{switchFeedback}</span>
+              </div>
+            )}
+
+            {/* REGISTER MULTIPLE ACCOUNTS DIRECTLY FROM THIS PAGE */}
+            <div className="bg-white border border-slate-200/90 rounded-2xl p-4 sm:p-5 shadow-xs space-y-3.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center font-bold">
+                    <UserPlus size={15} />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-black text-slate-800 uppercase tracking-wide">
+                      Register Multiple Accounts On This Device
+                    </h4>
+                    <p className="text-[10px] text-slate-400 font-semibold">
+                      Created accounts are immediately saved to local storage & available for 1-click switching
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsRegFormOpen(!isRegFormOpen)}
+                  className="text-xs text-bronze hover:text-bronze-hover font-bold flex items-center gap-1 cursor-pointer"
+                >
+                  {isRegFormOpen ? 'Collapse' : '+ Expand Form'}
+                </button>
+              </div>
+
+              {isRegFormOpen && (
+                <form onSubmit={handleRegisterFromSwitcher} className="space-y-3 pt-2 border-t border-slate-100">
+                  {regSuccessMsg && (
+                    <div className="p-3 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl text-xs font-bold flex items-center gap-2">
+                      <CheckCircle2 size={14} className="text-emerald-600 shrink-0" />
+                      <span>{regSuccessMsg}</span>
+                    </div>
+                  )}
+
+                  {regErrorMsg && (
+                    <div className="p-3 bg-red-50 text-red-600 border border-red-200 rounded-xl text-xs font-bold flex items-center gap-2">
+                      <AlertCircle size={14} className="text-red-600 shrink-0" />
+                      <span>{regErrorMsg}</span>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+                    {/* User Name */}
+                    <div>
+                      <label className="block text-[10px] font-black uppercase text-slate-500 mb-1">
+                        User Name (Optional)
+                      </label>
+                      <input
+                        type="text"
+                        value={regUsername}
+                        onChange={(e) => setRegUsername(e.target.value)}
+                        placeholder="e.g. Abeba Kebede"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-1 focus:ring-bronze"
+                      />
+                    </div>
+
+                    {/* Phone Number */}
+                    <div>
+                      <label className="block text-[10px] font-black uppercase text-slate-500 mb-1">
+                        Phone Number *
+                      </label>
+                      <div className="flex gap-1.5">
+                        <select
+                          value={regCountryCode}
+                          onChange={(e) => setRegCountryCode(e.target.value)}
+                          className="bg-slate-50 border border-slate-200 rounded-xl px-2 py-2 text-xs font-bold text-slate-700"
+                        >
+                          <option value="+251">🇪🇹 +251</option>
+                          <option value="+254">🇰🇪 +254</option>
+                          <option value="+234">🇳🇬 +234</option>
+                          <option value="+1">🇺🇸 +1</option>
+                          <option value="+44">🇬🇧 +44</option>
+                          <option value="">📱 Local</option>
+                        </select>
+                        <input
+                          type="text"
+                          required
+                          placeholder="09... / 07..."
+                          value={regPhone}
+                          onChange={(e) => setRegPhone(e.target.value)}
+                          className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-1 focus:ring-bronze"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Password */}
+                    <div>
+                      <label className="block text-[10px] font-black uppercase text-slate-500 mb-1">
+                        Password *
+                      </label>
+                      <div className="relative">
+                        <input
+                          type={regShowPassword ? 'text' : 'password'}
+                          required
+                          value={regPassword}
+                          onChange={(e) => setRegPassword(e.target.value)}
+                          placeholder="Min 6 characters"
+                          className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-3 pr-8 py-2 text-xs font-bold text-slate-800 focus:bg-white focus:outline-none focus:ring-1 focus:ring-bronze"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setRegShowPassword(!regShowPassword)}
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                        >
+                          {regShowPassword ? <EyeOff size={13} /> : <Eye size={13} />}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Initial Balance */}
+                    <div>
+                      <label className="block text-[10px] font-black uppercase text-slate-500 mb-1">
+                        Initial Balance (ETB)
+                      </label>
+                      <input
+                        type="number"
+                        value={regInitialBalance}
+                        onChange={(e) => setRegInitialBalance(e.target.value)}
+                        placeholder="1500"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 focus:bg-white focus:outline-none focus:ring-1 focus:ring-bronze"
+                      />
+                    </div>
+
+                    {/* Role */}
+                    <div>
+                      <label className="block text-[10px] font-black uppercase text-slate-500 mb-1">
+                        Account Role
+                      </label>
+                      <select
+                        value={regRole}
+                        onChange={(e) => setRegRole(e.target.value as 'user' | 'admin')}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 focus:bg-white focus:outline-none focus:ring-1 focus:ring-bronze cursor-pointer"
+                      >
+                        <option value="user">👤 Regular User / Member</option>
+                        <option value="admin">🛡️ Administrator</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
+                    <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-slate-700">
+                      <input
+                        type="checkbox"
+                        checked={regMakeActive}
+                        onChange={(e) => setRegMakeActive(e.target.checked)}
+                        className="rounded text-bronze focus:ring-bronze"
+                      />
+                      <span>Make this account active session immediately after registering</span>
+                    </label>
+
+                    <button
+                      type="submit"
+                      disabled={regLoading}
+                      className="bg-gradient-to-r from-bronze to-bronze-hover hover:from-bronze-hover hover:to-bronze text-white text-xs font-extrabold px-4 py-2.5 rounded-xl shadow-xs transition-all active:scale-95 disabled:opacity-50 cursor-pointer flex items-center justify-center gap-1.5"
+                    >
+                      {regLoading ? (
+                        <>
+                          <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                          <span>Registering...</span>
+                        </>
+                      ) : (
+                        <>
+                          <PlusCircle size={14} />
+                          <span>Register & Save Account</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </form>
+              )}
             </div>
 
             {/* SAVED ACCOUNTS ON THIS DEVICE */}
@@ -3823,6 +4107,7 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
                     const matchedUser = users.find(u => isSamePhone(u.phoneNumber, acc.phoneNumber));
                     const currentBalance = matchedUser ? matchedUser.walletBalance : acc.walletBalance;
                     const ordersDone = matchedUser ? (matchedUser.completedOrderIds || []).length : (acc.completedOrdersCount || 0);
+                    const accUsername = matchedUser?.username || matchedUser?.userName || acc.username || acc.userName;
 
                     return (
                       <div
@@ -3834,16 +4119,30 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
                         }`}
                       >
                         <div className="space-y-1.5">
-                          <div className="flex items-center justify-between">
-                            <span className="font-mono text-xs font-black text-slate-900 flex items-center gap-1.5">
-                              📱 {formatUserPhoneId(acc.phoneNumber)}
-                            </span>
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-1.5">
+                                <span className="font-mono text-xs font-black text-slate-900">
+                                  📱 {formatUserPhoneId(acc.phoneNumber)}
+                                </span>
+                              </div>
+                              {accUsername ? (
+                                <div className="text-[11px] font-bold text-amber-900 flex items-center gap-1 mt-0.5">
+                                  <span className="text-amber-700">👤</span>
+                                  <span className="truncate max-w-[160px]">{accUsername}</span>
+                                </div>
+                              ) : (
+                                <div className="text-[10px] text-slate-400 font-medium italic mt-0.5">
+                                  No user name
+                                </div>
+                              )}
+                            </div>
                             {isActive ? (
-                              <span className="text-[9px] font-black uppercase bg-emerald-100 text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded-full flex items-center gap-1">
+                              <span className="text-[9px] font-black uppercase bg-emerald-100 text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded-full flex items-center gap-1 shrink-0">
                                 <CheckCircle2 size={10} /> Active
                               </span>
                             ) : (
-                              <span className="text-[9px] font-black uppercase bg-slate-100 text-slate-600 border border-slate-200 px-2 py-0.5 rounded-full">
+                              <span className="text-[9px] font-black uppercase bg-slate-100 text-slate-600 border border-slate-200 px-2 py-0.5 rounded-full shrink-0">
                                 {acc.role === 'admin' ? 'Admin' : 'Member'}
                               </span>
                             )}
@@ -3865,7 +4164,7 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
                             <button
                               type="button"
                               onClick={() => {
-                                switchAccount(acc.phoneNumber);
+                                handleSwitchAndMakeActive(acc.phoneNumber);
                               }}
                               className="flex-1 bg-bronze hover:bg-bronze-hover text-white text-[10px] font-black py-1.5 px-3 rounded-xl transition-all flex items-center justify-center gap-1 cursor-pointer active:scale-95 shadow-xs"
                             >
@@ -3928,7 +4227,7 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
                   <table className="w-full text-left text-xs">
                     <thead className="bg-slate-50 text-[10px] uppercase font-black text-slate-500 border-b border-slate-200">
                       <tr>
-                        <th className="py-2.5 px-3">User / Phone</th>
+                        <th className="py-2.5 px-3">User Name & Phone</th>
                         <th className="py-2.5 px-3">Role</th>
                         <th className="py-2.5 px-3">Balance</th>
                         <th className="py-2.5 px-3">Completed Tasks</th>
@@ -3943,28 +4242,41 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
                           return (
                             u.phoneNumber.toLowerCase().includes(q) ||
                             u.id.toLowerCase().includes(q) ||
+                            (u.username && u.username.toLowerCase().includes(q)) ||
+                            (u.userName && u.userName.toLowerCase().includes(q)) ||
                             (u.role && u.role.toLowerCase().includes(q))
                           );
                         })
                         .map(u => {
                           const isActive = currentUser && isSamePhone(currentUser.phoneNumber, u.phoneNumber);
+                          const uName = u.username || u.userName;
 
                           return (
                             <tr key={u.id} className={isActive ? 'bg-amber-50/40' : 'hover:bg-slate-50/80'}>
-                              <td className="py-2.5 px-3 font-mono font-bold text-slate-800">
-                                <div className="flex items-center gap-1.5">
-                                  <span>{formatUserPhoneId(u.phoneNumber)}</span>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      navigator.clipboard.writeText(u.phoneNumber);
-                                      alert(`Copied ${u.phoneNumber} to clipboard!`);
-                                    }}
-                                    className="text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer"
-                                    title="Copy Phone"
-                                  >
-                                    <Copy size={11} />
-                                  </button>
+                              <td className="py-2.5 px-3">
+                                <div className="flex flex-col">
+                                  {uName ? (
+                                    <span className="text-xs font-bold text-slate-900 flex items-center gap-1">
+                                      <span className="text-amber-600">👤</span>
+                                      <span className="font-extrabold text-slate-900">{uName}</span>
+                                    </span>
+                                  ) : (
+                                    <span className="text-[10px] text-slate-400 font-medium italic">No name</span>
+                                  )}
+                                  <div className="flex items-center gap-1.5 font-mono text-[11px] text-slate-600 font-semibold mt-0.5">
+                                    <span>{formatUserPhoneId(u.phoneNumber)}</span>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        navigator.clipboard.writeText(u.phoneNumber);
+                                        alert(`Copied ${u.phoneNumber} to clipboard!`);
+                                      }}
+                                      className="text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer"
+                                      title="Copy Phone"
+                                    >
+                                      <Copy size={11} />
+                                    </button>
+                                  </div>
                                 </div>
                               </td>
                               <td className="py-2.5 px-3">
@@ -3989,7 +4301,7 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
                                   <button
                                     type="button"
                                     onClick={() => {
-                                      switchAccount(u.phoneNumber);
+                                      handleSwitchAndMakeActive(u.phoneNumber);
                                     }}
                                     className="bg-slate-100 hover:bg-bronze hover:text-white text-slate-700 text-[10px] font-black px-2.5 py-1 rounded-lg transition-all border border-slate-200 hover:border-bronze cursor-pointer active:scale-95 inline-flex items-center gap-1"
                                   >

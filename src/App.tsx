@@ -910,7 +910,18 @@ function AppContent() {
   ];
 
   const [activeTab, setActiveTab] = useState<UserTab>('home');
-  const [isAdminView, setIsAdminView] = useState(false);
+  const [isAdminView, setIsAdminView] = useState(() => {
+    return Boolean(currentUser && (currentUser.role === 'admin' || isSamePhone(currentUser.phoneNumber, '0951560276')));
+  });
+
+  // When admin logs in, ensure admin view is active; when regular user logs in, ensure regular user view
+  React.useEffect(() => {
+    if (currentUser && (currentUser.role === 'admin' || isSamePhone(currentUser.phoneNumber, '0951560276'))) {
+      setIsAdminView(true);
+    } else if (currentUser && currentUser.role !== 'admin' && !isSamePhone(currentUser.phoneNumber, '0951560276')) {
+      setIsAdminView(false);
+    }
+  }, [currentUser?.id, currentUser?.role]);
 
   // PWA & Installation states
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
@@ -1646,7 +1657,7 @@ function AppContent() {
       {/* DYNAMIC SCENE CONTAINER */}
       <div className="flex-1 overflow-y-auto flex flex-col relative">
         <AnimatePresence mode="wait">
-          {isAdminView && currentUser.role === 'admin' ? (
+          {isAdminView && (currentUser.role === 'admin' || (typeof window !== 'undefined' && sessionStorage.getItem('gom_admin_auth_active') === 'true')) ? (
             <motion.div
               key="admin"
               initial={{ opacity: 0, x: 20 }}

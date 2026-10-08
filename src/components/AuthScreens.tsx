@@ -125,11 +125,8 @@ export const AuthScreens: React.FC = () => {
   const isDeviceAdmin = Boolean(
     isAdminDevice ||
     (typeof window !== 'undefined' && (
-      localStorage.getItem('gom_admin_device') === 'true' ||
-      sessionStorage.getItem('gom_admin_device') === 'true' ||
-      (savedAccounts && savedAccounts.some(a => a.role === 'admin' || isMatchingPhone(a.phoneNumber, '0951560276'))) ||
-      isMatchingPhone(localStorage.getItem('gom_remembered_phone') || '', '0951560276') ||
-      isMatchingPhone(localStorage.getItem('gom_phone') || '', '0951560276')
+      sessionStorage.getItem('gom_admin_auth_active') === 'true' ||
+      (localStorage.getItem('gom_admin_device') === 'true' && (savedAccounts && savedAccounts.some(a => a.role === 'admin' || isMatchingPhone(a.phoneNumber, '0951560276'))))
     ))
   );
 
@@ -474,68 +471,6 @@ export const AuthScreens: React.FC = () => {
                 <div className="mb-4">
                   <h2 className="text-xl font-black tracking-tight text-slate-800">{t('signIn')}</h2>
                 </div>
-
-                {/* Saved / Registered Accounts on this device */}
-                {savedAccounts && savedAccounts.length > 0 && (
-                  <div className="mb-4 bg-slate-50 border border-slate-200/90 rounded-2xl p-3 shadow-xs">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
-                        <Users size={12} className="text-bronze" />
-                        Saved Accounts ({savedAccounts.length})
-                      </span>
-                      <span className="text-[9px] text-slate-400 font-semibold">Tap to select</span>
-                    </div>
-                    <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
-                      {savedAccounts.map(acc => {
-                        const isSelected = isMatchingPhone(acc.phoneNumber, phoneNumber);
-                        return (
-                          <button
-                            key={acc.id}
-                            type="button"
-                            onClick={() => {
-                              const raw = acc.phoneNumber || '';
-                              let foundCode = '+251';
-                              let phonePart = raw;
-                              for (const c of COUNTRIES) {
-                                if (c.code && raw.startsWith(c.code)) {
-                                  foundCode = c.code;
-                                  phonePart = raw.substring(c.code.length);
-                                  break;
-                                }
-                              }
-                              if (raw.startsWith('09') || raw.startsWith('07')) {
-                                foundCode = '+251';
-                                phonePart = raw;
-                              }
-                              setLoginCountryCode(foundCode);
-                              setPhoneNumber(phonePart);
-                              if (acc.savedPassword) {
-                                setPassword(acc.savedPassword);
-                              }
-                              setError(null);
-                            }}
-                            className={`px-2.5 py-1.5 rounded-xl text-left border text-xs font-bold transition-all shrink-0 flex items-center gap-2 cursor-pointer ${
-                              isSelected 
-                                ? 'bg-bronze/10 border-bronze text-slate-900 shadow-xs ring-1 ring-bronze/50' 
-                                : 'bg-white border-slate-200/90 text-slate-700 hover:border-slate-300'
-                            }`}
-                          >
-                            <span className={`w-2 h-2 rounded-full shrink-0 ${acc.role === 'admin' ? 'bg-amber-500' : 'bg-emerald-500'}`} />
-                            <div>
-                              <div className="flex items-center gap-1">
-                                <span className="font-extrabold text-[11px] leading-tight">{acc.phoneNumber}</span>
-                                {acc.role === 'admin' && (
-                                  <span className="text-[8.5px] uppercase px-1 py-0.2 bg-amber-100 text-amber-800 rounded font-black">Admin</span>
-                                )}
-                              </div>
-                              <span className="text-[9.5px] text-slate-400 font-semibold">{formatPrice(acc.walletBalance || 0)}</span>
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
 
                 <form onSubmit={handleLogin} className="space-y-4">
                   {error && (
