@@ -167,7 +167,7 @@ const generateRandomWithdrawal = () => {
 export const TELEGRAM_COUNTRIES = [
   { country: 'China', flag: '🇨🇳', prefix: '+86', code: '86', channel: 'https://t.me/+AMh69NGQsABhYjY0', support: 'GOM_China_Support' },
   { country: 'Djibouti', flag: '🇩🇯', prefix: '+253', code: '253', channel: 'https://t.me/+AMh69NGQsABhYjY0', support: 'GOM_Djibouti_Support' },
-  { country: 'Ethiopia', flag: '🇪🇹', prefix: '+251', code: '251', channel: 'https://t.me/gom_ethio', support: 'gom_support_et' },
+  { country: 'Ethiopia', flag: '🇪🇹', prefix: '+251', code: '251', channel: 'https://t.me/+rkq4wxWUMWNlN2Zk', support: 'gom_support_et' },
   { country: 'Kenya', flag: '🇰🇪', prefix: '+254', code: '254', channel: 'https://t.me/+AMh69NGQsABhYjY0', support: 'GOM_Kenya_Support' },
   { country: 'Nigeria', flag: '🇳🇬', prefix: '+234', code: '234', channel: 'https://t.me/+AMh69NGQsABhYjY0', support: 'GOM_Nigeria_Support' },
   { country: 'Saudi Arabia', flag: '🇸🇦', prefix: '+966', code: '966', channel: 'https://t.me/+AMh69NGQsABhYjY0', support: 'GOM_Saudi_Arabia_Support' },
@@ -744,13 +744,6 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                             <h4 className={`text-xs font-black mt-1 ${isRestricted ? 'text-slate-400' : 'text-slate-800'}`}>
                               GOM {activeCountryObj.country} Channel
                             </h4>
-                            <p className="text-[11px] font-mono font-bold text-sky-600 mt-0.5">
-                              {activeCountryObj.channel.startsWith('http')
-                                ? (activeCountryObj.channel.includes('t.me/')
-                                    ? '@' + activeCountryObj.channel.split('t.me/')[1].replace('+', '')
-                                    : activeCountryObj.channel)
-                                : `@${activeCountryObj.channel}`}
-                            </p>
                           </div>
 
                           <div className="flex gap-2">
@@ -778,7 +771,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                                   onClick={() => {
                                     const textToCopy = activeCountryObj.channel.startsWith('http')
                                       ? activeCountryObj.channel
-                                      : `https://t.me/${activeCountryObj.channel}`;
+                                      : `@${activeCountryObj.channel}`;
                                     navigator.clipboard.writeText(textToCopy);
                                     setCopiedTelegramName('channel');
                                     setTimeout(() => setCopiedTelegramName(null), 2000);
@@ -803,9 +796,6 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                             <h4 className={`text-xs font-black mt-1 ${isRestricted ? 'text-slate-400' : 'text-slate-800'}`}>
                               GOM {activeCountryObj.country} Support
                             </h4>
-                            <p className="text-[11px] font-mono font-bold text-emerald-600 mt-0.5">
-                              @{activeCountryObj.support}
-                            </p>
                           </div>
 
                           <div className="flex gap-2">

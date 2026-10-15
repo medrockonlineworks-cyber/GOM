@@ -910,15 +910,13 @@ function AppContent() {
   ];
 
   const [activeTab, setActiveTab] = useState<UserTab>('home');
-  const [isAdminView, setIsAdminView] = useState(() => {
-    return Boolean(currentUser && (currentUser.role === 'admin' || isSamePhone(currentUser.phoneNumber, '0926193920')));
-  });
+  // Admin view is NEVER shown directly when opening the link or logging in.
+  // Admin page is strictly accessible from My page via the admin button for authenticated admins.
+  const [isAdminView, setIsAdminView] = useState(false);
 
-  // When admin logs in, ensure admin view is active; any other account will NEVER see the admin console
+  // If user logs out or switches to a non-admin account, immediately exit admin view
   React.useEffect(() => {
-    if (currentUser && (currentUser.role === 'admin' || isSamePhone(currentUser.phoneNumber, '0926193920'))) {
-      setIsAdminView(true);
-    } else {
+    if (!currentUser || (currentUser.role !== 'admin' && !isSamePhone(currentUser.phoneNumber, '0926193920'))) {
       setIsAdminView(false);
     }
   }, [currentUser?.id, currentUser?.role, currentUser?.phoneNumber]);
@@ -3014,29 +3012,8 @@ function AppContent() {
                 </div>
               </div>
 
-              {/* Official Telegram Channel Quick Banner */}
-              <div className="bg-sky-50 border border-sky-100 rounded-2xl p-3 flex items-center justify-between shadow-2xs">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-xl bg-sky-500 text-white flex items-center justify-center shrink-0 shadow-xs">
-                    <Send size={14} className="-rotate-12 translate-x-[-1px]" />
-                  </div>
-                  <div>
-                    <p className="text-[9px] font-black uppercase text-sky-950 tracking-wider">Official Telegram Channel</p>
-                    <p className="text-xs font-black text-sky-600 font-mono">@gom_ethio</p>
-                  </div>
-                </div>
-                <a
-                  href="https://t.me/gom_ethio"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="bg-sky-500 hover:bg-sky-600 active:scale-95 text-white font-black text-[10px] uppercase tracking-wider py-1.5 px-3 rounded-xl transition-all shadow-xs cursor-pointer flex items-center gap-1"
-                >
-                  Join Channel
-                </a>
-              </div>
-
               {/* Support Form */}
-              <form onSubmit={handleSupportSubmit} className="space-y-3.5 pt-1">
+              <form onSubmit={handleSupportSubmit} className="space-y-3.5 pt-2">
                 {supportSuccess && (
                   <div className="p-2.5 bg-emerald-50 text-emerald-600 rounded-xl text-[10px] font-bold border border-emerald-100">
                     {t('supportSuccessMsg')}
