@@ -753,14 +753,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (!saved) return null;
     try {
       let parsed = JSON.parse(saved) as User;
-      const isAdminUser = parsed.role === 'admin' || isSamePhone(parsed.phoneNumber, '0926193920') || isSamePhone(parsed.phoneNumber, '0951560276');
-      if (isAdminUser) {
-        // When link is opened, do not auto-restore admin; always show login or registration page so admin must log in
-        const hasActiveAdminSession = typeof window !== 'undefined' && sessionStorage.getItem('gom_admin_active_session') === 'true';
-        if (!hasActiveAdminSession) {
-          return null;
-        }
-      }
       if (!parsed.inviteCode) {
         const phoneDigits = String(parsed.phoneNumber || '').replace(/[^0-9]/g, '');
         const suffix = phoneDigits.slice(-5) || String(parsed.id || '').slice(-5) || '00000';
@@ -1037,10 +1029,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     if (target.role === 'admin' || isSamePhone(target.phoneNumber, '0926193920')) {
       sessionStorage.setItem('gom_admin_auth_active', 'true');
-      sessionStorage.setItem('gom_admin_active_session', 'true');
     } else {
       sessionStorage.removeItem('gom_admin_auth_active');
-      sessionStorage.removeItem('gom_admin_active_session');
     }
 
     syncSavedAccount(target);
@@ -2777,13 +2767,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     setCurrentUser(matchedUser);
     syncSavedAccount(matchedUser, passwordPlain);
-    if (typeof window !== 'undefined') {
-      if (matchedUser.role === 'admin' || isSamePhone(matchedUser.phoneNumber, '0926193920')) {
-        sessionStorage.setItem('gom_admin_active_session', 'true');
-      } else {
-        sessionStorage.removeItem('gom_admin_active_session');
-      }
-    }
     try {
       localStorage.setItem('gom_current_user', JSON.stringify(matchedUser));
       const curUsers = [...users];
@@ -2811,7 +2794,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setCurrentUser(null);
     }
     if (typeof window !== 'undefined') {
-      sessionStorage.removeItem('gom_admin_active_session');
       localStorage.removeItem('gom_current_user');
       if (wasAdmin) {
         localStorage.setItem('gom_admin_device', 'true');
