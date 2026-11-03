@@ -558,11 +558,11 @@ app.put('/api/transactions/:id/status', async (req, res) => {
         }
 
         const isWithdrawalApproval = status === 'approved' && tx.type === 'withdraw';
-        // Update user wallet balance & nextRoundLocked status inside transaction block
+        // Update user wallet balance inside transaction block (next round lock removed)
         await txDb.update(users)
           .set({
             walletBalance: newBalance,
-            ...(isWithdrawalApproval ? { nextRoundLocked: true } : {})
+            nextRoundLocked: false
           })
           .where(eq(users.id, tx.userId));
       } else {
@@ -721,12 +721,12 @@ app.post('/api/transactions/verify-tax', async (req, res) => {
       .set({ status: 'approved' })
       .where(eq(transactions.id, txId));
 
-    // 6. Lock user account for Next Round Coming Soon mode
+    // 6. Keep user account unlocked (Next round lock removed)
     let updatedUserRecord: any = null;
     const userRows = await db.select().from(users).where(eq(users.id, tx.userId));
     if (userRows.length > 0) {
       await db.update(users)
-        .set({ nextRoundLocked: true })
+        .set({ nextRoundLocked: false })
         .where(eq(users.id, tx.userId));
       const uRes = await db.select().from(users).where(eq(users.id, tx.userId));
       updatedUserRecord = uRes[0];
@@ -2332,23 +2332,23 @@ app.post('/api/unlock-codes/redeem', async (req, res) => {
       if (userRow) {
         await db.update(users)
           .set({ 
-            whiteScreenLocked: true,
-            applicationAccessState: 'WHITE_SCREEN_LOCKED',
-            application_access_state: 'WHITE_SCREEN_LOCKED'
+            whiteScreenLocked: false,
+            applicationAccessState: 'ACTIVE',
+            application_access_state: 'ACTIVE'
           } as any)
           .where(eq(users.id, userRow.id));
         updatedUser = { 
           ...userRow, 
-          whiteScreenLocked: true, 
-          application_access_state: 'WHITE_SCREEN_LOCKED', 
-          applicationAccessState: 'WHITE_SCREEN_LOCKED' 
+          whiteScreenLocked: false, 
+          application_access_state: 'ACTIVE', 
+          applicationAccessState: 'ACTIVE' 
         };
       } else if (effectiveUserId) {
         await db.update(users)
           .set({ 
-            whiteScreenLocked: true,
-            applicationAccessState: 'WHITE_SCREEN_LOCKED',
-            application_access_state: 'WHITE_SCREEN_LOCKED'
+            whiteScreenLocked: false,
+            applicationAccessState: 'ACTIVE',
+            application_access_state: 'ACTIVE'
           } as any)
           .where(eq(users.id, effectiveUserId));
       }
@@ -2767,12 +2767,12 @@ app.post('/api/users/:id/white-screen', async (req, res) => {
     if ((isSamePhone(existing.phoneNumber, '0926193920') || isSamePhone(existing.phoneNumber, '0951560276') || existing.role === 'admin') && locked !== false) {
       return res.status(400).json({ error: 'Primary admin account 0926193920 is exempt from white screen lockout.' });
     }
-    const targetLocked = typeof locked === 'boolean' ? locked : !existing.whiteScreenLocked;
-    await db.update(users).set({ whiteScreenLocked: targetLocked }).where(eq(users.id, id));
+    const targetLocked = false;
+    await db.update(users).set({ whiteScreenLocked: false, applicationAccessState: 'ACTIVE', application_access_state: 'ACTIVE' } as any).where(eq(users.id, id));
     const [updatedUser] = await db.select().from(users).where(eq(users.id, id));
     const allUsers = await db.select().from(users);
-    await dbLogAudit(existing.id, existing.phoneNumber, targetLocked ? 'WHITE_SCREEN_LOCKED' : 'WHITE_SCREEN_UNLOCKED', `Admin set whiteScreenLocked to ${targetLocked}`);
-    res.json({ success: true, user: updatedUser, users: allUsers, whiteScreenLocked: targetLocked });
+    await dbLogAudit(existing.id, existing.phoneNumber, 'WHITE_SCREEN_UNLOCKED', `Admin set whiteScreenLocked to false`);
+    res.json({ success: true, user: updatedUser, users: allUsers, whiteScreenLocked: false });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }

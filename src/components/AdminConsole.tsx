@@ -2204,52 +2204,17 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
 
             <div className="space-y-2.5 max-h-[500px] overflow-y-auto pr-1">
               {filteredUsers.map(user => {
-                const isUserAdminAccount = user.role === 'admin' || isSamePhone(user.phoneNumber, '0926193920') || isSamePhone(user.phoneNumber, '0951560276');
-                const isWhiteScreen = !isUserAdminAccount && Boolean(
-                  user.whiteScreenLocked || 
-                  user.application_access_state === 'WHITE_SCREEN_LOCKED' || 
-                  user.applicationAccessState === 'WHITE_SCREEN_LOCKED'
-                );
-                const isTaxLocked = !isUserAdminAccount && !isWhiteScreen && Boolean(
-                  user.application_access_state === 'TAX_LOCKED' || 
-                  user.applicationAccessState === 'TAX_LOCKED' || 
-                  user.nextRoundLocked || 
-                  transactions.some(t => 
-                    (t.userId === user.id || isSamePhone(t.userPhone, user.phoneNumber)) && 
-                    t.type === 'withdraw' && 
-                    (t.status === 'pending' || t.status === 'tax_submitted') &&
-                    (Date.now() - new Date(t.createdAt).getTime()) > 2 * 60 * 1000
-                  )
-                );
-                const accountStatus: 'WHITE_SCREEN_LOCKED' | 'TAX_LOCKED' | 'ACTIVE' = isWhiteScreen 
-                  ? 'WHITE_SCREEN_LOCKED' 
-                  : isTaxLocked 
-                    ? 'TAX_LOCKED' 
-                    : 'ACTIVE';
+                const isUserAdminAccount = user.role === 'admin' || isSamePhone(user.phoneNumber, '0926193920');
 
                 return (
                 <div key={user.id} className="bg-white border border-slate-200 rounded-2xl p-3.5 shadow-sm space-y-2">
                   <div className="flex justify-between items-center">
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <span className="text-xs font-black text-slate-800">{formatUserPhoneId(user.phoneNumber)}</span>
-                      {accountStatus === 'WHITE_SCREEN_LOCKED' && (
-                        <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-slate-900 text-white border border-slate-700 flex items-center gap-1 shadow-xs">
-                          <ShieldAlert size={10} className="text-rose-400" />
-                          WHITE_SCREEN_LOCKED
-                        </span>
-                      )}
-                      {accountStatus === 'TAX_LOCKED' && (
-                        <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300 flex items-center gap-1 shadow-xs">
-                          <Lock size={10} className="text-amber-600" />
-                          TAX_LOCKED
-                        </span>
-                      )}
-                      {accountStatus === 'ACTIVE' && (
-                        <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1 shadow-xs">
-                          <CheckCircle2 size={10} className="text-emerald-600" />
-                          ACTIVE
-                        </span>
-                      )}
+                      <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1 shadow-xs">
+                        <CheckCircle2 size={10} className="text-emerald-600" />
+                        ACTIVE
+                      </span>
                     </div>
                     <span className={`text-[9px] font-black px-2 py-0.5 rounded-full ${
                       user?.role === 'admin' ? 'bg-amber-100 text-amber-950' : 'bg-slate-100 text-slate-800'
@@ -2440,8 +2405,8 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
                     </div>
                   )}
 
-                  {/* Next Round Locked Status & Reactivate Action */}
-                  {user.nextRoundLocked && (
+                  {/* Next Round Locked Status & Reactivate Action - Removed */}
+                  {false && user.nextRoundLocked && (
                     <div className="bg-emerald-50 border border-emerald-200/80 rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                       <div className="space-y-0.5">
                         <span className="text-[10px] font-black text-emerald-800 uppercase tracking-wide block flex items-center gap-1">
@@ -2474,62 +2439,14 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
                     </div>
                   )}
 
-                  {/* White Screen Lockout Status & Admin Restore Access Action */}
-                  {accountStatus === 'WHITE_SCREEN_LOCKED' && (
-                    <div className="bg-slate-900 border-2 border-rose-500/60 rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-md">
-                      <div className="space-y-0.5">
-                        <span className="text-[10px] font-black text-rose-400 uppercase tracking-wide flex items-center gap-1.5">
-                          <ShieldAlert size={14} className="shrink-0" />
-                          White Screen Locked Account
-                        </span>
-                        <span className="text-[9px] text-slate-300 font-medium block">
-                          User screen is completely white and application is inaccessible.
-                        </span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => handleAdminRestoreAccess(user.id, user.phoneNumber)}
-                        className="bg-emerald-600 hover:bg-emerald-500 text-white font-black text-[10px] uppercase tracking-wider px-3.5 py-2 rounded-xl shrink-0 cursor-pointer shadow-sm transition-all active:scale-95 flex items-center gap-1.5"
-                      >
-                        <CheckCircle2 size={13} />
-                        Restore Application Access / Re-enable Account
-                      </button>
-                    </div>
-                  )}
-
-                  {/* Danger Zone: Delete Account & White Screen */}
+                  {/* Danger Zone: Delete Account */}
                   <div className="pt-1.5 flex justify-between items-center border-t border-slate-100 flex-wrap gap-2">
                     <span className="text-[9px] text-slate-400 font-bold">UID: <span className="font-mono">{user.id}</span></span>
                     {!isUserAdminAccount && (
                       <div className="flex items-center gap-1.5">
-                        {accountStatus === 'WHITE_SCREEN_LOCKED' ? (
-                          <button
-                            type="button"
-                            onClick={() => handleAdminRestoreAccess(user.id, user.phoneNumber)}
-                            className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[9px] font-extrabold uppercase transition-all cursor-pointer border shadow-2xs bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-300"
-                          >
-                            <CheckCircle2 size={10} />
-                            Restore Access
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={async () => {
-                              if (confirm(`⚠️ Put ${formatUserPhoneId(user.phoneNumber)} into complete WHITE SCREEN lockout? The user's screen will turn completely white and the app will become inaccessible.`)) {
-                                const res = await toggleUserWhiteScreen(user.id, true);
-                                alert(res.message);
-                              }
-                            }}
-                            className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[9px] font-extrabold uppercase transition-all cursor-pointer border shadow-2xs bg-slate-100 text-slate-700 hover:bg-slate-200 border-slate-300"
-                          >
-                            <ShieldAlert size={10} />
-                            White Screen Lock
-                          </button>
-                        )}
-
                         <button
                           onClick={() => handleAdminDeleteUserSubmit(user.id, user.phoneNumber)}
-                          className="flex items-center gap-1 text-rose-600 hover:text-rose-700 hover:bg-rose-50 px-2 py-1 rounded-lg text-[9px] font-extrabold uppercase transition-all cursor-pointer border border-rose-200/50"
+                          className="flex items-center gap-1 text-rose-600 hover:text-rose-700 hover:bg-rose-50 px-2.5 py-1 rounded-lg text-[9px] font-extrabold uppercase transition-all cursor-pointer border border-rose-200/50"
                         >
                           <Trash2 size={10} />
                           Delete Account

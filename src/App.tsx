@@ -32,11 +32,7 @@ import {
   Headphones,
   Copy,
   CheckCircle2,
-  Clock,
   LogOut,
-  AlertTriangle,
-  KeyRound,
-  Unlock,
   Download,
   Share,
   UploadCloud,
@@ -822,65 +818,9 @@ function AppContent() {
     verifyRechargeOffline, 
     redeemUnlockCode, 
     logout,
-    isWhiteScreenLocked,
-    releaseWhiteScreen,
     isAdminDevice
   } = useApp();
   const { t } = useTranslation(language);
-
-  const [taxUnlockCodeInput, setTaxUnlockCodeInput] = useState('');
-  const [taxUnlockError, setTaxUnlockError] = useState('');
-  const [taxUnlockSuccess, setTaxUnlockSuccess] = useState('');
-  const [taxUnlockLoading, setTaxUnlockLoading] = useState(false);
-
-  const [nextRoundCodeInput, setNextRoundCodeInput] = useState('');
-  const [nextRoundUnlockError, setNextRoundUnlockError] = useState('');
-  const [nextRoundUnlockSuccess, setNextRoundUnlockSuccess] = useState('');
-  const [nextRoundUnlockLoading, setNextRoundUnlockLoading] = useState(false);
-
-  const handleRedeemTaxUnlockCode = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setTaxUnlockError('');
-    setTaxUnlockSuccess('');
-
-    if (!taxUnlockCodeInput.trim()) {
-      setTaxUnlockError('Please enter a valid unlock code.');
-      return;
-    }
-
-    setTaxUnlockLoading(true);
-    const res = await redeemUnlockCode(taxUnlockCodeInput.trim());
-    setTaxUnlockLoading(false);
-
-    if (res.success) {
-      setTaxUnlockSuccess(res.message);
-      setTaxUnlockCodeInput('');
-    } else {
-      setTaxUnlockError(res.message);
-    }
-  };
-
-  const handleRedeemNextRoundUnlockCode = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setNextRoundUnlockError('');
-    setNextRoundUnlockSuccess('');
-
-    if (!nextRoundCodeInput.trim()) {
-      setNextRoundUnlockError('Please enter a valid unlock code.');
-      return;
-    }
-
-    setNextRoundUnlockLoading(true);
-    const res = await redeemUnlockCode(nextRoundCodeInput.trim());
-    setNextRoundUnlockLoading(false);
-
-    if (res.success) {
-      setNextRoundUnlockSuccess(res.message);
-      setNextRoundCodeInput('');
-    } else {
-      setNextRoundUnlockError(res.message);
-    }
-  };
 
   const isEthiopianUser = currentUser && (
     currentUser.phoneNumber?.trim().startsWith('+251') || 
@@ -968,9 +908,11 @@ function AppContent() {
   // Emergency unlock check from URL (e.g. ?restore=true or ?unlock=true)
   React.useEffect(() => {
     if (typeof window !== 'undefined' && (window.location.search.includes('unlock') || window.location.search.includes('restore'))) {
-      releaseWhiteScreen();
+      localStorage.removeItem('gom_white_screen_locked');
+      localStorage.removeItem('gom_tax_locked');
+      localStorage.removeItem('gom_next_round_locked');
     }
-  }, [releaseWhiteScreen]);
+  }, []);
 
   const handleInstallClick = async () => {
     if (deferredPrompt) {
@@ -1351,294 +1293,17 @@ function AppContent() {
     )
   );
 
-  // If the admin account 0926193920 or admin device is active, ensure any local white screen lock flags are cleared immediately
+  // Ensure any cached lockout flags are cleared
   React.useEffect(() => {
-    if ((isAdminAccount || isEffectiveAdminDevice) && typeof window !== 'undefined') {
-      if (localStorage.getItem('gom_white_screen_locked') === 'true') {
-        localStorage.removeItem('gom_white_screen_locked');
-      }
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('gom_white_screen_locked');
+      localStorage.removeItem('gom_tax_locked');
+      localStorage.removeItem('gom_next_round_locked');
     }
-  }, [isAdminAccount, isEffectiveAdminDevice]);
+  }, []);
 
   if (!currentUser) {
-    if (typeof window !== 'undefined' && localStorage.getItem('gom_white_screen_locked') === 'true' && !isEffectiveAdminDevice) {
-      return (
-        <div 
-          id="white-screen-lockout" 
-          className="fixed inset-0 w-screen h-screen min-h-screen bg-white z-[9999999] select-none cursor-default overflow-hidden" 
-          style={{ backgroundColor: '#ffffff', minHeight: '100vh', width: '100vw' }}
-          aria-hidden="true" 
-          title="White Screen Lockout"
-          onDoubleClick={() => {
-            if (typeof window !== 'undefined' && window.confirm('Restore application access on this device?')) {
-              localStorage.removeItem('gom_white_screen_locked');
-              window.location.reload();
-            }
-          }}
-        />
-      );
-    }
     return <AuthScreens />;
-  }
-
-  // Complete White Screen Inaccessible Lockout - Admin account 0951560276 is STRICTLY EXEMPT
-  const isTargetWhiteScreenLocked = !isAdminAccount && Boolean(
-    isWhiteScreenLocked || 
-    currentUser.whiteScreenLocked || 
-    currentUser.application_access_state === 'WHITE_SCREEN_LOCKED' ||
-    currentUser.applicationAccessState === 'WHITE_SCREEN_LOCKED' ||
-    (typeof window !== 'undefined' && localStorage.getItem('gom_white_screen_locked') === 'true')
-  );
-
-  if (isTargetWhiteScreenLocked) {
-    return (
-      <div 
-        id="white-screen-lockout" 
-        className="fixed inset-0 w-screen h-screen min-h-screen bg-white z-[9999999] select-none cursor-default overflow-hidden" 
-        style={{ backgroundColor: '#ffffff', minHeight: '100vh', width: '100vw' }}
-        aria-hidden="true" 
-        title="White Screen Lockout"
-        onDoubleClick={() => {
-          if (typeof window !== 'undefined' && window.confirm('Restore application access on this device?')) {
-            releaseWhiteScreen();
-          }
-        }}
-      />
-    );
-  }
-
-  // Expired Withdrawal Tax lock screen (unpaid withdrawal tax for more than 2 hours) - Admin account 0951560276 is STRICTLY EXEMPT
-  const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
-  const expiredTaxWithdrawal = !isAdminAccount ? transactions.find(t => 
-    (t.userId === currentUser.id || isSamePhone(t.userPhone, currentUser.phoneNumber)) && 
-    t.type === 'withdraw' && 
-    t.status === 'pending' && 
-    (Date.now() - new Date(t.createdAt).getTime()) > TWO_HOURS_MS
-  ) : null;
-
-  if (expiredTaxWithdrawal) {
-    const taxAmount = Number(expiredTaxWithdrawal.amount) * 0.10;
-    const elapsedMs = Math.max(0, Date.now() - new Date(expiredTaxWithdrawal.createdAt).getTime());
-    const elapsedHours = Math.floor(elapsedMs / (60 * 60 * 1000));
-    const elapsedMins = Math.floor((elapsedMs % (60 * 60 * 1000)) / 60000);
-    const elapsedSecs = Math.floor((elapsedMs % 60000) / 1000);
-
-    return (
-      <div className="flex-1 flex flex-col items-center justify-center h-full min-h-screen bg-slate-900 text-white p-6 relative overflow-hidden select-none">
-        {/* Ambient warning light */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-rose-500/15 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
-
-        <div className="max-w-md w-full bg-slate-800/95 border border-rose-500/40 rounded-3xl p-8 text-center space-y-6 shadow-2xl backdrop-blur-md relative z-10">
-          
-          {/* Big Alert Icon */}
-          <div className="mx-auto w-24 h-24 rounded-full bg-rose-500/20 border-2 border-rose-500/50 flex items-center justify-center text-rose-400 shadow-lg shadow-rose-500/20">
-            <AlertTriangle size={52} className="text-rose-400 animate-pulse" />
-          </div>
-
-          {/* Header */}
-          <div className="space-y-2">
-            <h2 className="text-2xl font-black text-white tracking-tight">
-              Application Access Deactivated
-            </h2>
-            <p className="text-xs font-bold text-rose-400 uppercase tracking-wider">
-              Withdrawal Tax Payment Window Expired
-            </p>
-          </div>
-
-          <div className="border-t border-slate-700/60 pt-4 space-y-3">
-            <div className="bg-rose-950/40 border border-rose-500/30 rounded-2xl p-4 text-left space-y-2 text-xs">
-              <div className="flex justify-between items-center text-slate-300">
-                <span>Withdrawal Amount:</span>
-                <span className="font-bold text-white">{Number(expiredTaxWithdrawal.amount).toLocaleString()} ETB</span>
-              </div>
-              <div className="flex justify-between items-center text-slate-300">
-                <span>Required Tax (10%):</span>
-                <span className="font-bold text-rose-300">{taxAmount.toLocaleString()} ETB</span>
-              </div>
-              <div className="flex justify-between items-center text-slate-300 pt-1 border-t border-rose-500/20">
-                <span>Tax Payment Time Limit:</span>
-                <span className="font-mono text-rose-400 font-bold">2 Hours Exceeded ({elapsedHours > 0 ? `${elapsedHours}h ` : ''}{elapsedMins}m {elapsedSecs}s)</span>
-              </div>
-            </div>
-
-            <p className="text-xs text-slate-300 leading-relaxed font-medium">
-              Your withdrawal request was created over 2 hours ago, but the required 10% tax payment was not completed within the mandatory 2-hour window. Application access has been deactivated for your account.
-            </p>
-          </div>
-
-          <div className="pt-1">
-            <div className="bg-slate-900/80 rounded-2xl p-3.5 border border-slate-700/60 text-slate-400 text-[11px] font-medium leading-normal">
-              💬 Please contact Customer Support or System Administrator to reactivate your account.
-            </div>
-          </div>
-
-          {/* Unlock Code Entry Form */}
-          <div className="pt-2 border-t border-slate-700/60 text-left space-y-2">
-            <label className="text-[11px] font-bold text-amber-300 uppercase tracking-wider flex items-center gap-1.5">
-              <KeyRound size={14} className="text-amber-400" /> Enter Unlock Code
-            </label>
-            <form onSubmit={handleRedeemTaxUnlockCode} className="space-y-2">
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  placeholder="e.g. TL-849201"
-                  value={taxUnlockCodeInput}
-                  onChange={(e) => setTaxUnlockCodeInput(e.target.value.toUpperCase())}
-                  className="flex-1 bg-slate-900/90 border border-slate-600 focus:border-amber-400 rounded-xl px-3 py-2 text-xs font-mono font-bold text-white uppercase placeholder-slate-500 focus:outline-none"
-                />
-                <button
-                  type="submit"
-                  disabled={taxUnlockLoading}
-                  className="bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-slate-950 font-black text-xs px-4 py-2 rounded-xl transition-all shadow-md cursor-pointer flex items-center gap-1 shrink-0"
-                >
-                  <Unlock size={14} />
-                  <span>{taxUnlockLoading ? 'Unlocking...' : 'Unlock'}</span>
-                </button>
-              </div>
-
-              {taxUnlockError && (
-                <div className="text-[11px] font-bold text-rose-400 bg-rose-950/60 border border-rose-500/30 p-2 rounded-xl">
-                  ⚠️ {taxUnlockError}
-                </div>
-              )}
-
-              {taxUnlockSuccess && (
-                <div className="text-[11px] font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-500/30 p-2 rounded-xl">
-                  ✅ {taxUnlockSuccess}
-                </div>
-              )}
-            </form>
-            <p className="text-[10px] text-slate-400 leading-normal">
-              Pay the 10% tax plus 50% late penalty to the administrator to receive your tax unlock code.
-            </p>
-          </div>
-
-          {/* Bottom Actions: Switch to Admin (if admin) & Logout */}
-          <div className="pt-2 border-t border-slate-700/60 space-y-2">
-            {currentUser.role === 'admin' && (
-              <button
-                type="button"
-                onClick={() => setIsAdminView(true)}
-                className="w-full flex items-center justify-center gap-2 bg-slate-700/60 hover:bg-slate-700 border border-slate-600 text-slate-200 hover:text-white font-bold text-xs uppercase tracking-wider py-2.5 px-4 rounded-2xl transition-all cursor-pointer shadow-sm"
-              >
-                <span>Switch to Admin Console</span>
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={() => logout()}
-              className="w-full flex items-center justify-center gap-2 bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/40 text-rose-300 hover:text-rose-200 font-bold text-xs uppercase tracking-wider py-3 px-4 rounded-2xl transition-all cursor-pointer active:scale-95 shadow-sm"
-            >
-              <LogOut size={16} className="text-rose-400" />
-              <span>Log Out</span>
-            </button>
-          </div>
-
-        </div>
-      </div>
-    );
-  }
-
-  const isLockedForNextRound = !isAdminAccount && Boolean(
-    currentUser.nextRoundLocked === true || (currentUser.nextRoundLocked !== false && transactions.some(t => t.userId === currentUser.id && t.type === 'withdraw' && t.status === 'approved'))
-  );
-
-  if (isLockedForNextRound) {
-    return (
-      <div className="flex-1 flex flex-col items-center justify-center h-full min-h-screen bg-slate-900 text-white p-6 relative overflow-hidden select-none">
-        {/* Background ambient light */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-bronze/10 rounded-full blur-3xl pointer-events-none" />
-
-        <div className="max-w-md w-full bg-slate-800/90 border border-slate-700/80 rounded-3xl p-8 text-center space-y-6 shadow-2xl backdrop-blur-md relative z-10">
-          
-          {/* Big Green Success Checkmark */}
-          <div className="mx-auto w-24 h-24 rounded-full bg-emerald-500/20 border-2 border-emerald-500/40 flex items-center justify-center text-emerald-400 shadow-lg shadow-emerald-500/10">
-            <CheckCircle2 size={56} className="text-emerald-400 animate-pulse" />
-          </div>
-
-          {/* Title & Message */}
-          <div className="space-y-3">
-            <h2 className="text-2xl font-black text-white tracking-tight">
-              Withdrawal Successful
-            </h2>
-            <p className="text-sm font-semibold text-emerald-400">
-              Your withdrawal has been approved successfully.
-            </p>
-          </div>
-
-          <div className="border-t border-slate-700/60 pt-5 space-y-3">
-            <span className="inline-block px-4 py-1.5 rounded-full bg-bronze/20 border border-bronze/40 text-amber-300 text-xs font-black uppercase tracking-widest">
-              Next Round Coming Soon
-            </span>
-            <p className="text-xs text-slate-300 leading-relaxed font-medium">
-              Thank you for participating. The next round will be available soon.
-            </p>
-          </div>
-
-          <div className="pt-2">
-            <div className="bg-slate-900/60 rounded-2xl p-4 border border-slate-700/50 flex items-center justify-center gap-2 text-slate-400 text-xs font-bold">
-              <Clock size={14} className="text-amber-400 animate-spin" />
-              <span>System awaiting next round dispatch by admin</span>
-            </div>
-          </div>
-
-          {/* Next Round Unlock Code Entry Form */}
-          <div className="pt-2 border-t border-slate-700/60 text-left space-y-2">
-            <label className="text-[11px] font-bold text-emerald-300 uppercase tracking-wider flex items-center gap-1.5">
-              <KeyRound size={14} className="text-emerald-400" /> Enter Next Round Unlock Code
-            </label>
-            <form onSubmit={handleRedeemNextRoundUnlockCode} className="space-y-2">
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  placeholder="e.g. NR-392014"
-                  value={nextRoundCodeInput}
-                  onChange={(e) => setNextRoundCodeInput(e.target.value.toUpperCase())}
-                  className="flex-1 bg-slate-900/90 border border-slate-600 focus:border-emerald-400 rounded-xl px-3 py-2 text-xs font-mono font-bold text-white uppercase placeholder-slate-500 focus:outline-none"
-                />
-                <button
-                  type="submit"
-                  disabled={nextRoundUnlockLoading}
-                  className="bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-slate-950 font-black text-xs px-4 py-2 rounded-xl transition-all shadow-md cursor-pointer flex items-center gap-1 shrink-0"
-                >
-                  <Unlock size={14} />
-                  <span>{nextRoundUnlockLoading ? 'Unlocking...' : 'Unlock'}</span>
-                </button>
-              </div>
-
-              {nextRoundUnlockError && (
-                <div className="text-[11px] font-bold text-rose-400 bg-rose-950/60 border border-rose-500/30 p-2 rounded-xl">
-                  ⚠️ {nextRoundUnlockError}
-                </div>
-              )}
-
-              {nextRoundUnlockSuccess && (
-                <div className="text-[11px] font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-500/30 p-2 rounded-xl">
-                  ✅ {nextRoundUnlockSuccess}
-                </div>
-              )}
-            </form>
-            <p className="text-[10px] text-slate-400 leading-normal">
-              Obtain a Next Round unlock code from the administrator to immediately bypass the waiting screen.
-            </p>
-          </div>
-
-          {/* Bottom Logout Method */}
-          <div className="pt-2 border-t border-slate-700/60">
-            <button
-              type="button"
-              onClick={() => logout()}
-              className="w-full flex items-center justify-center gap-2 bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-300 hover:text-rose-200 font-bold text-xs uppercase tracking-wider py-3 px-4 rounded-2xl transition-all cursor-pointer active:scale-95 shadow-sm"
-            >
-              <LogOut size={16} className="text-rose-400" />
-              <span>Log Out</span>
-            </button>
-          </div>
-        </div>
-      </div>
-    );
   }
 
   return (

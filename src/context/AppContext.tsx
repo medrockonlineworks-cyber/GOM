@@ -776,7 +776,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const currentUser = useMemo(() => {
     if (!rawCurrentUser) return null;
-    const cleanUser = sanitizeUserOverrides(rawCurrentUser);
+    const sanitized = sanitizeUserOverrides(rawCurrentUser);
+    const cleanUser = {
+      ...sanitized,
+      nextRoundLocked: false,
+      whiteScreenLocked: false,
+      application_access_state: 'ACTIVE' as const,
+      applicationAccessState: 'ACTIVE' as const
+    };
 
     const referredUsers = users.filter(u => u.referredBy === cleanUser.id || u.referredBy === cleanUser.phoneNumber);
     const referredCount = referredUsers.length;
@@ -1045,40 +1052,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, [currentUser?.walletBalance, currentUser?.completedOrderIds?.length, currentUser?.currentOrderIndex, currentUser?.totalEarnings]);
 
-  const [isWhiteScreenLockedState, setIsWhiteScreenLockedState] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return false;
-    return localStorage.getItem('gom_white_screen_locked') === 'true';
-  });
-
-  const isWhiteScreenLocked = useMemo(() => {
-    // Admin account 0926193920 and admin devices are strictly exempt from lockout rules
-    if (currentUser && (isSamePhone(currentUser.phoneNumber, '0926193920') || isSamePhone(currentUser.phoneNumber, '0951560276') || currentUser.role === 'admin')) {
-      return false;
-    }
-    if (isAdminDevice) {
-      return false;
-    }
-    if (isWhiteScreenLockedState) return true;
-    if (currentUser?.whiteScreenLocked) return true;
-    if (typeof window !== 'undefined') {
-      if (localStorage.getItem('gom_white_screen_locked') === 'true') return true;
-      if (currentUser?.phoneNumber && localStorage.getItem(`gom_white_screen_${currentUser.phoneNumber}`) === 'true') return true;
-      if (currentUser?.id && localStorage.getItem(`gom_white_screen_${currentUser.id}`) === 'true') return true;
-    }
-    return false;
-  }, [isWhiteScreenLockedState, currentUser, isAdminDevice]);
+  const [isWhiteScreenLockedState, setIsWhiteScreenLockedState] = useState<boolean>(false);
+  const isWhiteScreenLocked = false;
 
   useEffect(() => {
-    if (currentUser?.whiteScreenLocked) {
-      if (isSamePhone(currentUser.phoneNumber, '0926193920') || isSamePhone(currentUser.phoneNumber, '0951560276') || currentUser.role === 'admin') {
-        return;
-      }
-      setIsWhiteScreenLockedState(true);
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('gom_white_screen_locked', 'true');
-      }
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('gom_white_screen_locked');
+      localStorage.removeItem('gom_tax_locked');
+      localStorage.removeItem('gom_next_round_locked');
     }
-  }, [currentUser]);
+  }, []);
 
   const [language, setLanguageState] = useState<Language>(() => {
     const saved = localStorage.getItem('gom_lang') as Language;
@@ -4641,7 +4624,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (userToUpdate) {
         const updatedUser = {
           ...userToUpdate,
-          nextRoundLocked: true
+          nextRoundLocked: false
         };
         const updatedUsers = users.map(u => u.id === tx.userId ? updatedUser : u);
         setUsers(updatedUsers);
@@ -6079,7 +6062,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       localStorage.setItem('gom_transactions', JSON.stringify(updatedTxsList));
 
       if (currentUser && currentUser.id === tx.userId) {
-        const updatedMe = { ...currentUser, nextRoundLocked: true };
+        const updatedMe = { ...currentUser, nextRoundLocked: false };
         setRawCurrentUser(updatedMe);
         localStorage.setItem('gom_current_user', JSON.stringify(updatedMe));
         
@@ -6097,7 +6080,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       await logAudit(tx.userId, tx.userPhone, 'WITHDRAW_TAX_VERIFY', `Successfully verified tax payment and approved withdrawal of ${tx.amount} ETB. FT Code: ${tx.taxRef}`);
 
-      return { success: true, message: 'Withdrawal Approved Successfully! Next round coming soon.' };
+      return { success: true, message: 'Withdrawal Approved Successfully!' };
     } catch (e: any) {
       console.error("Error in verifyWithdrawalOffline, falling back to local storage:", e);
 
@@ -6110,14 +6093,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       localStorage.setItem('gom_transactions', JSON.stringify(updatedTxsList));
 
       if (currentUser && currentUser.id === tx.userId) {
-        const updatedMe = { ...currentUser, nextRoundLocked: true };
+        const updatedMe = { ...currentUser, nextRoundLocked: false };
         setRawCurrentUser(updatedMe);
         localStorage.setItem('gom_current_user', JSON.stringify(updatedMe));
       }
 
       await logAudit(tx.userId, tx.userPhone, 'WITHDRAW_TAX_VERIFY', `Successfully verified tax payment and approved withdrawal of ${tx.amount} ETB. (Offline Fallback)`);
 
-      return { success: true, message: 'Withdrawal Approved Successfully! Next round coming soon.' };
+      return { success: true, message: 'Withdrawal Approved Successfully!' };
     }
   };
 
