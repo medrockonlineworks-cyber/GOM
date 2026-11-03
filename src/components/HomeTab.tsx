@@ -229,6 +229,62 @@ export const HomeTab: React.FC<HomeTabProps> = ({
   const [slideDirection, setSlideDirection] = useState<'left' | 'right'>('right');
   const [copiedTelegramName, setCopiedTelegramName] = useState<string | null>(null);
 
+  const handleOpenTelegram = (target: string) => {
+    if (typeof window === 'undefined') return;
+    const cleanTarget = target.trim();
+    const fullUrl = cleanTarget.startsWith('http') 
+      ? cleanTarget 
+      : `https://t.me/${cleanTarget.replace(/^@/, '')}`;
+    try {
+      const win = window.open(fullUrl, '_blank', 'noopener,noreferrer');
+      if (!win || win.closed || typeof win.closed === 'undefined') {
+        window.location.href = fullUrl;
+      }
+    } catch {
+      window.location.href = fullUrl;
+    }
+  };
+
+  const handleCopyTelegram = async (text: string, type: 'channel' | 'support') => {
+    const cleanText = text.trim();
+    const fullUrl = cleanText.startsWith('http') 
+      ? cleanText 
+      : `https://t.me/${cleanText.replace(/^@/, '')}`;
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(fullUrl);
+      } else {
+        const textArea = document.createElement('textarea');
+        textArea.value = fullUrl;
+        textArea.style.position = 'fixed';
+        textArea.style.opacity = '0';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+      }
+      setCopiedTelegramName(type);
+      setTimeout(() => setCopiedTelegramName(null), 2000);
+    } catch {
+      try {
+        const textArea = document.createElement('textarea');
+        textArea.value = fullUrl;
+        textArea.style.position = 'fixed';
+        textArea.style.opacity = '0';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        setCopiedTelegramName(type);
+        setTimeout(() => setCopiedTelegramName(null), 2000);
+      } catch (err) {
+        console.error('Copy failed', err);
+      }
+    }
+  };
+
   const handleRedeemCode = async () => {
     if (!giftCodeInput.trim()) return;
     setIsRedeeming(true);
@@ -253,6 +309,23 @@ export const HomeTab: React.FC<HomeTabProps> = ({
     if (isTelegramOpen && currentUser) {
       const phone = String(currentUser.phoneNumber || '');
       const cleanPhone = phone.trim().replace(/\s+/g, '');
+
+      // Check Ethiopian phone formats first
+      if (
+        cleanPhone.startsWith('+251') || 
+        cleanPhone.startsWith('251') || 
+        cleanPhone.startsWith('09') || 
+        cleanPhone.startsWith('07') ||
+        cleanPhone.startsWith('9') ||
+        cleanPhone.startsWith('7')
+      ) {
+        const ethIndex = TELEGRAM_COUNTRIES.findIndex(c => c.country === 'Ethiopia');
+        if (ethIndex !== -1) {
+          setTelegramCountryIndex(ethIndex);
+          return;
+        }
+      }
+
       let matchedIndex = 0;
       for (let i = 0; i < TELEGRAM_COUNTRIES.length; i++) {
         const tc = TELEGRAM_COUNTRIES[i];
@@ -744,13 +817,6 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                             <h4 className={`text-xs font-black mt-1 ${isRestricted ? 'text-slate-400' : 'text-slate-800'}`}>
                               GOM {activeCountryObj.country} Channel
                             </h4>
-                            <p className="text-[11px] font-mono font-bold text-sky-600 mt-0.5">
-                              {activeCountryObj.channel.startsWith('http')
-                                ? (activeCountryObj.channel.includes('t.me/')
-                                    ? '@' + activeCountryObj.channel.split('t.me/')[1].replace('+', '')
-                                    : activeCountryObj.channel)
-                                : `@${activeCountryObj.channel}`}
-                            </p>
                           </div>
 
                           <div className="flex gap-2">
@@ -764,26 +830,16 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                             ) : (
                               <>
                                 <button
-                                  onClick={() => {
-                                    const channelUrl = activeCountryObj.channel.startsWith('http')
-                                      ? activeCountryObj.channel
-                                      : `https://t.me/${activeCountryObj.channel}`;
-                                    window.open(channelUrl, '_blank');
-                                  }}
-                                  className="flex-1 bg-sky-500 hover:bg-sky-600 text-white font-black text-[10px] uppercase tracking-wider py-2 rounded-xl text-center shadow-xs cursor-pointer"
+                                  type="button"
+                                  onClick={() => handleOpenTelegram(activeCountryObj.channel)}
+                                  className="flex-1 bg-sky-500 hover:bg-sky-600 text-white font-black text-[10px] uppercase tracking-wider py-2 rounded-xl text-center shadow-xs cursor-pointer active:scale-98 transition-all"
                                 >
                                   {t('joinChannel')}
                                 </button>
                                 <button
-                                  onClick={() => {
-                                    const textToCopy = activeCountryObj.channel.startsWith('http')
-                                      ? activeCountryObj.channel
-                                      : `https://t.me/${activeCountryObj.channel}`;
-                                    navigator.clipboard.writeText(textToCopy);
-                                    setCopiedTelegramName('channel');
-                                    setTimeout(() => setCopiedTelegramName(null), 2000);
-                                  }}
-                                  className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-black text-[10px] uppercase tracking-wider px-3.5 py-2 rounded-xl flex items-center gap-1 cursor-pointer"
+                                  type="button"
+                                  onClick={() => handleCopyTelegram(activeCountryObj.channel, 'channel')}
+                                  className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-black text-[10px] uppercase tracking-wider px-3.5 py-2 rounded-xl flex items-center gap-1 cursor-pointer active:scale-98 transition-all"
                                 >
                                   <Copy size={11} /> {copiedTelegramName === 'channel' ? (t('copied') || 'Copied!') : t('copy')}
                                 </button>
@@ -803,9 +859,6 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                             <h4 className={`text-xs font-black mt-1 ${isRestricted ? 'text-slate-400' : 'text-slate-800'}`}>
                               GOM {activeCountryObj.country} Support
                             </h4>
-                            <p className="text-[11px] font-mono font-bold text-emerald-600 mt-0.5">
-                              @{activeCountryObj.support}
-                            </p>
                           </div>
 
                           <div className="flex gap-2">
@@ -819,18 +872,16 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                             ) : (
                               <>
                                 <button
-                                  onClick={() => window.open(`https://t.me/${activeCountryObj.support}`, '_blank')}
-                                  className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[10px] uppercase tracking-wider py-2 rounded-xl text-center shadow-xs cursor-pointer"
+                                  type="button"
+                                  onClick={() => handleOpenTelegram(activeCountryObj.support)}
+                                  className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[10px] uppercase tracking-wider py-2 rounded-xl text-center shadow-xs cursor-pointer active:scale-98 transition-all"
                                 >
                                   {t('messageSupport')}
                                 </button>
                                 <button
-                                  onClick={() => {
-                                    navigator.clipboard.writeText(`@${activeCountryObj.support}`);
-                                    setCopiedTelegramName('support');
-                                    setTimeout(() => setCopiedTelegramName(null), 2000);
-                                  }}
-                                  className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-black text-[10px] uppercase tracking-wider px-3.5 py-2 rounded-xl flex items-center gap-1 cursor-pointer"
+                                  type="button"
+                                  onClick={() => handleCopyTelegram(activeCountryObj.support, 'support')}
+                                  className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-black text-[10px] uppercase tracking-wider px-3.5 py-2 rounded-xl flex items-center gap-1 cursor-pointer active:scale-98 transition-all"
                                 >
                                   <Copy size={11} /> {copiedTelegramName === 'support' ? (t('copied') || 'Copied!') : t('copy')}
                                 </button>

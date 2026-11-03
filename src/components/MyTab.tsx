@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useMemo } from 'react';
-import { useApp } from '../context/AppContext';
+import { useApp, isSamePhone } from '../context/AppContext';
 import { Transaction } from '../types';
 import { useTranslation, formatUserPhoneId, formatPhoneNumbersInText, maskAccountNumber } from '../utils/translations';
 import { motion, AnimatePresence } from 'motion/react';
