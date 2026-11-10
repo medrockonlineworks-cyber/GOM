@@ -6,6 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { useTranslation, formatUserPhoneId } from '../utils/translations';
+import { getUserUniqueCode } from '../utils/security';
 import { INITIAL_ANNOUNCEMENTS } from '../utils/mockData';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -404,6 +405,9 @@ export const HomeTab: React.FC<HomeTabProps> = ({
             <span className={`block text-xs font-bold text-slate-600 leading-tight ${currentUser.username ? 'mt-0.5' : 'mt-1'}`}>
               {formatUserPhoneId(currentUser.phoneNumber)}
             </span>
+            <span className="inline-block text-[10px] font-black text-slate-500 font-mono tracking-wider mt-0.5">
+              ID:{getUserUniqueCode(currentUser)}
+            </span>
           </div>
         </div>
       </div>
@@ -512,7 +516,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
           <div className="w-8 h-8 bg-sky-50 rounded-full mb-1 flex items-center justify-center text-sky-500 shadow-xs">
             <Send size={15} className="-rotate-12 translate-x-[-1px]" />
           </div>
-          <span className="text-[9px] font-black uppercase tracking-widest text-slate-600">{t('telegram')}</span>
+          <span className="text-[9px] font-black uppercase tracking-widest text-slate-600">{t('customerSupport')}</span>
         </button>
 
         <button
@@ -699,7 +703,6 @@ export const HomeTab: React.FC<HomeTabProps> = ({
           }
 
           const activeCountryObj = TELEGRAM_COUNTRIES[telegramCountryIndex] || TELEGRAM_COUNTRIES[0];
-          const isRestricted = activeCountryObj.country !== registeredCountry;
 
           const slideVariants = {
             enter: (direction: 'left' | 'right') => ({
@@ -725,12 +728,12 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                 animate={{ y: 0 }}
                 exit={{ y: '100%' }}
                 transition={{ type: 'spring', damping: 25 }}
-                className="bg-white rounded-t-[32px] w-full max-w-md h-[70vh] flex flex-col overflow-hidden shadow-2xl border-t border-slate-100 text-left"
+                className="bg-white rounded-t-[32px] w-full max-w-md max-h-[60vh] flex flex-col overflow-hidden shadow-2xl border-t border-slate-100 text-left"
               >
                 <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center shrink-0 bg-slate-50">
                   <div>
                     <h3 className="text-sm font-black text-slate-800 uppercase tracking-wide">
-                      {t('telegramChannels')} ({activeCountryObj.country})
+                      {t('customerSupport')} ({activeCountryObj.country})
                     </h3>
                   </div>
                   <button
@@ -806,87 +809,32 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                       >
                         {/* Access Warning if Restricted removed as per user request */}
 
-                        {/* Official Channel Card */}
+                        {/* Customer Service Card */}
                         <div className="bg-white border border-slate-200/80 rounded-2xl p-4 space-y-3.5 shadow-2xs">
                           <div>
-                            <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full inline-block ${
-                              isRestricted ? 'bg-slate-100 text-slate-400' : 'bg-sky-100 text-sky-950'
-                            }`}>
-                              {t('officialChannel')}
-                            </span>
-                            <h4 className={`text-xs font-black mt-1 ${isRestricted ? 'text-slate-400' : 'text-slate-800'}`}>
-                              GOM {activeCountryObj.country} Channel
-                            </h4>
-                          </div>
-
-                          <div className="flex gap-2">
-                            {isRestricted ? (
-                              <button
-                                disabled
-                                className="flex-1 bg-slate-100 text-slate-400 font-black text-[10px] uppercase tracking-wider py-2 rounded-xl text-center shadow-xs cursor-not-allowed flex items-center justify-center gap-1.5"
-                              >
-                                <X size={11} /> {t('cantJoinChannel')}
-                              </button>
-                            ) : (
-                              <>
-                                <button
-                                  type="button"
-                                  onClick={() => handleOpenTelegram(activeCountryObj.channel)}
-                                  className="flex-1 bg-sky-500 hover:bg-sky-600 text-white font-black text-[10px] uppercase tracking-wider py-2 rounded-xl text-center shadow-xs cursor-pointer active:scale-98 transition-all"
-                                >
-                                  {t('joinChannel')}
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => handleCopyTelegram(activeCountryObj.channel, 'channel')}
-                                  className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-black text-[10px] uppercase tracking-wider px-3.5 py-2 rounded-xl flex items-center gap-1 cursor-pointer active:scale-98 transition-all"
-                                >
-                                  <Copy size={11} /> {copiedTelegramName === 'channel' ? (t('copied') || 'Copied!') : t('copy')}
-                                </button>
-                              </>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Support Desk Card */}
-                        <div className="bg-white border border-slate-200/80 rounded-2xl p-4 space-y-3.5 shadow-2xs">
-                          <div>
-                            <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full inline-block ${
-                              isRestricted ? 'bg-slate-100 text-slate-400' : 'bg-emerald-100 text-emerald-950'
-                            }`}>
+                            <span className="text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full inline-block bg-emerald-100 text-emerald-950">
                               {t('supportDesk')}
                             </span>
-                            <h4 className={`text-xs font-black mt-1 ${isRestricted ? 'text-slate-400' : 'text-slate-800'}`}>
-                              GOM {activeCountryObj.country} Support
+                            <h4 className="text-xs font-black mt-1 text-slate-800">
+                              GOM {activeCountryObj.country} {t('customerSupport')}
                             </h4>
                           </div>
 
                           <div className="flex gap-2">
-                            {isRestricted ? (
-                              <button
-                                disabled
-                                className="flex-1 bg-slate-100 text-slate-400 font-black text-[10px] uppercase tracking-wider py-2 rounded-xl text-center shadow-xs cursor-not-allowed flex items-center justify-center gap-1.5"
-                              >
-                                <X size={11} /> {t('cantContactSupport')}
-                              </button>
-                            ) : (
-                              <>
-                                <button
-                                  type="button"
-                                  onClick={() => handleOpenTelegram(activeCountryObj.support)}
-                                  className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[10px] uppercase tracking-wider py-2 rounded-xl text-center shadow-xs cursor-pointer active:scale-98 transition-all"
-                                >
-                                  {t('messageSupport')}
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => handleCopyTelegram(activeCountryObj.support, 'support')}
-                                  className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-black text-[10px] uppercase tracking-wider px-3.5 py-2 rounded-xl flex items-center gap-1 cursor-pointer active:scale-98 transition-all"
-                                >
-                                  <Copy size={11} /> {copiedTelegramName === 'support' ? (t('copied') || 'Copied!') : t('copy')}
-                                </button>
-                              </>
-                            )}
+                            <button
+                              type="button"
+                              onClick={() => handleOpenTelegram(activeCountryObj.support)}
+                              className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[10px] uppercase tracking-wider py-2.5 rounded-xl text-center shadow-xs cursor-pointer active:scale-98 transition-all flex items-center justify-center gap-1.5"
+                            >
+                              <Send size={12} className="-rotate-12" /> {t('messageSupport')}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleCopyTelegram(activeCountryObj.support, 'support')}
+                              className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-black text-[10px] uppercase tracking-wider px-3.5 py-2.5 rounded-xl flex items-center gap-1 cursor-pointer active:scale-98 transition-all"
+                            >
+                              <Copy size={11} /> {copiedTelegramName === 'support' ? (t('copied') || 'Copied!') : t('copy')}
+                            </button>
                           </div>
                         </div>
                       </motion.div>

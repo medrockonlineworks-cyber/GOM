@@ -21,11 +21,13 @@ export interface SavedAccount {
   savedPassword?: string;
   username?: string;
   userName?: string; // Alias for username
+  userCode?: string; // Unique 5-character ID code (e.g. 83GA3)
   lastActiveAt: string;
 }
 
 export interface User {
   id: string; // Auto-generated unique User ID (e.g. GOM-XXXXX)
+  userCode?: string; // Unique 5-character ID code (e.g. 83GA3)
   phoneNumber: string;
   username?: string; // Optional user name or display name
   userName?: string; // Alias for username

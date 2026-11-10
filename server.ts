@@ -785,7 +785,8 @@ app.get('/api/users', async (req, res) => {
     const list = await db.select().from(users);
     const withUsername = list.map((u: any) => ({
       ...u,
-      username: u.username || u.withdrawalAccName || undefined
+      username: u.username || u.withdrawalAccName || undefined,
+      userCode: u.userCode || undefined
     }));
     res.json(withUsername);
   } catch (err: any) {
@@ -827,6 +828,7 @@ app.post('/api/users', async (req, res) => {
       whiteScreenLocked: userToSave.whiteScreenLocked ?? false,
       profileImage: userToSave.profileImage ?? null,
       username: userToSave.username ?? null,
+      userCode: userToSave.userCode ?? null,
     };
 
     if (existing.length > 0) {
@@ -909,6 +911,7 @@ app.post('/api/users/sync-bulk', async (req, res) => {
         whiteScreenLocked: lu.whiteScreenLocked ?? false,
         profileImage: lu.profileImage ?? null,
         username: lu.username ?? null,
+        userCode: lu.userCode ?? null,
       };
 
       if (!match) {
@@ -1024,6 +1027,7 @@ app.post('/api/admin/create-user', async (req, res) => {
 
     const newUserRecord = {
       id: newUserId,
+      userCode: req.body.userCode || Math.random().toString(36).substring(2, 7).toUpperCase(),
       phoneNumber: trimmedPhone,
       withdrawalAccName: cleanUsername,
       passwordHash: passwordHash || 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855', // default or custom

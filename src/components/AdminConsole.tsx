@@ -53,6 +53,7 @@ import {
 
 import { formatUserPhoneId, useTranslation } from '../utils/translations';
 import { sha256 } from 'js-sha256';
+import { getUserUniqueCode } from '../utils/security';
 
 const securityTranslations: Record<string, {
   gateTitle: string;
@@ -2211,6 +2212,9 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
                   <div className="flex justify-between items-center">
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <span className="text-xs font-black text-slate-800">{formatUserPhoneId(user.phoneNumber)}</span>
+                      <span className="text-[10px] font-mono font-black text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
+                        ID:{getUserUniqueCode(user)}
+                      </span>
                       <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1 shadow-xs">
                         <CheckCircle2 size={10} className="text-emerald-600" />
                         ACTIVE
@@ -4039,9 +4043,12 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ onExit }) => {
                         <div className="space-y-1.5">
                           <div className="flex items-start justify-between gap-2">
                             <div className="min-w-0">
-                              <div className="flex items-center gap-1.5">
+                              <div className="flex items-center gap-1.5 flex-wrap">
                                 <span className="font-mono text-xs font-black text-slate-900">
                                   📱 {formatUserPhoneId(acc.phoneNumber)}
+                                </span>
+                                <span className="text-[10px] font-mono font-black text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
+                                  ID:{getUserUniqueCode(acc)}
                                 </span>
                               </div>
                               {accUsername ? (

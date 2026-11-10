@@ -21,7 +21,7 @@ import {
   UnlockCodeType,
   SavedAccount
 } from '../types';
-import { hashPassword, generateUserId, generateId } from '../utils/security';
+import { hashPassword, generateUserId, generateId, generateUserCode, getUserUniqueCode } from '../utils/security';
 import { 
   INITIAL_PRODUCTS_RAW, 
   INITIAL_ANNOUNCEMENTS, 
@@ -779,6 +779,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const sanitized = sanitizeUserOverrides(rawCurrentUser);
     const cleanUser = {
       ...sanitized,
+      userCode: sanitized.userCode || getUserUniqueCode(sanitized),
       nextRoundLocked: false,
       whiteScreenLocked: false,
       application_access_state: 'ACTIVE' as const,
@@ -894,6 +895,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const cleanUsername = user.username || user.userName || existing?.username || existing?.userName || undefined;
       const entry: SavedAccount = {
         id: user.id,
+        userCode: user.userCode || existing?.userCode || getUserUniqueCode(user),
         phoneNumber: user.phoneNumber,
         username: cleanUsername,
         userName: cleanUsername,
@@ -2154,6 +2156,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const newUser: User = {
       id: userId,
+      userCode: generateUserCode(),
       phoneNumber: trimmedPhone,
       passwordHash: hashed,
       walletBalance: initialBalance,
@@ -2525,6 +2528,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
         const newUser: User = {
           id: userId,
+          userCode: generateUserCode(),
           phoneNumber: trimmedPhone,
           passwordHash: hashed,
           walletBalance: 1500,

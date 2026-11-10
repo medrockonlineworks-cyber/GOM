@@ -2,6 +2,7 @@
   "users": [
     {
       "id": "GOM-ADMIN",
+      "userCode": "83GA3",
       "phoneNumber": "0926193920",
       "passwordHash": "f8f9725132be290e73481fe48708437e40ef7a5c59b7d718fdffb11ab081f8d7",
       "walletBalance": 1000000,

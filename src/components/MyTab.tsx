@@ -7,6 +7,7 @@ import React, { useState, useMemo } from 'react';
 import { useApp, isSamePhone } from '../context/AppContext';
 import { Transaction } from '../types';
 import { useTranslation, formatUserPhoneId, formatPhoneNumbersInText, maskAccountNumber } from '../utils/translations';
+import { getUserUniqueCode } from '../utils/security';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   User as UserIcon, 
@@ -978,6 +979,35 @@ export const MyTab: React.FC<MyTabProps> = ({
     setTimeout(() => setCopiedLink(false), 2000);
   };
 
+  const [copiedId, setCopiedId] = useState(false);
+  const userUniqueCode = useMemo(() => {
+    return getUserUniqueCode(currentUser);
+  }, [currentUser]);
+
+  const handleCopyUserCode = () => {
+    if (!userUniqueCode) return;
+    try {
+      const codeToCopy = `ID:${userUniqueCode}`;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(codeToCopy);
+      } else {
+        const ta = document.createElement('textarea');
+        ta.value = codeToCopy;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+      }
+      setCopiedId(true);
+      setTimeout(() => setCopiedId(false), 2000);
+    } catch (e) {
+      console.warn('Copy user code failed', e);
+    }
+  };
+
   const openSettings = () => {
     setSettingsPhone(currentUser.phoneNumber);
     setSettingsUsername(currentUser.username || '');
@@ -1058,11 +1088,11 @@ export const MyTab: React.FC<MyTabProps> = ({
     <div className="flex-1 flex flex-col p-5 space-y-6 bg-slate-50">
       
       {/* 1. PROFESSIONAL HEADER PROFILE CARD */}
-      <div className="bg-white rounded-3xl p-5 shadow-xs border border-slate-200/50 flex items-center justify-between">
-        <div className="flex items-center gap-4">
+      <div className="bg-white rounded-3xl p-5 shadow-xs border border-slate-200/60 flex items-center justify-between">
+        <div className="flex items-center gap-3.5">
           <div 
             onClick={openSettings}
-            className="relative w-12 h-12 bg-gradient-to-br from-deep-forest to-deep-forest-light text-white rounded-2xl flex items-center justify-center shadow-md shrink-0 border border-slate-700/10 overflow-hidden cursor-pointer group"
+            className="relative w-13 h-13 bg-gradient-to-br from-deep-forest to-deep-forest-light text-white rounded-2xl flex items-center justify-center shadow-md shrink-0 border border-slate-700/10 overflow-hidden cursor-pointer group"
             title="Profile photo (click to update)"
           >
             {currentUser.profileImage ? (
@@ -1073,7 +1103,7 @@ export const MyTab: React.FC<MyTabProps> = ({
                 referrerPolicy="no-referrer"
               />
             ) : (
-              <UserIcon size={20} className="text-amber-400" />
+              <UserIcon size={22} className="text-amber-400" />
             )}
             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
               <Camera size={16} />
@@ -1097,6 +1127,23 @@ export const MyTab: React.FC<MyTabProps> = ({
             <h3 className={`text-xs font-bold text-slate-500 ${currentUser.username ? 'mt-0.5' : 'mt-1'}`}>
               {formatUserPhoneId(currentUser.phoneNumber)}
             </h3>
+            {/* Unique User ID / Code right below phone number */}
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <button
+                type="button"
+                onClick={handleCopyUserCode}
+                className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-slate-100 hover:bg-slate-200/80 active:bg-slate-200 rounded-md text-[11px] font-black text-slate-700 tracking-wider font-mono cursor-pointer transition-all border border-slate-200/60 shadow-2xs group"
+                title="Click to copy ID"
+              >
+                <span>ID:{userUniqueCode}</span>
+                <Copy size={10} className="text-slate-400 group-hover:text-slate-600 transition-colors" />
+              </button>
+              {copiedId && (
+                <span className="text-[9px] font-bold text-emerald-600">
+                  {t('copied') || 'Copied!'}
+                </span>
+              )}
+            </div>
             <span className="text-[10px] text-slate-400 font-bold block mt-0.5">{t('joined')}: {new Date(currentUser.createdAt).toLocaleDateString()}</span>
           </div>
         </div>
@@ -1940,6 +1987,30 @@ export const MyTab: React.FC<MyTabProps> = ({
                     placeholder="e.g. 0912345678"
                     className="w-full bg-slate-50 border border-slate-200 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 focus:outline-none transition-all font-semibold"
                   />
+                </div>
+
+                {/* Unique User ID (Read-only) */}
+                <div className="space-y-1.5">
+                  <label className="block text-[9px] font-black uppercase tracking-wider text-slate-400">
+                    User ID (Unique Code)
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 bg-slate-100 border border-slate-200/80 rounded-xl px-3.5 py-2.5 text-xs font-mono font-black text-slate-800 flex items-center justify-between">
+                      <span>ID:{userUniqueCode}</span>
+                      <span className="text-[10px] text-slate-400 font-sans font-medium uppercase tracking-wider">Unique</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleCopyUserCode}
+                      className="px-3.5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl flex items-center gap-1 cursor-pointer transition-colors active:scale-95 shadow-2xs border border-slate-200/60"
+                      title="Copy User ID"
+                    >
+                      <Copy size={13} /> {copiedId ? (t('copied') || 'Copied!') : (t('copy') || 'Copy')}
+                    </button>
+                  </div>
+                  <p className="text-[9px] text-slate-400 font-medium">
+                    Your permanent unique account code for verification and support.
+                  </p>
                 </div>
 
                 {/* Password Input */}

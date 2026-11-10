@@ -20,6 +20,45 @@ export function generateUserId(): string {
   return `GOM-${randomDigits}`;
 }
 
+const USER_CODE_CHARS = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+
+/**
+ * Generates a unique 5-character alphanumeric uppercase user code.
+ * Example: 83GA3
+ */
+export function generateUserCode(): string {
+  let result = '';
+  for (let i = 0; i < 5; i++) {
+    result += USER_CODE_CHARS.charAt(Math.floor(Math.random() * USER_CODE_CHARS.length));
+  }
+  return result;
+}
+
+/**
+ * Retrieves or derives a unique, stable 5-character uppercase ID code for any user.
+ * If user.userCode exists, returns it; otherwise derives a deterministic code from user ID or phone.
+ * Example output: 83GA3
+ */
+export function getUserUniqueCode(user?: { id?: string; phoneNumber?: string; userCode?: string } | null): string {
+  if (!user) return '83GA3';
+  if (user.userCode && user.userCode.trim()) {
+    return user.userCode.trim().toUpperCase();
+  }
+  const seed = `${user.id || ''}_${user.phoneNumber || ''}`;
+  let hash = 0;
+  for (let i = 0; i < seed.length; i++) {
+    hash = ((hash << 5) - hash) + seed.charCodeAt(i);
+    hash |= 0;
+  }
+  let abs = Math.abs(hash);
+  let code = '';
+  for (let i = 0; i < 5; i++) {
+    code += USER_CODE_CHARS.charAt((abs + i * 17) % USER_CODE_CHARS.length);
+    abs = Math.floor(abs / USER_CODE_CHARS.length) + (i + 1) * 31;
+  }
+  return code;
+}
+
 /**
  * Generates a unique transaction reference or ID
  */

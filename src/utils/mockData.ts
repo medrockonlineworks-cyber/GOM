@@ -213,6 +213,7 @@ export const DEFAULT_USER_PASS_HASH = "5e884898da28047151d0e56f8dc6292773603d0d6
 export const INITIAL_USERS: User[] = [
   {
     id: "GOM-ADMIN",
+    userCode: "83GA3",
     phoneNumber: "0926193920",
     passwordHash: DEFAULT_ADMIN_PASS_HASH,
     walletBalance: 1000000,
