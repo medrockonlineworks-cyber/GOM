@@ -605,7 +605,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
               transition={{ type: 'spring', damping: 25 }}
-              className="bg-black rounded-t-[32px] w-full max-w-md h-[80vh] flex flex-col overflow-hidden shadow-2xl border-t border-white/10 text-left"
+              className="bg-black rounded-t-[32px] w-full max-w-md h-[80vh] flex flex-col overflow-hidden shadow-2xl border-t border-white/10 text-left safe-bottom-pad"
             >
               <div className="px-6 py-4 border-b border-white/10 flex justify-between items-center shrink-0 bg-black">
                 <div>
@@ -728,7 +728,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                 animate={{ y: 0 }}
                 exit={{ y: '100%' }}
                 transition={{ type: 'spring', damping: 25 }}
-                className="bg-white rounded-t-[32px] w-full max-w-md max-h-[60vh] flex flex-col overflow-hidden shadow-2xl border-t border-slate-100 text-left"
+                className="bg-white rounded-t-[32px] w-full max-w-md max-h-[60vh] flex flex-col overflow-hidden shadow-2xl border-t border-slate-100 text-left safe-bottom-pad"
               >
                 <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center shrink-0 bg-slate-50">
                   <div>
@@ -853,7 +853,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
               transition={{ type: 'spring', damping: 25 }}
-              className="bg-white rounded-t-[32px] w-full max-w-md h-[85vh] flex flex-col overflow-hidden shadow-2xl border-t border-slate-100 text-left"
+              className="bg-white rounded-t-[32px] w-full max-w-md h-[85vh] flex flex-col overflow-hidden shadow-2xl border-t border-slate-100 text-left safe-bottom-pad"
             >
               {/* Modal Header */}
               <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center shrink-0 bg-gradient-to-r from-amber-50 to-amber-100/60">

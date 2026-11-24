@@ -432,20 +432,20 @@ export const AuthScreens: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen w-full bg-slate-950 flex flex-col sm:items-center sm:justify-center sm:py-12 sm:px-4 relative overflow-hidden bg-[radial-gradient(ellipse_at_top_right,rgba(16,185,129,0.06),transparent_60%),radial-gradient(ellipse_at_bottom_left,rgba(212,163,89,0.04),transparent_60%)]">
+    <div className="min-h-[100dvh] w-full bg-slate-950 flex flex-col sm:items-center sm:justify-center sm:py-12 sm:px-4 relative overflow-hidden bg-[radial-gradient(ellipse_at_top_right,rgba(16,185,129,0.06),transparent_60%),radial-gradient(ellipse_at_bottom_left,rgba(212,163,89,0.04),transparent_60%)]">
       {/* Background decoration elements */}
       <div className="hidden sm:block absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-emerald-500/5 blur-[120px] pointer-events-none animate-[pulse_8s_infinite_alternate]" />
       <div className="hidden sm:block absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-amber-500/3 blur-[120px] pointer-events-none animate-[pulse_10s_infinite_alternate]" />
 
       {/* Main card container */}
-      <div className="w-full sm:max-w-md bg-white sm:rounded-[28px] sm:shadow-[0_25px_60px_rgba(0,0,0,0.25)] sm:border sm:border-slate-100/80 flex flex-col overflow-hidden min-h-screen sm:min-h-0 sm:max-h-[92vh]">
+      <div className="w-full sm:max-w-md bg-white sm:rounded-[28px] sm:shadow-[0_25px_60px_rgba(0,0,0,0.25)] sm:border sm:border-slate-100/80 flex flex-col overflow-hidden min-h-[100dvh] sm:min-h-0 sm:max-h-[92vh]">
         {/* Top Banner Accent */}
-        <div className="bg-gradient-to-br from-[#0F2022] via-[#162E30] to-[#0C1A1C] text-white px-6 py-10 flex flex-col items-center justify-center shrink-0 shadow-md relative overflow-hidden border-b border-emerald-950/20">
+        <div className="bg-gradient-to-br from-[#0F2022] via-[#162E30] to-[#0C1A1C] text-white px-6 pb-10 safe-top-banner flex flex-col items-center justify-center shrink-0 shadow-md relative overflow-hidden border-b border-emerald-950/20">
           <div className="absolute inset-0 opacity-15 bg-[radial-gradient(ellipse_at_center,rgba(212,163,89,0.35),transparent_70%)]" />
           <div className="absolute inset-0 bg-[linear-gradient(45deg,transparent_25%,rgba(255,255,255,0.02)_50%,transparent_75%)] bg-[length:250px_250px] animate-[pulse_6s_infinite_alternate]" />
           
           {/* Floating Language Changer for non-authenticated users */}
-          <div className="absolute top-4 right-4 z-20 flex items-center gap-1.5">
+          <div className="absolute safe-top-float right-4 z-20 flex items-center gap-1.5">
             <LanguageSelector />
           </div>
 
@@ -457,7 +457,7 @@ export const AuthScreens: React.FC = () => {
         </div>
 
         {/* Main Form container with Motion page swaps */}
-        <div className="flex-1 px-6 py-8 flex flex-col justify-between bg-white sm:max-h-[600px] overflow-y-auto">
+        <div className="flex-1 px-6 pt-8 safe-bottom-form flex flex-col justify-between bg-white sm:max-h-[600px] overflow-y-auto">
           
           {/* LOGIN VIEW */}
           {view === 'login' && (

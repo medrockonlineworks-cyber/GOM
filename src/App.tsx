@@ -1312,13 +1312,15 @@ function AppContent() {
     <div className="flex-1 flex flex-col h-full overflow-hidden bg-slate-50">
       
       {/* APP TOP HERO UTILITY RAIL */}
-      <header className="h-14 bg-deep-forest flex items-center justify-between px-5 text-white shrink-0 shadow-md">
-        <h1 className="text-base font-black tracking-widest uppercase text-white">
-          GOM
-        </h1>
-        <div className="flex items-center gap-2">
-          <CurrencySelector />
-          <LanguageSelector />
+      <header className="safe-top-header bg-deep-forest text-white shrink-0 shadow-md">
+        <div className="h-14 flex items-center justify-between px-5">
+          <h1 className="text-base font-black tracking-widest uppercase text-white">
+            GOM
+          </h1>
+          <div className="flex items-center gap-2">
+            <CurrencySelector />
+            <LanguageSelector />
+          </div>
         </div>
       </header>
 
@@ -1331,7 +1333,7 @@ function AppContent() {
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
-              className="flex-1 flex flex-col h-full"
+              className="flex-1 flex flex-col h-full safe-bottom-pad"
             >
               <AdminConsole onExit={() => setIsAdminView(false)} />
             </motion.div>
@@ -1375,7 +1377,7 @@ function AppContent() {
       {!isAdminView && (
         <div 
           id="mobile_bottom_navigation_bar" 
-          className="bg-white border-t border-slate-200/80 px-6 py-2.5 flex items-center justify-around shrink-0 z-40 shadow-[0_-10px_25px_-3px_rgba(15,23,42,0.12),0_-4px_8px_-2px_rgba(15,23,42,0.06)]"
+          className="bg-white border-t border-slate-200/80 pt-2.5 safe-bottom-nav flex items-center justify-around shrink-0 z-40 shadow-[0_-10px_25px_-3px_rgba(15,23,42,0.12),0_-4px_8px_-2px_rgba(15,23,42,0.06)]"
         >
           <button
             onClick={() => setActiveTab('home')}
@@ -1421,7 +1423,7 @@ function AppContent() {
       {/* --- RECHARGE POPUP MODAL --- */}
       <AnimatePresence>
         {rechargeModalOpen && (
-          <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
+          <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center safe-modal-viewport z-50 backdrop-blur-sm">
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
@@ -2305,7 +2307,7 @@ function AppContent() {
       {/* --- WITHDRAW POPUP MODAL --- */}
       <AnimatePresence>
         {withdrawModalOpen && (
-          <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
+          <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center safe-modal-viewport z-50 backdrop-blur-sm">
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
@@ -2657,7 +2659,7 @@ function AppContent() {
       {/* --- LIVE SUPPORT SUBMIT POPUP MODAL --- */}
       <AnimatePresence>
         {supportModalOpen && (
-          <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
+          <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center safe-modal-viewport z-50 backdrop-blur-sm">
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
@@ -2731,7 +2733,7 @@ function AppContent() {
       {/* --- PWA INSTALLATION PROMPT / POPUP MODAL --- */}
       <AnimatePresence>
         {showInstallBanner && !isAlreadyInstalled && (
-          <div className="fixed inset-0 bg-slate-900/60 flex items-end sm:items-center justify-center p-4 z-50 backdrop-blur-xs">
+          <div className="fixed inset-0 bg-slate-900/60 flex items-end sm:items-center justify-center safe-modal-viewport z-50 backdrop-blur-xs">
             <motion.div
               initial={{ y: 150, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
@@ -2881,7 +2883,7 @@ const OfflineBanner: React.FC = () => {
     <div
       role="status"
       aria-live="polite"
-      className="fixed top-2 left-1/2 -translate-x-1/2 z-[9999] bg-amber-600 text-white text-[10px] font-bold px-3 py-1 rounded-full shadow-lg flex items-center gap-1.5 pointer-events-none"
+      className="fixed safe-top-toast left-1/2 -translate-x-1/2 z-[9999] bg-amber-600 text-white text-[10px] font-bold px-3 py-1 rounded-full shadow-lg flex items-center gap-1.5 pointer-events-none"
     >
       <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
       <span>Offline Mode — Cached Data Active</span>

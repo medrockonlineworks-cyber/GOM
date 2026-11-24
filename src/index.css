@@ -9,9 +9,57 @@
   --color-alabaster: #F5F5F5;
 }
 
+:root {
+  --app-safe-top: max(env(safe-area-inset-top, 0px), var(--safe-area-inset-top, 0px));
+  --app-safe-bottom: max(env(safe-area-inset-bottom, 0px), var(--safe-area-inset-bottom, 0px));
+  --app-safe-left: max(env(safe-area-inset-left, 0px), var(--safe-area-inset-left, 0px));
+  --app-safe-right: max(env(safe-area-inset-right, 0px), var(--safe-area-inset-right, 0px));
+}
+
 body {
   font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   background-color: #F5F5F5;
   color: #1e293b;
   -webkit-font-smoothing: antialiased;
+}
+
+@layer utilities {
+  .safe-top-header {
+    padding-top: var(--app-safe-top);
+    padding-left: var(--app-safe-left);
+    padding-right: var(--app-safe-right);
+  }
+
+  .safe-bottom-nav {
+    padding-bottom: calc(0.625rem + var(--app-safe-bottom));
+    padding-left: calc(1.5rem + var(--app-safe-left));
+    padding-right: calc(1.5rem + var(--app-safe-right));
+  }
+
+  .safe-bottom-pad {
+    padding-bottom: var(--app-safe-bottom);
+  }
+
+  .safe-top-banner {
+    padding-top: calc(2.5rem + var(--app-safe-top));
+  }
+
+  .safe-top-float {
+    top: calc(1rem + var(--app-safe-top));
+  }
+
+  .safe-bottom-form {
+    padding-bottom: calc(2rem + var(--app-safe-bottom));
+  }
+
+  .safe-top-toast {
+    top: calc(0.5rem + var(--app-safe-top));
+  }
+
+  .safe-modal-viewport {
+    padding-top: max(1rem, var(--app-safe-top));
+    padding-bottom: max(1rem, var(--app-safe-bottom));
+    padding-left: max(1rem, var(--app-safe-left));
+    padding-right: max(1rem, var(--app-safe-right));
+  }
 }

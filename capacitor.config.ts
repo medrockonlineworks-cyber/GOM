@@ -30,6 +30,11 @@ const config: CapacitorConfig = {
       backgroundColor: '#1C2B2D',
       overlaysWebView: false,
     },
+    SystemBars: {
+      insetsHandling: 'css',
+      initialViewportFitValueHint: 'cover',
+      style: 'DARK',
+    },
   },
 };
 

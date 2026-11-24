@@ -4,7 +4,7 @@
  */
 
 import { useEffect, useState } from 'react';
-import { Capacitor } from '@capacitor/core';
+import { Capacitor, SystemBars, SystemBarsStyle, SystemBarType } from '@capacitor/core';
 import { App as CapacitorApp } from '@capacitor/app';
 import { SplashScreen } from '@capacitor/splash-screen';
 import { StatusBar, Style } from '@capacitor/status-bar';
@@ -98,7 +98,12 @@ export function initCapacitorRuntime(): void {
     return;
   }
 
-  // Configure Android status bar to match the existing GOM theme
+  // Configure Android status bar (white icons on dark #1C2B2D header)
+  // and navigation bar (dark icons on white bottom navigation bar)
+  SystemBars.show().catch(() => {});
+  SystemBars.setStyle({ bar: SystemBarType.StatusBar, style: SystemBarsStyle.Dark }).catch(() => {});
+  SystemBars.setStyle({ bar: SystemBarType.NavigationBar, style: SystemBarsStyle.Light }).catch(() => {});
+
   StatusBar.setStyle({ style: Style.Dark }).catch(() => {});
   StatusBar.setBackgroundColor({ color: '#1C2B2D' }).catch(() => {});
   StatusBar.setOverlaysWebView({ overlay: false }).catch(() => {});
