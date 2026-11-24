@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">GOM</string>
+    <string name="title_activity_main">GOM</string>
+    <string name="package_name">com.gom.globalonlinemarket</string>
+    <string name="custom_url_scheme">com.gom.globalonlinemarket</string>
+</resources>

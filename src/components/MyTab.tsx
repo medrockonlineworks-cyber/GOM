@@ -980,19 +980,19 @@ export const MyTab: React.FC<MyTabProps> = ({
   };
 
   const [copiedId, setCopiedId] = useState(false);
+  const [copiedInviteCode, setCopiedInviteCode] = useState(false);
   const userUniqueCode = useMemo(() => {
     return getUserUniqueCode(currentUser);
   }, [currentUser]);
+  const userInviteCode = useMemo(() => {
+    return currentUser.inviteCode || `GOM${String(currentUser.phoneNumber || currentUser.id || '').slice(-5)}`;
+  }, [currentUser]);
 
-  const handleCopyUserCode = () => {
-    if (!userUniqueCode) return;
-    try {
-      const codeToCopy = `ID:${userUniqueCode}`;
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(codeToCopy);
-      } else {
+  const copyTextSafely = (text: string) => {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).catch(() => {
         const ta = document.createElement('textarea');
-        ta.value = codeToCopy;
+        ta.value = text;
         ta.style.position = 'fixed';
         ta.style.opacity = '0';
         document.body.appendChild(ta);
@@ -1000,11 +1000,39 @@ export const MyTab: React.FC<MyTabProps> = ({
         ta.select();
         document.execCommand('copy');
         document.body.removeChild(ta);
-      }
+      });
+    } else {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+    }
+  };
+
+  const handleCopyUserCode = () => {
+    if (!userUniqueCode) return;
+    try {
+      copyTextSafely(`ID:${userUniqueCode}`);
       setCopiedId(true);
       setTimeout(() => setCopiedId(false), 2000);
     } catch (e) {
       console.warn('Copy user code failed', e);
+    }
+  };
+
+  const handleCopyInviteCode = () => {
+    if (!userInviteCode) return;
+    try {
+      copyTextSafely(userInviteCode);
+      setCopiedInviteCode(true);
+      setTimeout(() => setCopiedInviteCode(false), 2000);
+    } catch (e) {
+      console.warn('Copy invite code failed', e);
     }
   };
 
@@ -1127,24 +1155,42 @@ export const MyTab: React.FC<MyTabProps> = ({
             <h3 className={`text-xs font-bold text-slate-500 ${currentUser.username ? 'mt-0.5' : 'mt-1'}`}>
               {formatUserPhoneId(currentUser.phoneNumber)}
             </h3>
-            {/* Unique User ID / Code right below phone number */}
-            <div className="flex items-center gap-1.5 mt-0.5">
-              <button
-                type="button"
-                onClick={handleCopyUserCode}
-                className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-slate-100 hover:bg-slate-200/80 active:bg-slate-200 rounded-md text-[11px] font-black text-slate-700 tracking-wider font-mono cursor-pointer transition-all border border-slate-200/60 shadow-2xs group"
-                title="Click to copy ID"
-              >
-                <span>ID:{userUniqueCode}</span>
-                <Copy size={10} className="text-slate-400 group-hover:text-slate-600 transition-colors" />
-              </button>
-              {copiedId && (
-                <span className="text-[9px] font-bold text-emerald-600">
-                  {t('copied') || 'Copied!'}
-                </span>
-              )}
+            {/* Unique User ID & Invite Code aligned below phone number */}
+            <div className="flex flex-col items-start gap-1 mt-1">
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={handleCopyUserCode}
+                  className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-slate-100 hover:bg-slate-200/80 active:bg-slate-200 rounded-md text-[11px] font-black text-slate-700 tracking-wider font-mono cursor-pointer transition-all border border-slate-200/70 shadow-2xs group"
+                  title="Click to copy ID"
+                >
+                  <span>ID:{userUniqueCode}</span>
+                  <Copy size={10} className="text-slate-400 group-hover:text-slate-600 transition-colors" />
+                </button>
+                {copiedId && (
+                  <span className="text-[9px] font-bold text-emerald-600">
+                    {t('copied') || 'Copied!'}
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={handleCopyInviteCode}
+                  className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-slate-100 hover:bg-slate-200/80 active:bg-slate-200 rounded-md text-[11px] font-black text-slate-700 tracking-wider font-mono cursor-pointer transition-all border border-slate-200/70 shadow-2xs group"
+                  title="Click to copy Invite Code"
+                >
+                  <span>Invite:{userInviteCode}</span>
+                  <Copy size={10} className="text-slate-400 group-hover:text-slate-600 transition-colors" />
+                </button>
+                {copiedInviteCode && (
+                  <span className="text-[9px] font-bold text-emerald-600">
+                    {t('copied') || 'Copied!'}
+                  </span>
+                )}
+              </div>
             </div>
-            <span className="text-[10px] text-slate-400 font-bold block mt-0.5">{t('joined')}: {new Date(currentUser.createdAt).toLocaleDateString()}</span>
+            <span className="text-[10px] text-slate-400 font-bold block mt-1">{t('joined')}: {new Date(currentUser.createdAt).toLocaleDateString()}</span>
           </div>
         </div>
         <button 

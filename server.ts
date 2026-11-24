@@ -20,6 +20,27 @@ dotenv.config();
 const app = express();
 const PORT = 3000;
 
+// Allow requests from Capacitor Android WebView origins (https://localhost, capacitor://localhost)
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (
+    origin &&
+    (origin === 'https://localhost' ||
+      origin === 'http://localhost' ||
+      origin === 'capacitor://localhost' ||
+      origin.startsWith('http://localhost:') ||
+      origin.startsWith('https://localhost:'))
+  ) {
+    res.header('Access-Control-Allow-Origin', origin);
+    res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    if (req.method === 'OPTIONS') {
+      return res.sendStatus(204);
+    }
+  }
+  next();
+});
+
 // Enable JSON bodies with limit up to 10mb for payment screenshots
 app.use(express.json({ limit: '10mb' }));
 

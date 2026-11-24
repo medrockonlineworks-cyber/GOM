@@ -1,0 +1,32 @@
+{
+	"appId": "com.gom.globalonlinemarket",
+	"appName": "GOM",
+	"webDir": "dist",
+	"server": {
+		"androidScheme": "https"
+	},
+	"android": {
+		"backgroundColor": "#0D1B2A",
+		"allowMixedContent": false,
+		"captureInput": true,
+		"webContentsDebuggingEnabled": false
+	},
+	"plugins": {
+		"SplashScreen": {
+			"launchShowDuration": 2000,
+			"launchAutoHide": true,
+			"launchFadeOutDuration": 300,
+			"backgroundColor": "#0D1B2A",
+			"androidSplashResourceName": "splash",
+			"androidScaleType": "CENTER_CROP",
+			"showSpinner": false,
+			"splashFullScreen": true,
+			"splashImmersive": true
+		},
+		"StatusBar": {
+			"style": "DARK",
+			"backgroundColor": "#1C2B2D",
+			"overlaysWebView": false
+		}
+	}
+}

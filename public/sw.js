@@ -1,29 +1,28 @@
-const CACHE_NAME = 'gom-v1';
+const CACHE_NAME = 'gom-offline-v2';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
   '/manifest.json',
-  '/gom-logo.svg'
+  '/gom-logo.svg',
+  '/pwa-192x192.png',
+  '/pwa-512x512.png',
+  '/apple-touch-icon.png'
 ];
 
-// Install Event
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log('[Service Worker] Caching app shell and core assets');
       return cache.addAll(ASSETS_TO_CACHE);
     }).then(() => self.skipWaiting())
   );
 });
 
-// Activate Event
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames.map((cache) => {
           if (cache !== CACHE_NAME) {
-            console.log('[Service Worker] Clearing old cache:', cache);
             return caches.delete(cache);
           }
         })
@@ -32,21 +31,22 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Fetch Event (Network falling back to cache pattern for dynamic reactivity)
 self.addEventListener('fetch', (event) => {
-  // Only handle HTTP/HTTPS (skip chrome-extension, etc.)
-  if (!event.request.url.startsWith('http')) return;
+  if (!event.request.url.startsWith('http') || event.request.method !== 'GET') return;
 
-  // For Firestore and backend API calls, we always use the network directly
-  if (event.request.url.includes('firestore.googleapis.com') || event.request.url.includes('/api/')) {
+  // Always let Firestore and backend API calls hit the network directly (AppContext handles offline localStorage fallback)
+  if (
+    event.request.url.includes('firestore.googleapis.com') ||
+    event.request.url.includes('identitytoolkit.googleapis.com') ||
+    event.request.url.includes('/api/')
+  ) {
     return;
   }
 
   event.respondWith(
     fetch(event.request)
       .then((response) => {
-        // Cache successful GET responses for assets
-        if (event.request.method === 'GET' && response.status === 200) {
+        if (response && response.status === 200) {
           const responseToCache = response.clone();
           caches.open(CACHE_NAME).then((cache) => {
             cache.put(event.request, responseToCache);
@@ -55,12 +55,10 @@ self.addEventListener('fetch', (event) => {
         return response;
       })
       .catch(() => {
-        // Fallback to cache on network failure
         return caches.match(event.request).then((cachedResponse) => {
           if (cachedResponse) {
             return cachedResponse;
           }
-          // If both fail and it's a page navigation, return index.html
           if (event.request.mode === 'navigate') {
             return caches.match('/index.html');
           }

@@ -6,6 +6,7 @@
 import React, { Component, useState } from 'react';
 import { AppProvider, useApp, EXCHANGE_RATES, isSamePhone } from './context/AppContext';
 import { useTranslation, maskAccountNumber } from './utils/translations';
+import { isNativePlatform, useNetworkStatus } from './utils/capacitor';
 import LanguageSelector from './components/LanguageSelector';
 import CurrencySelector from './components/CurrencySelector';
 import { MobileFrame } from './components/MobileFrame';
@@ -870,8 +871,9 @@ function AppContent() {
   const [isAlreadyInstalled, setIsAlreadyInstalled] = useState(false);
 
   React.useEffect(() => {
-    // 1. Check if already running in standalone mode (installed PWA)
+    // 1. Check if already running in standalone mode (installed PWA) or inside Capacitor native APK
     const isStandalone = 
+      isNativePlatform() ||
       window.matchMedia('(display-mode: standalone)').matches ||
       (window.navigator as any).standalone === true;
     
@@ -2871,11 +2873,28 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   }
 }
 
+const OfflineBanner: React.FC = () => {
+  const isOnline = useNetworkStatus();
+  if (isOnline) return null;
+
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      className="fixed top-2 left-1/2 -translate-x-1/2 z-[9999] bg-amber-600 text-white text-[10px] font-bold px-3 py-1 rounded-full shadow-lg flex items-center gap-1.5 pointer-events-none"
+    >
+      <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+      <span>Offline Mode — Cached Data Active</span>
+    </div>
+  );
+};
+
 export default function App() {
   return (
     <ErrorBoundary>
       <AppProvider>
         <MobileFrame>
+          <OfflineBanner />
           <AppContent />
         </MobileFrame>
       </AppProvider>

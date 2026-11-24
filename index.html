@@ -2,8 +2,11 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>GOM</title>
+    <meta name="description" content="A premium fintech-style mobile application featuring custom order scaling, Ethiopian bank integrations, a wallet system, and a robust admin console." />
+    <meta property="og:title" content="GOM" />
+    <meta property="og:description" content="A premium fintech-style mobile application featuring custom order scaling, Ethiopian bank integrations, a wallet system, and a robust admin console." />
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -16,7 +19,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="GOM" />
-    <link rel="apple-touch-icon" href="/gom-logo.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="icon" type="image/svg+xml" href="/gom-logo.svg" />
     
     <!-- Inline fallback CSS to prevent Flash of Unstyled Content (FOUC) -->
@@ -31,15 +34,28 @@
       }
     </style>
 
-    <!-- Service Worker & Cache Handling -->
+    <!-- Service Worker & Offline Cache Handling -->
     <script>
       if ('serviceWorker' in navigator) {
-        // Automatically unregister stale service workers in dev/iframe preview to prevent blank screen caching issues
-        navigator.serviceWorker.getRegistrations().then(registrations => {
-          for (let registration of registrations) {
-            registration.unregister();
-          }
-        }).catch(err => console.warn('SW unregister error:', err));
+        var isCapacitorNative = !!(window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform());
+        var isInIframe = false;
+        try { isInIframe = window.self !== window.top; } catch (e) { isInIframe = true; }
+        var isLocalDev = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+
+        if (isCapacitorNative || isInIframe || isLocalDev) {
+          // Keep native Capacitor (assets already bundled locally) and dev/iframe preview free of stale SW caches
+          navigator.serviceWorker.getRegistrations().then(function(registrations) {
+            for (var i = 0; i < registrations.length; i++) {
+              registrations[i].unregister();
+            }
+          }).catch(function(err) { console.warn('SW unregister error:', err); });
+        } else {
+          window.addEventListener('load', function() {
+            navigator.serviceWorker.register('/sw.js').catch(function(err) {
+              console.warn('SW registration skipped:', err);
+            });
+          });
+        }
       }
     </script>
   </head>
