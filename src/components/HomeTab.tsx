@@ -155,8 +155,9 @@ const generateRandomWithdrawal = () => {
     ? ethiopianFormats[0]() 
     : internationalFormats[Math.floor(Math.random() * internationalFormats.length)]();
   
-  // Realistic withdrawal amounts strictly > 100,000 ETB and < 600,000 ETB
+  // Realistic withdrawal amounts starting from 60,000 ETB up to < 600,000 ETB
   const amounts = [
+    60000, 62500, 64800, 68500, 72000, 76500, 81000, 86500, 92000, 97500,
     105000, 112000, 125000, 138500, 149000, 165000, 178000, 192500, 
     210000, 225000, 248000, 265000, 282000, 305000, 328000, 345000, 
     368000, 395000, 415000, 438000, 462000, 485000, 510000, 535000, 
@@ -208,12 +209,19 @@ export const HomeTab: React.FC<HomeTabProps> = ({
   } = useApp();
   const { t } = useTranslation(language);
   const [announcementIndex, setAnnouncementIndex] = useState(0);
-  const [ticker, setTicker] = useState(() => generateRandomWithdrawal());
+  const tickerSeqRef = React.useRef(3);
+  const [tickerItems, setTickerItems] = useState<Array<{ id: number; phone: string; amount: number }>>(() => [
+    { id: 1, ...generateRandomWithdrawal() },
+    { id: 2, ...generateRandomWithdrawal() },
+    { id: 3, ...generateRandomWithdrawal() },
+  ]);
 
   useEffect(() => {
     const interval = setInterval(() => {
-      setTicker(generateRandomWithdrawal());
-    }, 3000);
+      tickerSeqRef.current += 1;
+      const nextItem = { id: tickerSeqRef.current, ...generateRandomWithdrawal() };
+      setTickerItems(prev => [...prev.slice(1), nextItem]);
+    }, 3200);
     return () => clearInterval(interval);
   }, []);
 
@@ -432,51 +440,6 @@ export const HomeTab: React.FC<HomeTabProps> = ({
         </div>
       </motion.div>
 
-      {/* LIVE WITHDRAWAL TICKER */}
-      <div className="bg-emerald-50/60 border border-emerald-100 rounded-2xl p-3 flex items-center gap-3 overflow-hidden shadow-2xs h-16">
-        <div className="w-9 h-9 rounded-xl bg-emerald-500/10 flex items-center justify-center shrink-0">
-          <Volume2 className="text-emerald-600 animate-pulse" size={16} />
-        </div>
-        <div className="flex-1 relative h-full flex items-center overflow-hidden">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={`${ticker.phone}-${ticker.amount}`}
-              initial={{ y: 15, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: -15, opacity: 0 }}
-              transition={{ duration: 0.25, ease: 'easeOut' }}
-              className="absolute left-0 right-0 flex flex-col justify-center"
-            >
-              <div className="text-[9px] font-black uppercase tracking-wider text-emerald-800">
-                {t('congratulations')}
-              </div>
-              {(() => {
-                const isEthiopian = ticker.phone.trim().startsWith('+251');
-                const amountStr = isEthiopian 
-                  ? `${ticker.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ETB`
-                  : `$${(ticker.amount / 196).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD`;
-
-                const rawText = t('userWithdrew', { phone: '__PHONE__', amount: '__AMOUNT__' });
-                const parts = rawText.split(/(__PHONE__|__AMOUNT__)/);
-                return (
-                  <div className="text-[11px] font-extrabold text-slate-700 leading-tight mt-0.5">
-                    {parts.map((part, index) => {
-                      if (part === '__PHONE__') {
-                        return <span key={index} className="text-emerald-700 font-mono font-black">{ticker.phone}</span>;
-                      }
-                      if (part === '__AMOUNT__') {
-                        return <span key={index} className="text-emerald-700 font-mono font-black">{amountStr}</span>;
-                      }
-                      return <span key={index}>{part}</span>;
-                    })}
-                  </div>
-                );
-              })()}
-            </motion.div>
-          </AnimatePresence>
-        </div>
-      </div>
-
       {/* ACTION PANEL */}
       <div className="grid grid-cols-2 gap-4">
         <button
@@ -497,6 +460,64 @@ export const HomeTab: React.FC<HomeTabProps> = ({
           </div>
           <span className="text-[11px] font-black uppercase tracking-wide text-slate-700">{t('withdraw')}</span>
         </button>
+      </div>
+
+      {/* LIVE WITHDRAWAL TICKER (3 USERS, SLOW-MOTION BOTTOM-TO-TOP) */}
+      <div className="bg-emerald-50/70 border border-emerald-100 rounded-2xl p-3.5 shadow-2xs space-y-2.5 overflow-hidden">
+        <div className="flex items-center gap-2.5 border-b border-emerald-200/60 pb-2">
+          <div className="w-7 h-7 rounded-lg bg-emerald-500/10 flex items-center justify-center shrink-0">
+            <Volume2 className="text-emerald-600" size={14} />
+          </div>
+          <span className="text-[10px] font-black uppercase tracking-wider text-emerald-800">
+            {t('congratulations')}
+          </span>
+        </div>
+
+        <div className="relative h-[132px] overflow-hidden">
+          <AnimatePresence initial={false} mode="popLayout">
+            {tickerItems.map((item) => {
+              const isEthiopian = item.phone.trim().startsWith('+251');
+              const amountStr = isEthiopian
+                ? `${item.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ETB`
+                : `$${(item.amount / 196).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD`;
+
+              const rawText = t('userWithdrew', { phone: '__PHONE__', amount: '__AMOUNT__' });
+              const parts = rawText.split(/(__PHONE__|__AMOUNT__)/);
+
+              return (
+                <motion.div
+                  key={item.id}
+                  layout
+                  initial={{ y: 36, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  exit={{ y: -36, opacity: 0 }}
+                  transition={{ duration: 0.95, ease: [0.22, 1, 0.36, 1] }}
+                  className="h-[44px] flex items-center border-b border-emerald-100/80 last:border-b-0"
+                >
+                  <div className="text-[11px] font-extrabold text-slate-700 leading-snug line-clamp-2 w-full">
+                    {parts.map((part, index) => {
+                      if (part === '__PHONE__') {
+                        return (
+                          <span key={index} className="text-emerald-700 font-mono font-black tabular-nums">
+                            {item.phone}
+                          </span>
+                        );
+                      }
+                      if (part === '__AMOUNT__') {
+                        return (
+                          <span key={index} className="text-emerald-700 font-mono font-black tabular-nums">
+                            {amountStr}
+                          </span>
+                        );
+                      }
+                      return <span key={index}>{part}</span>;
+                    })}
+                  </div>
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
+        </div>
       </div>
 
       {/* QUICK CHANNELS PANEL */}
