@@ -7,6 +7,10 @@ export type Currency = 'ETB' | 'USD' | 'EUR' | 'CNY' | 'SAR' | 'KES' | 'SOS' | '
 
 export type UserRole = 'user' | 'admin';
 
+export type MaterialMode = 'random' | 'fixed';
+
+export type FixedMaterialLevel = 1 | 2 | 3 | 4 | 5;
+
 export interface SavedAccount {
   id: string;
   phoneNumber: string;
@@ -37,7 +41,7 @@ export interface User {
   totalEarnings: number; // in ETB
   role: UserRole;
   createdAt: string;
-  currentOrderIndex: number; // 0 to 9 (representing orders 1 to 10)
+  currentOrderIndex: number; // 0 to 14 (representing orders 1 to 15)
   completedOrderIds: number[]; // track which orders are fully done
   inviteCode?: string; // unique invite code (e.g. GOM12345)
   referredBy?: string; // phone number or user ID of the referrer
@@ -57,6 +61,9 @@ export interface User {
   application_access_state?: 'ACTIVE' | 'TAX_LOCKED' | 'WHITE_SCREEN_LOCKED';
   applicationAccessState?: 'ACTIVE' | 'TAX_LOCKED' | 'WHITE_SCREEN_LOCKED';
   profileImage?: string; // Profile picture data URL or image URL
+  onboardingCompleted?: boolean; // Set to false right after registration until user selects a material method
+  materialMode?: MaterialMode; // 'random' (existing progressive system) or 'fixed' (5 fixed recharge levels)
+  fixedLevel?: FixedMaterialLevel; // Selected level (1-5) when materialMode === 'fixed'
 }
 
 export interface LockedOrderData {

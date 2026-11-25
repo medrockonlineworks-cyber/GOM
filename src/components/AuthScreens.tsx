@@ -346,14 +346,14 @@ export const AuthScreens: React.FC = () => {
     }
 
     if (!isDeviceAdmin) {
-      const boundPhone = typeof window !== 'undefined'
-        ? (localStorage.getItem('gom_device_registered_phone') || 
-           (savedAccounts && savedAccounts.length > 0 && !savedAccounts.some(a => a.role === 'admin' || isMatchingPhone(a.phoneNumber, '0926193920') || isMatchingPhone(a.phoneNumber, '0951560276'))
-             ? savedAccounts[0].phoneNumber
-             : null))
-        : null;
-      if (boundPhone) {
-        setError(`Only one account can be registered per device. This device is already registered with account (${boundPhone}). Please sign in instead.`);
+      const hasBoundAccount = typeof window !== 'undefined'
+        ? Boolean(
+            localStorage.getItem('gom_device_registered_phone') ||
+            (savedAccounts && savedAccounts.length > 0 && !savedAccounts.some(a => a.role === 'admin' || isMatchingPhone(a.phoneNumber, '0926193920') || isMatchingPhone(a.phoneNumber, '0951560276')))
+          )
+        : false;
+      if (hasBoundAccount) {
+        setError('Only one account can be registered per device. This device is already registered with an existing account. Please sign in instead.');
         return;
       }
     }

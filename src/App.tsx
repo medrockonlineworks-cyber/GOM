@@ -11,10 +11,12 @@ import LanguageSelector from './components/LanguageSelector';
 import CurrencySelector from './components/CurrencySelector';
 import { MobileFrame } from './components/MobileFrame';
 import { AuthScreens } from './components/AuthScreens';
+import { WelcomeOnboarding } from './components/WelcomeOnboarding';
 import { HomeTab } from './components/HomeTab';
 import { OrdersTab } from './components/OrdersTab';
 import { MyTab } from './components/MyTab';
 import { AdminConsole } from './components/AdminConsole';
+import { getUserMinWithdrawETB, getUserRequiredOrderCount, isFixedMaterialUser, needsFixedLevelSelection } from './utils/materialModes';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Home as HomeIcon, 
@@ -937,6 +939,12 @@ function AppContent() {
 
   const handleOpenRecharge = (amount: number = 0) => {
     setPrefillRechargeAmount(amount);
+    if (amount > 0) {
+      const rate = EXCHANGE_RATES[currency] || 1;
+      setRechargeAmount((amount / rate).toFixed(2));
+    } else {
+      setRechargeAmount('');
+    }
     setRechargeModalOpen(true);
   };
 
@@ -1186,7 +1194,7 @@ function AppContent() {
 
     const baseAmt = currency === 'USD' ? inputAmt * 196 : inputAmt;
     const isTelebirr = withdrawBank.toLowerCase().includes('telebirr') || Boolean(currentUser?.withdrawalBank && currentUser.withdrawalBank.toLowerCase().includes('telebirr'));
-    const minWithdrawETB = isTelebirr ? 50000 : 100000;
+    const minWithdrawETB = getUserMinWithdrawETB(currentUser, isTelebirr);
     const maxWithdrawETB = isTelebirr ? 75000 : 600000;
     const dailyLimitETB = isTelebirr ? 150000 : 600000;
 
@@ -1306,6 +1314,16 @@ function AppContent() {
 
   if (!currentUser) {
     return <AuthScreens />;
+  }
+
+  if (currentUser.onboardingCompleted === false && !isAdminAccount) {
+    return (
+      <WelcomeOnboarding
+        onComplete={() => {
+          setActiveTab('home');
+        }}
+      />
+    );
   }
 
   return (
@@ -2402,11 +2420,14 @@ function AppContent() {
 
                     {(() => {
                       const completedCount = currentUser?.completedOrderIds ? currentUser.completedOrderIds.length : 0;
-                      const isLocked = completedCount < 15;
+                      const awaitingFixedLevel = needsFixedLevelSelection(currentUser);
+                      const requiredOrders = getUserRequiredOrderCount(currentUser);
+                      const isLocked = awaitingFixedLevel || completedCount < requiredOrders;
+                      const isFixedPlan = isFixedMaterialUser(currentUser);
 
                       // Daily, min, and single-order limit calculation
                       const isTelebirr = withdrawBank.toLowerCase().includes('telebirr') || Boolean(currentUser?.withdrawalBank && currentUser.withdrawalBank.toLowerCase().includes('telebirr'));
-                      const minWithdrawETB = isTelebirr ? 50000 : 100000;
+                      const minWithdrawETB = getUserMinWithdrawETB(currentUser, isTelebirr);
                       const minWithdraw = currency === 'USD' ? minWithdrawETB / 196 : minWithdrawETB;
                       const singleOrderLimitETB = isTelebirr ? 75000 : 600000;
                       const singleOrderLimit = currency === 'USD' ? singleOrderLimitETB / 196 : singleOrderLimitETB;
@@ -2443,7 +2464,13 @@ function AppContent() {
                           {isLocked && (
                             <div className="bg-amber-50 border border-amber-200/60 rounded-2xl p-3 text-[10px] text-amber-800 leading-relaxed space-y-1">
                               <span className="font-black text-amber-900 block uppercase tracking-wider text-[9px]">⚠️ {t('withdrawalLocked')}</span>
-                              <p>{t('withdrawalLockedDesc', { completedCount })}</p>
+                              <p>
+                                {awaitingFixedLevel
+                                  ? 'Go to Orders to choose your Fixed Material level and complete all orders in that level before withdrawing.'
+                                  : isFixedPlan
+                                    ? `Complete all ${requiredOrders} Fixed Material orders to unlock withdrawal. Progress: ${completedCount}/${requiredOrders} orders completed.`
+                                    : t('withdrawalLockedDesc', { completedCount })}
+                              </p>
                             </div>
                           )}
 
@@ -2635,7 +2662,11 @@ function AppContent() {
                             }`}
                           >
                             {isLocked 
-                              ? t('complete10TasksToWithdraw', { completedCount }) 
+                              ? (awaitingFixedLevel
+                                  ? 'Select a Fixed Level in Orders First'
+                                  : isFixedPlan
+                                    ? `Complete ${completedCount}/${requiredOrders} Orders to Withdraw`
+                                    : t('complete10TasksToWithdraw', { completedCount }))
                               : belowMin
                                 ? (isTelebirr ? (t('telebirrMinRule') || `Minimum is ${formatPrice(minWithdrawETB)}`) : `Minimum is ${formatPrice(minWithdrawETB)}`)
                                 : exceedsSingleOrder

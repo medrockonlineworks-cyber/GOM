@@ -20,6 +20,9 @@
         "inviteCode": { "type": "string", "maxLength": 32 },
         "completedOrderIds": { "type": "array" },
         "currentOrderIndex": { "type": "integer" },
+        "onboardingCompleted": { "type": "boolean" },
+        "materialMode": { "type": "string", "enum": ["random", "fixed"] },
+        "fixedLevel": { "type": "integer" },
         "createdAt": { "type": "string", "format": "date-time" },
         "updatedAt": { "type": "string", "format": "date-time" }
       },

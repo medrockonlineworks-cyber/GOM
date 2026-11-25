@@ -1,4 +1,5 @@
 import express from 'express';
+import http from 'http';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { createServer as createViteServer } from 'vite';
@@ -850,6 +851,9 @@ app.post('/api/users', async (req, res) => {
       profileImage: userToSave.profileImage ?? null,
       username: userToSave.username ?? null,
       userCode: userToSave.userCode ?? null,
+      onboardingCompleted: userToSave.onboardingCompleted !== undefined ? Boolean(userToSave.onboardingCompleted) : true,
+      materialMode: userToSave.materialMode ?? 'random',
+      fixedLevel: userToSave.fixedLevel != null ? Number(userToSave.fixedLevel) : null,
     };
 
     if (existing.length > 0) {
@@ -933,6 +937,9 @@ app.post('/api/users/sync-bulk', async (req, res) => {
         profileImage: lu.profileImage ?? null,
         username: lu.username ?? null,
         userCode: lu.userCode ?? null,
+        onboardingCompleted: lu.onboardingCompleted !== undefined ? Boolean(lu.onboardingCompleted) : true,
+        materialMode: lu.materialMode ?? 'random',
+        fixedLevel: lu.fixedLevel != null ? Number(lu.fixedLevel) : null,
       };
 
       if (!match) {
@@ -2331,7 +2338,7 @@ app.post('/api/unlock-codes/redeem', async (req, res) => {
     if (boundPhone || boundUserId) {
       if (!matchesPhone && !matchesUser) {
         return res.status(403).json({
-          error: `This code is pre-bound to account ${boundPhone || boundUserId}. It cannot be used on this account (${effectivePhone || effectiveUserId}).`
+          error: 'This code is bound to a different account and cannot be used here.'
         });
       }
     } else {
@@ -2805,9 +2812,14 @@ app.post('/api/users/:id/white-screen', async (req, res) => {
 
 // Serve the React frontend (Vite or Static Build)
 async function startServer() {
+  const httpServer = http.createServer(app);
+
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({
-      server: { middlewareMode: true },
+      server: {
+        middlewareMode: true,
+        hmr: { server: httpServer },
+      },
       appType: 'spa',
     });
     app.use(vite.middlewares);
@@ -2819,7 +2831,7 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
+  httpServer.listen(PORT, '0.0.0.0', () => {
     console.log(`[Server] Running and listening on http://0.0.0.0:${PORT}`);
   });
 }

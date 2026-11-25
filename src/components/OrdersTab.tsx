@@ -6,6 +6,14 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { useTranslation } from '../utils/translations';
+import { FixedMaterialLevel } from '../types';
+import {
+  FIXED_MATERIAL_LEVELS,
+  getFixedLevelConfig,
+  getUserRequiredOrderCount,
+  isFixedMaterialUser,
+  needsFixedLevelSelection,
+} from '../utils/materialModes';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Lock, 
@@ -89,7 +97,8 @@ export const OrdersTab: React.FC<OrdersTabProps> = ({ onOpenRechargeModal }) => 
     transactions, 
     language, 
     formatPrice,
-    redeemOrderCode 
+    redeemOrderCode,
+    selectMaterialMethod 
   } = useStateSelectAll();
   const { t } = useTranslation(language);
   const [processingId, setProcessingId] = useState<number | null>(null);
@@ -97,6 +106,10 @@ export const OrdersTab: React.FC<OrdersTabProps> = ({ onOpenRechargeModal }) => 
   const [selectedOrderForGuide, setSelectedOrderForGuide] = useState<any | null>(null);
   const [successReward, setSuccessReward] = useState(0);
   const [timeLeft, setTimeLeft] = useState<number>(0);
+
+  // Fixed Material level selection state (used when materialMode === 'fixed' and no level chosen yet)
+  const [pendingFixedLevel, setPendingFixedLevel] = useState<FixedMaterialLevel | null>(null);
+  const [isSelectingLevel, setIsSelectingLevel] = useState(false);
 
   // Admin Order Code Modal States
   const [showOrderCodeModal, setShowOrderCodeModal] = useState(false);
@@ -149,9 +162,139 @@ export const OrdersTab: React.FC<OrdersTabProps> = ({ onOpenRechargeModal }) => 
 
   if (!currentUser) return null;
 
+  const awaitingLevelChoice = needsFixedLevelSelection(currentUser);
+  const totalRequiredOrders = getUserRequiredOrderCount(currentUser);
+  const completedCount = (currentUser.completedOrderIds || []).length;
+  const fixedPlanConfig = isFixedMaterialUser(currentUser) ? getFixedLevelConfig(currentUser.fixedLevel) : undefined;
+
   const hasPendingRecharge = transactions.some(
     t => t.userId === currentUser.id && t.type === 'recharge' && t.status === 'pending'
   );
+
+  const handleConfirmFixedLevel = async (level: FixedMaterialLevel) => {
+    if (isSelectingLevel) return;
+    setIsSelectingLevel(true);
+    try {
+      const res = await selectMaterialMethod('fixed', level);
+      if (res.success && res.rechargeAmount && res.rechargeAmount > 0) {
+        onOpenRechargeModal(res.rechargeAmount);
+      }
+    } finally {
+      setIsSelectingLevel(false);
+    }
+  };
+
+  if (awaitingLevelChoice) {
+    const pickedConfig = pendingFixedLevel ? getFixedLevelConfig(pendingFixedLevel) : undefined;
+    return (
+      <div className="flex-1 flex flex-col p-5 space-y-5 bg-alabaster">
+        {/* HEADER */}
+        <div className="border-b border-slate-200/80 pb-3">
+          <h2 className="text-lg font-extrabold text-slate-950 uppercase tracking-tight">
+            Fixed Material Levels
+          </h2>
+          <p className="text-xs text-slate-600 mt-1 leading-relaxed">
+            Choose a level below, recharge its fixed amount, complete all orders for that level, and withdraw your earnings.
+          </p>
+        </div>
+
+        {/* 5 LEVEL CARDS */}
+        <div className="space-y-3">
+          {FIXED_MATERIAL_LEVELS.map((lvl) => {
+            const isSelected = pendingFixedLevel === lvl.level;
+            return (
+              <button
+                key={lvl.level}
+                type="button"
+                onClick={() => setPendingFixedLevel(lvl.level)}
+                className={`w-full text-left rounded-2xl p-4 transition-all cursor-pointer border-2 min-h-[44px] ${
+                  isSelected
+                    ? 'bg-amber-50/70 border-bronze shadow-md'
+                    : 'bg-white border-slate-200 hover:border-slate-300 shadow-2xs'
+                }`}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2.5">
+                    <span
+                      className={`w-7 h-7 rounded-xl text-xs font-black flex items-center justify-center tabular-nums ${
+                        isSelected
+                          ? 'bg-bronze text-white'
+                          : 'bg-deep-forest text-white'
+                      }`}
+                    >
+                      {lvl.level}
+                    </span>
+                    <div>
+                      <span className="block text-sm font-black text-slate-900 leading-tight">
+                        {lvl.title}
+                      </span>
+                      <span className="block text-[10px] font-semibold text-slate-500 mt-0.5">
+                        {lvl.orderCount} sequential orders · Withdraw after {lvl.orderCount}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <span className="block text-[9px] font-bold uppercase text-slate-400">
+                      Potential
+                    </span>
+                    <span className="text-xs font-black text-emerald-700 tabular-nums">
+                      Over {formatPrice(lvl.minTargetEarnings)}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-slate-200/70 text-xs">
+                  <div>
+                    <span className="block text-[9px] font-bold uppercase text-slate-400">
+                      Required Recharge
+                    </span>
+                    <span className="font-black text-slate-900 tabular-nums">
+                      {formatPrice(lvl.rechargeAmount)}
+                    </span>
+                  </div>
+                  <div className="text-right">
+                    <span className="block text-[9px] font-bold uppercase text-slate-400">
+                      Total Orders
+                    </span>
+                    <span className="font-black text-slate-900 tabular-nums">
+                      {lvl.orderCount} Orders
+                    </span>
+                  </div>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* CONFIRM & RECHARGE CTA */}
+        <div className="pt-1 pb-2">
+          <button
+            type="button"
+            disabled={!pickedConfig || isSelectingLevel}
+            onClick={() => pickedConfig && handleConfirmFixedLevel(pickedConfig.level)}
+            className={`w-full min-h-[48px] py-3.5 px-4 rounded-xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all ${
+              pickedConfig && !isSelectingLevel
+                ? 'bg-bronze hover:bg-bronze-hover active:scale-[0.99] text-white shadow-md cursor-pointer'
+                : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+            }`}
+          >
+            {isSelectingLevel ? (
+              <span>Preparing {pickedConfig?.title}...</span>
+            ) : pickedConfig ? (
+              <>
+                <ArrowUpRight size={15} />
+                <span>
+                  Start {pickedConfig.title} &amp; Recharge {formatPrice(pickedConfig.rechargeAmount)}
+                </span>
+              </>
+            ) : (
+              <span>Select a Level Above to Continue</span>
+            )}
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const handleAddToCart = (orderId: number) => {
     addToCart(orderId);
@@ -198,11 +341,11 @@ export const OrdersTab: React.FC<OrdersTabProps> = ({ onOpenRechargeModal }) => 
       // If a second tap occurred, lastTapRef was reset to 0
       if (lastTapRef.current !== now) return;
 
-      const isCycleCompleted = currentUser && (currentUser.completedOrderIds || []).length >= 15;
+      const isCycleCompleted = currentUser && (currentUser.completedOrderIds || []).length >= totalRequiredOrders;
       if (!isCycleCompleted) {
-        const completedCount = currentUser?.completedOrderIds?.length || 0;
+        const doneCount = currentUser?.completedOrderIds?.length || 0;
         const wantCode = window.confirm(
-          `Order Cycle Incomplete: You have completed ${completedCount}/15 orders.\n\nTo reset cycle normally, complete all 15 orders.\n\n👉 Do you have an Admin Order Completion Code to activate? Click OK to enter code.`
+          `Order Cycle Incomplete: You have completed ${doneCount}/${totalRequiredOrders} orders.\n\nTo reset cycle normally, complete all ${totalRequiredOrders} orders.\n\n👉 Do you have an Admin Order Completion Code to activate? Click OK to enter code.`
         );
         if (wantCode) {
           openCodeActivationModal();
@@ -251,7 +394,11 @@ export const OrdersTab: React.FC<OrdersTabProps> = ({ onOpenRechargeModal }) => 
           <h2 className="text-lg font-extrabold text-slate-950 uppercase tracking-tight">
             {t('orderTasks')}
           </h2>
-          <p className="text-[11px] text-slate-500 italic">{t('complete15Sequential')}</p>
+          <p className="text-[11px] text-slate-500 italic">
+            {fixedPlanConfig
+              ? `Fixed Material · ${fixedPlanConfig.title} (${completedCount}/${totalRequiredOrders} Orders)`
+              : t('complete15Sequential')}
+          </p>
         </div>
         
         {/* Reset button to clear cycle for continuous testing & Admin Code Activation via double-tap */}
@@ -262,17 +409,17 @@ export const OrdersTab: React.FC<OrdersTabProps> = ({ onOpenRechargeModal }) => 
             openCodeActivationModal();
           }}
           className={`font-bold text-[9px] uppercase tracking-wider px-2.5 py-1.5 rounded-xl border flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs ${
-            currentUser && (currentUser.completedOrderIds || []).length >= 15
+            currentUser && completedCount >= totalRequiredOrders
               ? 'bg-bronze hover:bg-bronze-hover text-white border-bronze animate-pulse' 
               : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300'
           }`}
           title={
-            currentUser && (currentUser.completedOrderIds || []).length >= 15 
+            currentUser && completedCount >= totalRequiredOrders 
               ? "Reset task cycle to start over with brand new materials (or double-tap to enter code)" 
-              : "Complete all 15 tasks to reset cycle. Double-tap to activate Admin Order Code."
+              : `Complete all ${totalRequiredOrders} tasks to reset cycle. Double-tap to activate Admin Order Code.`
           }
         >
-          {currentUser && (currentUser.completedOrderIds || []).length >= 15 ? (
+          {currentUser && completedCount >= totalRequiredOrders ? (
             <RefreshCw size={10} className="animate-spin" style={{ animationDuration: '3s' }} />
           ) : (
             <KeyRound size={11} className="text-blue-600" />
@@ -280,6 +427,40 @@ export const OrdersTab: React.FC<OrdersTabProps> = ({ onOpenRechargeModal }) => 
           {t('resetCycle')}
         </button>
       </div>
+
+      {/* FIXED MATERIAL ACTIVE PLAN STRIP */}
+      {fixedPlanConfig && (
+        <div className="bg-deep-forest text-white rounded-2xl p-3.5 shadow-sm flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-[10px] font-black uppercase tracking-wider text-amber-400">
+              Fixed Material · {fixedPlanConfig.title}
+            </p>
+            <p className="text-xs font-bold text-slate-100 mt-0.5 tabular-nums">
+              {completedCount}/{fixedPlanConfig.orderCount} Orders · Target over {formatPrice(fixedPlanConfig.minTargetEarnings)}
+            </p>
+          </div>
+          <div className="text-right shrink-0 flex flex-col items-end gap-1">
+            <div>
+              <span className="block text-[9px] font-bold uppercase text-slate-300">Fixed Recharge</span>
+              <span className="text-xs font-black text-amber-300 tabular-nums">
+                {formatPrice(fixedPlanConfig.rechargeAmount)}
+              </span>
+            </div>
+            {completedCount === 0 && !hasPendingRecharge && (
+              <button
+                type="button"
+                onClick={() => {
+                  setPendingFixedLevel(fixedPlanConfig.level);
+                  selectMaterialMethod('fixed');
+                }}
+                className="text-[10px] font-bold text-amber-300 hover:text-amber-200 underline underline-offset-2 cursor-pointer"
+              >
+                Change Level
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* COOLDOWN HEADER BANNER */}
       {timeLeft > 0 && (

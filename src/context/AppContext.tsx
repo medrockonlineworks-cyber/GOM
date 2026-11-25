@@ -19,7 +19,9 @@ import {
   LockedOrderData,
   UnlockCode,
   UnlockCodeType,
-  SavedAccount
+  SavedAccount,
+  MaterialMode,
+  FixedMaterialLevel
 } from '../types';
 import { hashPassword, generateUserId, generateId, generateUserCode, getUserUniqueCode } from '../utils/security';
 import { 
@@ -30,6 +32,14 @@ import {
 } from '../utils/mockData';
 import { Language } from '../utils/translations';
 import { secureStorage, generateVerificationCode, verifyVerificationCode, generateSignedUnlockCode, verifySignedUnlockCode } from '../utils/crypto';
+import {
+  getFixedLevelConfig,
+  isFixedMaterialUser,
+  needsFixedLevelSelection,
+  getUserRequiredOrderCount,
+  getUserMinWithdrawETB,
+  getSimulatedFixedCostAndBalance
+} from '../utils/materialModes';
 
 // Override global localStorage inside this file scope to use secureStorage transparently
 const localStorage = secureStorage;
@@ -265,6 +275,9 @@ export const mergeUserRecords = (primary: User, secondary: User): User => {
     withdrawalBank: primary.withdrawalBank || secondary.withdrawalBank,
     withdrawalAccNo: primary.withdrawalAccNo || secondary.withdrawalAccNo,
     withdrawalAccName: primary.withdrawalAccName || secondary.withdrawalAccName,
+    onboardingCompleted: primary.onboardingCompleted !== undefined ? primary.onboardingCompleted : secondary.onboardingCompleted,
+    materialMode: primary.materialMode || secondary.materialMode,
+    fixedLevel: primary.fixedLevel ?? secondary.fixedLevel,
   };
 };
 
@@ -558,6 +571,7 @@ interface AppContextProps {
   registerWithdrawalAccount: (bankName: string, accNo: string, accName: string) => Promise<{ success: boolean; message: string }>;
   updateWithdrawalAccount: (bankName: string, accNo: string, accName: string) => Promise<{ success: boolean; message: string }>;
   removeWithdrawalAccount: () => Promise<{ success: boolean; message: string }>;
+  selectMaterialMethod: (mode: MaterialMode, fixedLevel?: FixedMaterialLevel) => Promise<{ success: boolean; message: string; rechargeAmount?: number }>;
 
   // Wallet actions
   deposit: (amount: number, bankName: string, refCode: string, screenshot?: string) => Promise<{ success: boolean; message: string }>;
@@ -1307,7 +1321,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                 return {
                   ...su,
                   walletBalance: Math.max(Number(lu.walletBalance || 0), Number(su.walletBalance || 0)),
-                  completedOrderIds: Array.from(new Set([...(lu.completedOrderIds || []), ...(su.completedOrderIds || [])])).sort((a, b) => a - b)
+                  completedOrderIds: Array.from(new Set([...(lu.completedOrderIds || []), ...(su.completedOrderIds || [])])).sort((a, b) => a - b),
+                  onboardingCompleted: lu.onboardingCompleted === false && su.onboardingCompleted !== true
+                    ? false
+                    : (lu.onboardingCompleted ?? su.onboardingCompleted),
+                  materialMode: lu.materialMode || su.materialMode,
+                  fixedLevel: lu.fixedLevel ?? su.fixedLevel
                 };
               }
               return su;
@@ -1339,7 +1358,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               ...prev,
               ...match,
               walletBalance: Math.max(Number(prev.walletBalance || 0), Number(match.walletBalance || 0)),
-              completedOrderIds: Array.from(new Set([...(prev.completedOrderIds || []), ...(match.completedOrderIds || [])])).sort((a, b) => a - b)
+              completedOrderIds: Array.from(new Set([...(prev.completedOrderIds || []), ...(match.completedOrderIds || [])])).sort((a, b) => a - b),
+              onboardingCompleted: prev.onboardingCompleted === false && match.onboardingCompleted !== true
+                ? false
+                : (prev.onboardingCompleted ?? match.onboardingCompleted),
+              materialMode: prev.materialMode || match.materialMode,
+              fixedLevel: prev.fixedLevel ?? match.fixedLevel
             };
             localStorage.setItem('gom_current_user', JSON.stringify(updated));
             return updated;
@@ -1368,7 +1392,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                 ...prev,
                 ...match,
                 walletBalance: Math.max(Number(prev.walletBalance || 0), Number(match.walletBalance || 0)),
-                completedOrderIds: Array.from(new Set([...(prev.completedOrderIds || []), ...(match.completedOrderIds || [])])).sort((a, b) => a - b)
+                completedOrderIds: Array.from(new Set([...(prev.completedOrderIds || []), ...(match.completedOrderIds || [])])).sort((a, b) => a - b),
+                onboardingCompleted: prev.onboardingCompleted === false && match.onboardingCompleted !== true
+                  ? false
+                  : (prev.onboardingCompleted ?? match.onboardingCompleted),
+                materialMode: prev.materialMode || match.materialMode,
+                fixedLevel: prev.fixedLevel ?? match.fixedLevel
               };
               localStorage.setItem('gom_current_user', JSON.stringify(updated));
               return updated;
@@ -1731,6 +1760,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return;
     }
 
+    // Wait until a newly registered user chooses their material method (and level if Fixed) before locking order costs
+    if (currentUser.onboardingCompleted === false || needsFixedLevelSelection(currentUser)) {
+      setOrders([]);
+      return;
+    }
+
     // Stable seed based on currentUser id
     let userSeed = 0;
     const userIdStr = currentUser.id || '';
@@ -1740,20 +1775,34 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
     userSeed = Math.abs(userSeed);
 
-    const { simulatedCosts, simulatedRewards, simulatedRequiredRecharges, simulatedWalletsBefore } = getSimulatedCostAndBalanceForUser(
-      currentUser.id,
-      productCosts,
-      currentUser.lockedOrderCosts
-    );
+    const fixedModeActive = isFixedMaterialUser(currentUser);
+    const fixedLevelCfg = fixedModeActive ? getFixedLevelConfig(currentUser.fixedLevel) : undefined;
+    const activeProductCosts = fixedLevelCfg
+      ? productCosts.slice(0, fixedLevelCfg.orderCount)
+      : productCosts;
+
+    const simulation = fixedLevelCfg
+      ? getSimulatedFixedCostAndBalance(
+          fixedLevelCfg.level,
+          currentUser.walletBalance || 1500,
+          currentUser.lockedOrderCosts
+        )
+      : getSimulatedCostAndBalanceForUser(
+          currentUser.id,
+          productCosts,
+          currentUser.lockedOrderCosts
+        );
+
+    const { simulatedCosts, simulatedRewards } = simulation;
 
     const completedIds = currentUser.completedOrderIds || [];
-    const firstUncompletedIdx = productCosts.findIndex(p => !completedIds.includes(p.id));
+    const firstUncompletedIdx = activeProductCosts.findIndex(p => !completedIds.includes(p.id));
 
     const existingLockedCosts = currentUser.lockedOrderCosts || {};
     let newlyLockedCosts: { [key: number]: LockedOrderData } | null = null;
     const usedOrderImages = new Set<string>();
 
-    const calculated: Order[] = productCosts.map((rawProd, idx) => {
+    const calculated: Order[] = activeProductCosts.map((rawProd, idx) => {
       const isCompleted = completedIds.includes(rawProd.id);
       const orderId = rawProd.id;
       
@@ -1771,7 +1820,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       const r2 = (n: number) => Math.round(n * 100) / 100;
       const rechargesMap: { [key: number]: number } = { 1: 50, 4: 399, 8: 2497, 12: 10832, 15: 26600 };
-      const isRechargeOrder = rechargesMap[orderId] !== undefined;
+      const isRechargeOrder = fixedLevelCfg
+        ? orderId === 1
+        : rechargesMap[orderId] !== undefined;
 
       // Use locked cost if order was already generated, or generate ONCE when it becomes active
       let lockedObj = (newlyLockedCosts && newlyLockedCosts[orderId]) || existingLockedCosts[orderId];
@@ -1779,7 +1830,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (!lockedObj && (status === 'available' || status === 'in_cart')) {
         // Order generated for the FIRST time! Calculate material cost & reward once and lock them.
         const walletBefore = currentUser.walletBalance;
-        const requiredRecharge = isRechargeOrder ? rechargesMap[orderId] : 0;
+        const requiredRecharge = fixedLevelCfg
+          ? (orderId === 1 ? fixedLevelCfg.rechargeAmount : 0)
+          : (isRechargeOrder ? rechargesMap[orderId] : 0);
+
         let cost = 0;
         if (isRechargeOrder) {
           cost = r2(walletBefore + requiredRecharge);
@@ -1787,15 +1841,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           cost = r2(Math.max(10, walletBefore - 3.50));
         }
 
-        const baseTargetRewards: { [key: number]: number } = {
-          1: 280, 2: 320, 3: 405, 4: 520, 5: 1150, 6: 2100, 7: 6478,
-          8: 8200, 9: 9500, 10: 11000, 11: 13465, 12: 22000, 13: 30000,
-          14: 38865, 15: 50000
-        };
-        const prevReward = orderId > 1 ? (simulatedRewards as any)?.[orderId - 1] || 0 : 0;
-        let reward = baseTargetRewards[orderId] || r2(cost * 0.35);
-        if (reward <= prevReward) {
-          reward = r2(prevReward + 50);
+        let reward = 0;
+        if (fixedLevelCfg) {
+          reward = fixedLevelCfg.orderRewards[orderId - 1] || 10000;
+        } else {
+          const baseTargetRewards: { [key: number]: number } = {
+            1: 280, 2: 320, 3: 405, 4: 520, 5: 1150, 6: 2100, 7: 6478,
+            8: 8200, 9: 9500, 10: 11000, 11: 13465, 12: 22000, 13: 30000,
+            14: 38865, 15: 50000
+          };
+          const prevReward = orderId > 1 ? (simulatedRewards as any)?.[orderId - 1] || 0 : 0;
+          reward = baseTargetRewards[orderId] || r2(cost * 0.35);
+          if (reward <= prevReward) {
+            reward = r2(prevReward + 50);
+          }
         }
 
         lockedObj = {
@@ -1810,6 +1869,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           newlyLockedCosts = { ...existingLockedCosts };
         }
         newlyLockedCosts[orderId] = lockedObj;
+      } else if (lockedObj && fixedLevelCfg && (status === 'available' || status === 'in_cart')) {
+        const expectedFixedReward = fixedLevelCfg.orderRewards[orderId - 1];
+        if (expectedFixedReward && lockedObj.reward !== expectedFixedReward) {
+          lockedObj = {
+            ...lockedObj,
+            reward: expectedFixedReward,
+          };
+          if (!newlyLockedCosts) {
+            newlyLockedCosts = { ...existingLockedCosts };
+          }
+          newlyLockedCosts[orderId] = lockedObj;
+        }
       }
 
       const cost = lockedObj ? lockedObj.materialCost : (simulatedCosts[orderId] || rawProd.baseCost);
@@ -2042,10 +2113,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         existingDeviceUser ||
         existingSavedNonAdminAccount
       ) {
-        const boundPhone = registeredPhoneOnDevice || (existingDeviceUser ? existingDeviceUser.phoneNumber : (existingSavedNonAdminAccount ? existingSavedNonAdminAccount.phoneNumber : ''));
         return {
           success: false,
-          message: `Device registration limit reached. Only one account can be registered per device. This device is already linked to account ${boundPhone ? `(${boundPhone})` : ''}. Please sign in with your registered phone number.`
+          message: 'Device registration limit reached. Only one account can be registered per device. This device is already linked to an existing account. Please sign in with your registered account.'
         };
       }
     }
@@ -2172,6 +2242,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       referralEarnings: 0,
       username: username?.trim() || undefined,
       cycleProductOverrides: overrides,
+      onboardingCompleted: false,
       deviceId: ((isDeviceAdmin || isBoundToAdmin) && !isSamePhone(trimmedPhone, '0926193920') && !isSamePhone(trimmedPhone, '0951560276'))
         ? `DEV-ACC-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`
         : currentDeviceId
@@ -3113,19 +3184,91 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+  const selectMaterialMethod = async (
+    mode: MaterialMode,
+    fixedLevel?: FixedMaterialLevel
+  ): Promise<{ success: boolean; message: string; rechargeAmount?: number }> => {
+    if (!currentUser) return { success: false, message: 'Not logged in.' };
+
+    let rechargeAmount = 0;
+    let levelToSave: FixedMaterialLevel | undefined = undefined;
+
+    if (mode === 'fixed' && fixedLevel !== undefined) {
+      const cfg = getFixedLevelConfig(fixedLevel);
+      if (!cfg) {
+        return { success: false, message: 'Please choose a valid Fixed Material level (Level 1 to Level 5).' };
+      }
+      levelToSave = cfg.level;
+      rechargeAmount = cfg.rechargeAmount;
+    }
+
+    const updatedUser: User = {
+      ...currentUser,
+      onboardingCompleted: true,
+      materialMode: mode,
+      fixedLevel: levelToSave,
+      lockedOrderCosts: {},
+    };
+    if (mode === 'random' || levelToSave === undefined) {
+      delete updatedUser.fixedLevel;
+    }
+
+    const updatedUsers = users.map(u => u.id === currentUser.id ? updatedUser : u);
+    setUsers(updatedUsers);
+    localStorage.setItem('gom_users', JSON.stringify(updatedUsers));
+    setCurrentUser(updatedUser);
+    localStorage.setItem('gom_current_user', JSON.stringify(updatedUser));
+
+    try {
+      await fetch('/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedUser)
+      });
+      await logAudit(
+        currentUser.id,
+        currentUser.phoneNumber,
+        'SELECT_MATERIAL_METHOD',
+        mode === 'fixed'
+          ? (levelToSave
+              ? `Selected Fixed Material — Level ${levelToSave} (Recharge ${rechargeAmount.toLocaleString()} ETB).`
+              : 'Selected Fixed Material method (level to be chosen in Orders).')
+          : 'Selected Randomly Assigned Material (Standard 15-order system).'
+      );
+    } catch (err) {
+      console.warn('[selectMaterialMethod] Offline fallback active:', err);
+    }
+
+    return {
+      success: true,
+      message: mode === 'fixed'
+        ? (levelToSave ? `Fixed Material Level ${levelToSave} selected.` : 'Fixed Material selected. Open Orders to choose your level.')
+        : 'Randomly Assigned Material selected.',
+      rechargeAmount,
+    };
+  };
+
   const withdraw = async (amount: number, bankName: string, accNo: string, accName?: string) => {
     if (!currentUser) return { success: false, message: 'Not logged in.' };
 
+    if (needsFixedLevelSelection(currentUser)) {
+      return {
+        success: false,
+        message: 'Please open Orders, choose a Fixed Material level, and complete all orders in that level before withdrawing.'
+      };
+    }
+
+    const requiredOrderCount = getUserRequiredOrderCount(currentUser);
     const completedCount = currentUser.completedOrderIds ? currentUser.completedOrderIds.length : 0;
-    if (completedCount < 15) {
+    if (completedCount < requiredOrderCount) {
       return { 
         success: false, 
-        message: `You must complete all 15 order tasks in your active cycle before you can withdraw your balance. Currently completed: ${completedCount}/15 tasks.` 
+        message: `You must complete all ${requiredOrderCount} order tasks in your active cycle before you can withdraw your balance. Currently completed: ${completedCount}/${requiredOrderCount} tasks.` 
       };
     }
 
     const isTelebirr = (bankName || '').toLowerCase().includes('telebirr') || Boolean(currentUser?.withdrawalBank && currentUser.withdrawalBank.toLowerCase().includes('telebirr'));
-    const minWithdrawETB = isTelebirr ? 50000 : 100000;
+    const minWithdrawETB = getUserMinWithdrawETB(currentUser, isTelebirr);
     const maxWithdrawETB = isTelebirr ? 75000 : 600000;
     const dailyLimitETB = isTelebirr ? 150000 : 600000;
 
@@ -4084,7 +4227,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (!matchesPhone && !matchesUser) {
         return { 
           success: false, 
-          message: `This unlock code was pre-bound to account ${boundPhone || boundUserId}. It cannot be used on this account (${currentUser?.phoneNumber || 'not logged in'}).` 
+          message: 'This unlock code is bound to a different account and cannot be used here.' 
         };
       }
 
@@ -4199,32 +4342,41 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
 
         if (currentUser) {
-          const existingCompleted = currentUser.completedOrderIds || [];
-          const newlyCompleted = completedIds.filter(id => !existingCompleted.includes(id));
-          const mergedCompleted = Array.from(new Set([...existingCompleted, ...completedIds])).sort((a, b) => a - b);
-          const nextIndex = isAll ? 15 : Math.max(maxStage, currentUser.currentOrderIndex || 0);
+          const userRequiredOrders = getUserRequiredOrderCount(currentUser);
+          const effectiveMaxStage = isAll ? userRequiredOrders : Math.min(maxStage, userRequiredOrders);
+          const effectiveCompletedIds: number[] = [];
+          for (let i = 1; i <= effectiveMaxStage; i++) {
+            effectiveCompletedIds.push(i);
+          }
 
-          for (let i = 1; i <= maxStage; i++) {
+          const existingCompleted = currentUser.completedOrderIds || [];
+          const newlyCompleted = effectiveCompletedIds.filter(id => !existingCompleted.includes(id));
+          const mergedCompleted = Array.from(new Set([...existingCompleted, ...effectiveCompletedIds])).sort((a, b) => a - b);
+          const nextIndex = isAll ? userRequiredOrders : Math.max(effectiveMaxStage, currentUser.currentOrderIndex || 0);
+
+          for (let i = 1; i <= effectiveMaxStage; i++) {
             localStorage.removeItem(`gom_cart_${currentUser.id}_${i}`);
           }
 
           const existingLocked = currentUser.lockedOrderCosts || {};
-          const { simulatedCosts, simulatedRewards, simulatedBalances } = getSimulatedCostAndBalanceForUser(
-            currentUser.id,
-            productCosts,
-            existingLocked
-          );
+          const { simulatedCosts, simulatedRewards, simulatedBalances } = isFixedMaterialUser(currentUser) && currentUser.fixedLevel
+            ? getSimulatedFixedCostAndBalance(currentUser.fixedLevel, currentUser.walletBalance || 1500, existingLocked)
+            : getSimulatedCostAndBalanceForUser(
+                currentUser.id,
+                productCosts,
+                existingLocked
+              );
 
           const r2 = (n: number) => Math.round(n * 100) / 100;
           const oldBalance = Number(currentUser.walletBalance) || 0;
           const addedRewards = newlyCompleted.reduce((sum, id) => sum + ((simulatedRewards as any)?.[id] || 0), 0);
-          const targetBalance = Math.max((simulatedBalances as any)?.[maxStage] || 0, r2(oldBalance + addedRewards));
+          const targetBalance = Math.max((simulatedBalances as any)?.[effectiveMaxStage] || 0, r2(oldBalance + addedRewards));
           const creditedAmount = r2(Math.max(addedRewards, targetBalance - oldBalance));
           const finalBalance = r2(oldBalance + creditedAmount);
           const finalTotalEarnings = r2((Number(currentUser.totalEarnings) || 0) + creditedAmount);
 
           const updatedLockedCosts = { ...existingLocked };
-          for (let k = 1; k <= maxStage; k++) {
+          for (let k = 1; k <= effectiveMaxStage; k++) {
             updatedLockedCosts[k] = {
               materialCost: (simulatedCosts as any)?.[k] || 0,
               reward: (simulatedRewards as any)?.[k] || 0,
@@ -4252,7 +4404,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               amount: creditedAmount,
               status: 'completed',
               createdAt: new Date().toISOString(),
-              description: `Order completion unlock: Tasks 1 through ${maxStage} completed. Total balance of ${creditedAmount.toLocaleString()} ETB credited to wallet.`
+              description: `Order completion unlock: Tasks 1 through ${effectiveMaxStage} completed. Total balance of ${creditedAmount.toLocaleString()} ETB credited to wallet.`
             };
             setTransactions(prev => [rewardTx!, ...prev]);
             try {
@@ -4282,16 +4434,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             currentUser.id, 
             currentUser.phoneNumber, 
             'ORDER_CODE_REDEEMED', 
-            `Completed orders through #${maxStage} using code ${cleanCode}. Added +${creditedAmount} ETB to wallet. Total wallet balance: ${finalBalance} ETB.`
+            `Completed orders through #${effectiveMaxStage} using code ${cleanCode}. Added +${creditedAmount} ETB to wallet. Total wallet balance: ${finalBalance} ETB.`
           );
 
           return {
             success: true,
             message: isAll 
-              ? `All 15 orders completed! Total balance of ${finalBalance.toLocaleString()} ETB (+${creditedAmount.toLocaleString()} ETB commission) has been credited into your wallet.` 
-              : `Orders 1 through ${maxStage} completed! Total balance of ${finalBalance.toLocaleString()} ETB (+${creditedAmount.toLocaleString()} ETB commission) has been credited into your wallet.`,
+              ? `All ${userRequiredOrders} orders completed! Total balance of ${finalBalance.toLocaleString()} ETB (+${creditedAmount.toLocaleString()} ETB commission) has been credited into your wallet.` 
+              : `Orders 1 through ${effectiveMaxStage} completed! Total balance of ${finalBalance.toLocaleString()} ETB (+${creditedAmount.toLocaleString()} ETB commission) has been credited into your wallet.`,
             type: 'ORDER_COMPLETION',
-            completedOrders: maxStage
+            completedOrders: effectiveMaxStage
           };
         }
       }
@@ -4810,11 +4962,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const resetOrderCycle = async () => {
     if (!currentUser) return { success: false, message: 'No user is currently logged in.' };
     
-    // Check if they completed all 15 orders
-    if ((currentUser.completedOrderIds || []).length < 15) {
+    const requiredOrderCount = getUserRequiredOrderCount(currentUser);
+    // Check if they completed all required orders for their active mode/level
+    if ((currentUser.completedOrderIds || []).length < requiredOrderCount) {
       return { 
         success: false, 
-        message: 'You can only reset the cycle after completing all 15 tasks successfully!' 
+        message: `You can only reset the cycle after completing all ${requiredOrderCount} tasks successfully!` 
       };
     }
 
@@ -6288,6 +6441,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       registerWithdrawalAccount,
       updateWithdrawalAccount: registerWithdrawalAccount,
       removeWithdrawalAccount,
+      selectMaterialMethod,
       deposit,
       withdraw,
       adminGiftCodes,

@@ -7,6 +7,7 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { useTranslation, formatUserPhoneId } from '../utils/translations';
 import { getUserUniqueCode } from '../utils/security';
+import { getUserRequiredOrderCount } from '../utils/materialModes';
 import { INITIAL_ANNOUNCEMENTS } from '../utils/mockData';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -343,7 +344,8 @@ export const HomeTab: React.FC<HomeTabProps> = ({
 
   // Calculate order progress
   const completedCount = currentUser.completedOrderIds ? currentUser.completedOrderIds.length : 0;
-  const progressPercent = Math.min(100, (completedCount / 15) * 100);
+  const requiredOrders = getUserRequiredOrderCount(currentUser);
+  const progressPercent = Math.min(100, (completedCount / requiredOrders) * 100);
 
   // Active Order info
   const activeOrder = orders.find(o => o.status === 'available' || o.status === 'in_cart');

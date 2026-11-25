@@ -27,6 +27,9 @@ export const users = pgTable('users', {
   nextRoundLocked: jsonb('next_round_locked').default(false),
   whiteScreenLocked: jsonb('white_screen_locked').default(false),
   profileImage: text('profile_image'),
+  onboardingCompleted: jsonb('onboarding_completed').default(true),
+  materialMode: text('material_mode').default('random'),
+  fixedLevel: integer('fixed_level'),
 });
 
 // Define the 'transactions' table
