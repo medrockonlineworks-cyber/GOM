@@ -8,6 +8,7 @@ import { useApp, isSamePhone } from '../context/AppContext';
 import { Transaction } from '../types';
 import { useTranslation, formatUserPhoneId, formatPhoneNumbersInText, maskAccountNumber } from '../utils/translations';
 import { getUserUniqueCode } from '../utils/security';
+import { useAppUpdater } from '../context/UpdateContext';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   User as UserIcon, 
@@ -43,7 +44,8 @@ import {
   AlertTriangle,
   Image as ImageIcon,
   Edit3,
-  Plus
+  Plus,
+  Download
 } from 'lucide-react';
 
 interface MyTabProps {
@@ -260,6 +262,7 @@ export const MyTab: React.FC<MyTabProps> = ({
 
   const { t } = useTranslation(language);
   const cvt = getCustomVerifyT(language);
+  const { currentVersion, isChecking: isCheckingUpdate, manualFeedback, checkManually } = useAppUpdater();
 
   const localT = {
     en: {
@@ -1464,6 +1467,58 @@ export const MyTab: React.FC<MyTabProps> = ({
               <ChevronRight size={14} className="text-slate-300 group-hover:text-slate-500 transition-colors" />
             </button>
           )}
+
+          {/* Check for Updates - ALL USERS */}
+          <div className="space-y-1.5">
+            <button
+              type="button"
+              onClick={() => void checkManually()}
+              disabled={isCheckingUpdate}
+              className="w-full min-h-[56px] bg-white hover:bg-slate-50 disabled:opacity-75 text-slate-700 border border-slate-200/60 transition-all p-3.5 rounded-2xl flex items-center justify-between text-left shadow-2xs cursor-pointer group"
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-8 h-8 rounded-xl bg-[#1C2B2D]/10 text-[#1C2B2D] flex items-center justify-center shrink-0 border border-[#1C2B2D]/10 group-hover:bg-[#1C2B2D] group-hover:text-white transition-colors">
+                  {isCheckingUpdate ? (
+                    <RefreshCw size={14} className="animate-spin" />
+                  ) : (
+                    <Download size={14} />
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <span className="text-xs font-black block text-slate-700">
+                    {isCheckingUpdate ? 'Checking for Updates...' : 'Check for Updates'}
+                  </span>
+                  <span className="text-[10px] font-bold text-slate-400 tabular-nums block">
+                    Current version v{currentVersion}
+                  </span>
+                </div>
+              </div>
+              <ChevronRight size={14} className="text-slate-300 group-hover:text-slate-500 transition-colors shrink-0" />
+            </button>
+
+            {manualFeedback && (
+              <div
+                role="status"
+                aria-live="polite"
+                className={`px-3.5 py-2.5 rounded-xl text-[11px] font-bold border flex items-center gap-2 ${
+                  manualFeedback.tone === 'success'
+                    ? 'bg-emerald-50 text-emerald-800 border-emerald-200/80'
+                    : manualFeedback.tone === 'error'
+                      ? 'bg-red-50 text-red-700 border-red-200/80'
+                      : 'bg-slate-100 text-slate-600 border-slate-200/80'
+                }`}
+              >
+                {manualFeedback.tone === 'success' ? (
+                  <CheckCircle2 size={13} className="shrink-0 text-emerald-600" />
+                ) : manualFeedback.tone === 'error' ? (
+                  <AlertCircle size={13} className="shrink-0 text-red-500" />
+                ) : (
+                  <Clock size={13} className="shrink-0 text-slate-500" />
+                )}
+                <span>{manualFeedback.message}</span>
+              </div>
+            )}
+          </div>
 
           {/* Secure Sign Out - ALL USERS */}
           <button

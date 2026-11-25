@@ -29,7 +29,8 @@
         </provider>
     </application>
 
-    <!-- Permissions (strictly limited to required network capabilities) -->
+    <!-- Permissions (strictly limited to required network and in-app update install capabilities) -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 </manifest>
