@@ -33,12 +33,12 @@ function parseArgs(argv) {
     const token = argv[i];
     if (token.startsWith('--')) {
       const key = token.slice(2);
-      const next = argv[i + 1];
-      if (next && !next.startsWith('--')) {
-        args[key] = next;
+      const hasValue = i + 1 < argv.length && !argv[i + 1].startsWith('--');
+      if (hasValue) {
+        args[key] = argv[i + 1];
         i += 1;
       } else {
-        args[key] = 'true';
+        args[key] = '';
       }
     }
   }
@@ -88,6 +88,7 @@ function sanitizeNotes(rawNotes) {
 
     if (cleaned.length < 4 || cleaned.length > 140) continue;
     const lower = cleaned.toLowerCase();
+    if (['true', 'false', 'null', 'undefined', 'none', 'n/a'].includes(lower)) continue;
     if (forbidden.some((term) => lower.includes(term))) continue;
     if (/\b[0-9a-f]{7,64}\b/i.test(cleaned)) continue;
     if (/^(feat|fix|chore|ci|docs|refactor|style|test|perf|build)(\([^)]+\))?:\s*/i.test(cleaned)) continue;

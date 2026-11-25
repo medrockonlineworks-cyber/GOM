@@ -525,7 +525,7 @@ public class AppUpdaterPlugin extends Plugin {
         }
 
         if (!signatureMatched) {
-            throw new SecurityException("Update signature does not match the installed app.");
+            throw new SecurityException("This update was signed with a different key than your installed version. Please install the latest version once to enable automatic updates.");
         }
     }
 
@@ -557,11 +557,15 @@ public class AppUpdaterPlugin extends Plugin {
         List<Signature> signatures = new ArrayList<>();
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P && info.signingInfo != null) {
             SigningInfo signingInfo = info.signingInfo;
-            Signature[] signers = signingInfo.hasMultipleSigners()
-                    ? signingInfo.getApkContentsSigners()
-                    : signingInfo.getSigningCertificateHistory();
-            if (signers != null) {
-                Collections.addAll(signatures, signers);
+            Signature[] contentsSigners = signingInfo.getApkContentsSigners();
+            if (contentsSigners != null) {
+                Collections.addAll(signatures, contentsSigners);
+            }
+            if (!signingInfo.hasMultipleSigners()) {
+                Signature[] history = signingInfo.getSigningCertificateHistory();
+                if (history != null) {
+                    Collections.addAll(signatures, history);
+                }
             }
         }
         if (signatures.isEmpty()) {

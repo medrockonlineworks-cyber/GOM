@@ -328,8 +328,19 @@ function sanitizeReleaseNotes(body: string | null | undefined, repoSlug: string)
     if (stripped.length < 4 || stripped.length > 140) continue;
 
     const lower = stripped.toLowerCase();
-    // Skip generic section labels
-    if (lower === "what's new" || lower === 'whats new' || lower === 'release notes' || lower === 'changes') {
+    // Skip generic section labels or accidental placeholder values
+    if (
+      lower === "what's new" ||
+      lower === 'whats new' ||
+      lower === 'release notes' ||
+      lower === 'changes' ||
+      lower === 'true' ||
+      lower === 'false' ||
+      lower === 'null' ||
+      lower === 'undefined' ||
+      lower === 'none' ||
+      lower === 'n/a'
+    ) {
       continue;
     }
 
