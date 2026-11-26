@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "directory": "public/remote-images",
-  "generatedAt": "2026-11-26T08:54:20.759Z",
+  "generatedAt": "2026-11-26T09:25:27.723Z",
   "images": [
     {
       "name": "logo",
@@ -27,11 +27,11 @@
       "name": "market-alibaba",
       "fileName": "market-alibaba.svg",
       "path": "public/remote-images/market-alibaba.svg",
-      "version": 1,
-      "hash": "eafa2e8485afb4a3be467641fafcba7a01fac63b7685f6aedef06c41622f0643",
-      "size": 381,
+      "version": 2,
+      "hash": "66a1a46fdebd0c479b68bca55e1079a32ea5bb4c866d62086b044407a9186ebc",
+      "size": 2481,
       "mimeType": "image/svg+xml",
-      "updatedAt": "2026-11-26T08:39:41.541Z"
+      "updatedAt": "2026-11-26T09:25:27.723Z"
     },
     {
       "name": "market-amazon",
