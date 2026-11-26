@@ -1,17 +1,17 @@
 {
   "schemaVersion": 1,
   "directory": "public/remote-images",
-  "generatedAt": "2026-11-26T08:39:41.541Z",
+  "generatedAt": "2026-11-26T08:54:20.759Z",
   "images": [
     {
       "name": "logo",
       "fileName": "logo.png",
       "path": "public/remote-images/logo.png",
-      "version": 1,
-      "hash": "c2e709c982c9a6a09fb63c5ac2b4b2881bc262085da068bb2fcc445b490ac231",
-      "size": 80121,
+      "version": 2,
+      "hash": "4c876c10dd0aebf2be2dab25da2df077cd90fb639ab5713ffdb2df31cc3c79d8",
+      "size": 30901,
       "mimeType": "image/png",
-      "updatedAt": "2026-11-26T08:10:26.867Z"
+      "updatedAt": "2026-11-26T08:54:20.759Z"
     },
     {
       "name": "market-airbnb",
