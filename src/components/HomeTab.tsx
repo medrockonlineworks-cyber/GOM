@@ -464,17 +464,17 @@ export const HomeTab: React.FC<HomeTabProps> = ({
 
       {/* LIVE WITHDRAWAL TICKER (3 USERS, SLOW-MOTION BOTTOM-TO-TOP) */}
       <div className="bg-white border border-emerald-700/30 rounded-2xl shadow-sm overflow-hidden">
-        <div className="bg-emerald-800 px-4 py-3 flex items-center gap-3">
-          <div className="w-8 h-8 rounded-xl bg-white/15 flex items-center justify-center shrink-0">
-            <Volume2 className="text-white" size={18} />
+        <div className="bg-emerald-800 px-3.5 py-2 flex items-center gap-2">
+          <div className="w-6 h-6 rounded-lg bg-white/15 flex items-center justify-center shrink-0">
+            <Volume2 className="text-white" size={13} />
           </div>
-          <span className="text-[13px] font-black uppercase tracking-wider text-white">
+          <span className="text-[11px] font-black uppercase tracking-wider text-white">
             {t('congratulations')}
           </span>
         </div>
 
-        <div className="px-4 py-1">
-          <div className="relative h-[186px] overflow-hidden">
+        <div className="px-3.5 py-0.5">
+          <div className="relative h-[138px] overflow-hidden">
             <AnimatePresence initial={false} mode="popLayout">
               {tickerItems.map((item) => {
                 const isEthiopian = item.phone.trim().startsWith('+251');
@@ -489,24 +489,24 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                   <motion.div
                     key={item.id}
                     layout
-                    initial={{ y: 48, opacity: 0 }}
+                    initial={{ y: 38, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
-                    exit={{ y: -48, opacity: 0 }}
+                    exit={{ y: -38, opacity: 0 }}
                     transition={{ duration: 0.95, ease: [0.22, 1, 0.36, 1] }}
-                    className="h-[62px] flex items-center border-b border-slate-200 last:border-b-0"
+                    className="h-[46px] flex items-center border-b border-slate-200 last:border-b-0"
                   >
-                    <div className="text-[14px] font-bold text-slate-900 leading-snug line-clamp-2 w-full">
+                    <div className="text-[12px] font-bold text-slate-900 leading-snug line-clamp-2 w-full">
                       {parts.map((part, index) => {
                         if (part === '__PHONE__') {
                           return (
-                            <span key={index} className="text-slate-950 font-mono font-black tabular-nums">
+                            <span key={index} className="text-slate-950 font-mono font-extrabold tabular-nums">
                               {item.phone}
                             </span>
                           );
                         }
                         if (part === '__AMOUNT__') {
                           return (
-                            <span key={index} className="text-emerald-800 font-mono font-black tabular-nums text-[15px]">
+                            <span key={index} className="text-emerald-800 font-mono font-extrabold tabular-nums text-[12.5px]">
                               {amountStr}
                             </span>
                           );

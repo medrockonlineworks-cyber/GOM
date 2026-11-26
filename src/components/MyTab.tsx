@@ -1119,91 +1119,104 @@ export const MyTab: React.FC<MyTabProps> = ({
     <div className="flex-1 flex flex-col p-5 space-y-6 bg-slate-50">
       
       {/* 1. PROFESSIONAL HEADER PROFILE CARD */}
-      <div className="bg-white rounded-3xl p-5 shadow-xs border border-slate-200/60 flex items-center justify-between">
-        <div className="flex items-center gap-3.5">
-          <div 
-            onClick={openSettings}
-            className="relative w-13 h-13 bg-gradient-to-br from-deep-forest to-deep-forest-light text-white rounded-2xl flex items-center justify-center shadow-md shrink-0 border border-slate-700/10 overflow-hidden cursor-pointer group"
-            title="Profile photo (click to update)"
-          >
-            {currentUser.profileImage ? (
-              <img
-                src={currentUser.profileImage}
-                alt="Profile"
-                className="w-full h-full object-cover"
-                referrerPolicy="no-referrer"
-              />
-            ) : (
-              <UserIcon size={22} className="text-amber-400" />
-            )}
-            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
-              <Camera size={16} />
+      <div className="bg-white rounded-3xl p-5 shadow-xs border border-slate-200/60">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-start gap-3.5 min-w-0 flex-1">
+            <div 
+              onClick={openSettings}
+              className="relative w-14 h-14 bg-gradient-to-br from-deep-forest to-deep-forest-light text-white rounded-2xl flex items-center justify-center shadow-md shrink-0 border border-slate-700/10 overflow-hidden cursor-pointer group"
+              title="Profile photo (click to update)"
+            >
+              {currentUser.profileImage ? (
+                <img
+                  src={currentUser.profileImage}
+                  alt="Profile"
+                  className="w-full h-full object-cover"
+                  referrerPolicy="no-referrer"
+                />
+              ) : (
+                <UserIcon size={22} className="text-amber-400" />
+              )}
+              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
+                <Camera size={16} />
+              </div>
+              {/* Small camera badge */}
+              <div className="absolute bottom-0 right-0 bg-amber-500 text-white rounded-full p-0.5 shadow-xs border border-white">
+                <Camera size={8} />
+              </div>
             </div>
-            {/* Small camera badge */}
-            <div className="absolute bottom-0 right-0 bg-amber-500 text-white rounded-full p-0.5 shadow-xs border border-white">
-              <Camera size={8} />
+
+            <div className="min-w-0 flex-1 text-left pt-0.5">
+              <div className="inline-flex items-center gap-1 text-[10px] font-extrabold uppercase tracking-wider text-emerald-700 leading-none">
+                <ShieldCheck size={12} className="shrink-0" />
+                <span>{t('verifiedId')}</span>
+              </div>
+              {currentUser.username ? (
+                <>
+                  <h2 className="text-base font-black text-slate-900 leading-tight truncate mt-1">
+                    {currentUser.username}
+                  </h2>
+                  <p className="text-xs font-bold text-slate-600 tabular-nums mt-0.5">
+                    {formatUserPhoneId(currentUser.phoneNumber)}
+                  </p>
+                </>
+              ) : (
+                <h2 className="text-sm font-black text-slate-900 leading-tight tabular-nums mt-1">
+                  {formatUserPhoneId(currentUser.phoneNumber)}
+                </h2>
+              )}
+              <p className="text-[11px] text-slate-500 font-semibold mt-1">
+                {t('joined')}: {new Date(currentUser.createdAt).toLocaleDateString()}
+              </p>
             </div>
           </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="bg-emerald-50 text-emerald-700 border border-emerald-100 font-extrabold text-[8px] uppercase tracking-wider px-2 py-0.5 rounded-full inline-flex items-center gap-1">
-                <ShieldCheck size={10} /> {t('verifiedId')}
+
+          <button 
+            onClick={openSettings}
+            className="w-10 h-10 shrink-0 bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 transition-all rounded-xl border border-slate-200/60 cursor-pointer active:scale-95 flex items-center justify-center shadow-2xs group"
+            aria-label="Settings"
+            title="Account & Profile Settings"
+          >
+            <Settings size={18} className="group-hover:rotate-45 transition-transform duration-300" />
+          </button>
+        </div>
+
+        {/* Unique User ID & Invite Code cleanly aligned across card bottom */}
+        <div className="mt-3.5 pt-3 border-t border-slate-100 flex flex-wrap items-center gap-2">
+          <div className="inline-flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={handleCopyUserCode}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 hover:bg-slate-200/80 active:bg-slate-200 rounded-lg text-[11px] font-black text-slate-800 tracking-wider font-mono cursor-pointer transition-all border border-slate-200/70 group"
+              title="Click to copy ID"
+            >
+              <span>ID:{userUniqueCode}</span>
+              <Copy size={11} className="text-slate-400 group-hover:text-slate-700 transition-colors" />
+            </button>
+            {copiedId && (
+              <span className="text-[10px] font-bold text-emerald-700">
+                {t('copied') || 'Copied!'}
               </span>
-            </div>
-            {currentUser.username && (
-              <h2 className="text-base font-black text-slate-900 leading-tight truncate max-w-[200px] mt-0.5">
-                {currentUser.username}
-              </h2>
             )}
-            <h3 className={`text-xs font-bold text-slate-500 ${currentUser.username ? 'mt-0.5' : 'mt-1'}`}>
-              {formatUserPhoneId(currentUser.phoneNumber)}
-            </h3>
-            {/* Unique User ID & Invite Code aligned below phone number */}
-            <div className="flex flex-col items-start gap-1 mt-1">
-              <div className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={handleCopyUserCode}
-                  className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-slate-100 hover:bg-slate-200/80 active:bg-slate-200 rounded-md text-[11px] font-black text-slate-700 tracking-wider font-mono cursor-pointer transition-all border border-slate-200/70 shadow-2xs group"
-                  title="Click to copy ID"
-                >
-                  <span>ID:{userUniqueCode}</span>
-                  <Copy size={10} className="text-slate-400 group-hover:text-slate-600 transition-colors" />
-                </button>
-                {copiedId && (
-                  <span className="text-[9px] font-bold text-emerald-600">
-                    {t('copied') || 'Copied!'}
-                  </span>
-                )}
-              </div>
-              <div className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={handleCopyInviteCode}
-                  className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-slate-100 hover:bg-slate-200/80 active:bg-slate-200 rounded-md text-[11px] font-black text-slate-700 tracking-wider font-mono cursor-pointer transition-all border border-slate-200/70 shadow-2xs group"
-                  title="Click to copy Invite Code"
-                >
-                  <span>Invite:{userInviteCode}</span>
-                  <Copy size={10} className="text-slate-400 group-hover:text-slate-600 transition-colors" />
-                </button>
-                {copiedInviteCode && (
-                  <span className="text-[9px] font-bold text-emerald-600">
-                    {t('copied') || 'Copied!'}
-                  </span>
-                )}
-              </div>
-            </div>
-            <span className="text-[10px] text-slate-400 font-bold block mt-1">{t('joined')}: {new Date(currentUser.createdAt).toLocaleDateString()}</span>
+          </div>
+
+          <div className="inline-flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={handleCopyInviteCode}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 hover:bg-slate-200/80 active:bg-slate-200 rounded-lg text-[11px] font-black text-slate-800 tracking-wider font-mono cursor-pointer transition-all border border-slate-200/70 group"
+              title="Click to copy Invite Code"
+            >
+              <span>Invite:{userInviteCode}</span>
+              <Copy size={11} className="text-slate-400 group-hover:text-slate-700 transition-colors" />
+            </button>
+            {copiedInviteCode && (
+              <span className="text-[10px] font-bold text-emerald-700">
+                {t('copied') || 'Copied!'}
+              </span>
+            )}
           </div>
         </div>
-        <button 
-          onClick={openSettings}
-          className="bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 transition-all p-2.5 rounded-xl border border-slate-200/50 cursor-pointer active:scale-95 flex items-center justify-center shadow-2xs group"
-          aria-label="Settings"
-          title="Account & Profile Settings"
-        >
-          <Settings size={18} className="group-hover:rotate-45 transition-transform duration-300" />
-        </button>
       </div>
 
       {/* 2. WALLET ASSETS BOARD - PREMIUM STYLING */}
