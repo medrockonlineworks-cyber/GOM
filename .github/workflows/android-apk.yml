@@ -108,12 +108,6 @@ jobs:
       - name: Sync Capacitor Android project
         run: npx cap sync android
 
-      - name: Cache fallback debug keystore for consistent signing
-        uses: actions/cache@v4
-        with:
-          path: ~/.android/debug.keystore
-          key: android-debug-keystore-v1
-
       - name: Prepare signing keystore
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
@@ -126,23 +120,13 @@ jobs:
             echo "SIGNING_MODE=release_secret" >> "$GITHUB_ENV"
             echo "Release signing keystore prepared from GitHub Secrets."
           else
-            mkdir -p "$HOME/.android"
-            if [ ! -f "$HOME/.android/debug.keystore" ]; then
-              keytool -genkeypair -v \
-                -keystore "$HOME/.android/debug.keystore" \
-                -storepass android \
-                -alias androiddebugkey \
-                -keypass android \
-                -keyalg RSA \
-                -keysize 2048 \
-                -validity 10000 \
-                -dname "CN=Android Debug,O=Android,C=US"
-              echo "Generated persistent fallback debug keystore (will be cached for future builds)."
-            else
-              echo "Restored cached fallback debug keystore to preserve in-place update signature compatibility."
+            if [ ! -f "android/app/debug.keystore" ]; then
+              echo "ERROR: android/app/debug.keystore is missing and ANDROID_KEYSTORE_BASE64 secret is not set."
+              exit 1
             fi
             echo "ANDROID_KEYSTORE_PATH=" >> "$GITHUB_ENV"
-            echo "SIGNING_MODE=cached_debug" >> "$GITHUB_ENV"
+            echo "SIGNING_MODE=repo_debug_keystore" >> "$GITHUB_ENV"
+            echo "Using persistent android/app/debug.keystore for consistent in-place update signing."
           fi
 
       - name: Make Gradle wrapper executable
