@@ -1,18 +1,8 @@
 {
   "schemaVersion": 1,
   "directory": "public/remote-images",
-  "generatedAt": "2026-11-26T08:27:39.055Z",
+  "generatedAt": "2026-11-26T08:30:13.522Z",
   "images": [
-    {
-      "name": "IMG_20261121_163143_784",
-      "fileName": "IMG_20261121_163143_784.JPG",
-      "path": "public/remote-images/IMG_20261121_163143_784.JPG",
-      "version": 1,
-      "hash": "4049a9ea7a756b7237df42afcf5393ebdd22f4a8fb1647db2eaa428256400e60",
-      "size": 75142,
-      "mimeType": "image/jpeg",
-      "updatedAt": "2026-11-26T08:27:39.055Z"
-    },
     {
       "name": "logo",
       "fileName": "logo.png",
