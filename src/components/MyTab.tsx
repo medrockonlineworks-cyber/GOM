@@ -9,6 +9,7 @@ import { Transaction } from '../types';
 import { useTranslation, formatUserPhoneId, formatPhoneNumbersInText, maskAccountNumber } from '../utils/translations';
 import { getUserUniqueCode } from '../utils/security';
 import { useAppUpdater } from '../context/UpdateContext';
+import { BankLogoBadge, RemoteIcon } from './RemoteImage';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   User as UserIcon, 
@@ -1227,7 +1228,12 @@ export const MyTab: React.FC<MyTabProps> = ({
         
         <div className="flex justify-between items-center relative z-10">
           <div className="flex items-center gap-1.5">
-            <Wallet size={14} className="text-amber-400" />
+            <RemoteIcon
+              name="icon-wallet"
+              alt=""
+              className="w-3.5 h-3.5 object-contain"
+              fallback={<Wallet size={14} className="text-amber-400" />}
+            />
             <span className="text-[10px] text-slate-300 font-black tracking-widest uppercase">{t('walletBalance')}</span>
           </div>
         </div>
@@ -1246,13 +1252,25 @@ export const MyTab: React.FC<MyTabProps> = ({
             onClick={() => setRechargeModalOpen(true)}
             className="bg-bronze hover:bg-bronze-hover text-white font-black text-[10px] uppercase tracking-widest py-3 px-4 rounded-xl flex items-center justify-center gap-2 shadow-sm cursor-pointer transition-all active:scale-95 border border-bronze/20"
           >
-            <ArrowUpRight size={13} className="text-amber-200" /> {t('recharge')}
+            <RemoteIcon
+              name="icon-recharge"
+              alt=""
+              className="w-3.5 h-3.5 object-contain"
+              fallback={<ArrowUpRight size={13} className="text-amber-200" />}
+            />
+            {t('recharge')}
           </button>
           <button 
             onClick={() => setWithdrawModalOpen(true)}
             className="bg-slate-800/80 hover:bg-slate-800 border border-slate-700/50 text-white font-black text-[10px] uppercase tracking-widest py-3 px-4 rounded-xl flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-95"
           >
-            <ArrowDownLeft size={13} className="text-slate-400" /> {t('withdraw')}
+            <RemoteIcon
+              name="icon-withdraw"
+              alt=""
+              className="w-3.5 h-3.5 object-contain"
+              fallback={<ArrowDownLeft size={13} className="text-slate-400" />}
+            />
+            {t('withdraw')}
           </button>
         </div>
       </div>
@@ -1270,8 +1288,13 @@ export const MyTab: React.FC<MyTabProps> = ({
             className="w-full py-3 flex items-center justify-between group text-left cursor-pointer transition-colors hover:bg-slate-50/50 -mx-2 px-2 rounded-xl"
           >
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-xl bg-amber-50 text-bronze flex items-center justify-center shrink-0 border border-amber-100/50">
-                <ArrowUpRight size={15} />
+              <div className="w-8 h-8 rounded-xl bg-amber-50 text-bronze flex items-center justify-center shrink-0 border border-amber-100/50 overflow-hidden">
+                <RemoteIcon
+                  name="icon-recharge"
+                  alt=""
+                  className="w-4 h-4 object-contain"
+                  fallback={<ArrowUpRight size={15} />}
+                />
               </div>
               <div>
                 <span className="text-xs font-black text-slate-800 block">{t('rechargeHistory')}</span>
@@ -1291,8 +1314,13 @@ export const MyTab: React.FC<MyTabProps> = ({
             className="w-full py-3 flex items-center justify-between group text-left cursor-pointer transition-colors hover:bg-slate-50/50 -mx-2 px-2 rounded-xl"
           >
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-xl bg-slate-50 text-slate-600 flex items-center justify-center shrink-0 border border-slate-200/50">
-                <ArrowDownLeft size={15} />
+              <div className="w-8 h-8 rounded-xl bg-slate-50 text-slate-600 flex items-center justify-center shrink-0 border border-slate-200/50 overflow-hidden">
+                <RemoteIcon
+                  name="icon-withdraw"
+                  alt=""
+                  className="w-4 h-4 object-contain"
+                  fallback={<ArrowDownLeft size={15} />}
+                />
               </div>
               <div>
                 <span className="text-xs font-black text-slate-800 block">{t('withdrawalLogs')}</span>
@@ -1312,8 +1340,13 @@ export const MyTab: React.FC<MyTabProps> = ({
             className="w-full py-3 flex items-center justify-between group text-left cursor-pointer transition-colors hover:bg-slate-50/50 -mx-2 px-2 rounded-xl"
           >
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 border border-amber-100/50">
-                <Gift size={15} />
+              <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 border border-amber-100/50 overflow-hidden">
+                <RemoteIcon
+                  name="icon-gift"
+                  alt=""
+                  className="w-4 h-4 object-contain"
+                  fallback={<Gift size={15} />}
+                />
               </div>
               <div>
                 <span className="text-xs font-black text-slate-800 block">
@@ -1335,8 +1368,13 @@ export const MyTab: React.FC<MyTabProps> = ({
             className="w-full py-3 flex items-center justify-between group text-left cursor-pointer transition-colors hover:bg-slate-50/50 -mx-2 px-2 rounded-xl"
           >
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center shrink-0 border border-rose-100/50">
-                <Gift size={15} />
+              <div className="w-8 h-8 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center shrink-0 border border-rose-100/50 overflow-hidden">
+                <RemoteIcon
+                  name="icon-bonus"
+                  alt=""
+                  className="w-4 h-4 object-contain"
+                  fallback={<Gift size={15} />}
+                />
               </div>
               <div>
                 <span className="text-xs font-black text-slate-800 block">{localT[language].bonusRecords}</span>
@@ -1356,8 +1394,13 @@ export const MyTab: React.FC<MyTabProps> = ({
             className="w-full py-3 flex items-center justify-between group text-left cursor-pointer transition-colors hover:bg-slate-50/50 -mx-2 px-2 rounded-xl"
           >
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0 border border-indigo-100/50">
-                <History size={14} />
+              <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0 border border-indigo-100/50 overflow-hidden">
+                <RemoteIcon
+                  name="icon-history"
+                  alt=""
+                  className="w-4 h-4 object-contain"
+                  fallback={<History size={14} />}
+                />
               </div>
               <div>
                 <span className="text-xs font-black text-slate-800 block">{t('fullStatementLedger')}</span>
@@ -1377,8 +1420,13 @@ export const MyTab: React.FC<MyTabProps> = ({
             className="w-full py-3 flex items-center justify-between group text-left cursor-pointer transition-colors hover:bg-slate-50/50 -mx-2 px-2 rounded-xl"
           >
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 border border-emerald-100/50">
-                <FileSpreadsheet size={14} />
+              <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 border border-emerald-100/50 overflow-hidden">
+                <RemoteIcon
+                  name="icon-tasks"
+                  alt=""
+                  className="w-4 h-4 object-contain"
+                  fallback={<FileSpreadsheet size={14} />}
+                />
               </div>
               <div>
                 <span className="text-xs font-black text-slate-800 block">{t('taskMatchesList')}</span>
@@ -1399,9 +1447,18 @@ export const MyTab: React.FC<MyTabProps> = ({
               onClick={openWithdrawalAccountModal}
               className="flex items-center gap-3 flex-1 min-w-0 text-left cursor-pointer"
             >
-              <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center shrink-0 border border-amber-100/50">
-                <Landmark size={14} />
-              </div>
+              {currentUser.withdrawalBank ? (
+                <BankLogoBadge bankName={currentUser.withdrawalBank} size="md" className="!w-8 !h-8" />
+              ) : (
+                <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center shrink-0 border border-amber-100/50 overflow-hidden">
+                  <RemoteIcon
+                    name="icon-bank"
+                    alt=""
+                    className="w-4 h-4 object-contain"
+                    fallback={<Landmark size={14} />}
+                  />
+                </div>
+              )}
               <div className="min-w-0 flex-1">
                 <span className="text-xs font-black text-slate-800 block">
                   {currentUser.withdrawalAccNo ? localT[language].currentlyRegistered : localT[language].registerWithdrawal}
@@ -1610,8 +1667,11 @@ export const MyTab: React.FC<MyTabProps> = ({
                           tx.status === 'pending' ? 'cursor-pointer hover:border-amber-400 hover:shadow-md hover:-translate-y-0.5 active:scale-[0.98]' : ''
                         }`}
                       >
-                        <div className="space-y-1">
-                          <span className="block text-xs font-black text-slate-800">{tx.bankName}</span>
+                        <div className="space-y-1 min-w-0 pr-2">
+                          <div className="flex items-center gap-2">
+                            {tx.bankName && <BankLogoBadge bankName={tx.bankName} size="xs" />}
+                            <span className="block text-xs font-black text-slate-800 truncate">{tx.bankName}</span>
+                          </div>
                           <span className="block text-[10px] text-slate-400 font-medium">{t('refCode')}: {tx.accountNumberOrRef}</span>
                           <span className="block text-[9px] text-slate-400 flex items-center gap-0.5">
                             <Clock size={8} /> {new Date(tx.createdAt).toLocaleString()}
@@ -1666,8 +1726,11 @@ export const MyTab: React.FC<MyTabProps> = ({
                           }}
                           className="bg-white border border-slate-200/80 hover:border-amber-300 p-4 rounded-2xl shadow-xs hover:shadow-md cursor-pointer transition-all active:scale-[0.99] flex justify-between items-center"
                         >
-                          <div className="space-y-1">
-                            <span className="block text-xs font-black text-slate-800">{tx.bankName}</span>
+                          <div className="space-y-1 min-w-0 pr-2">
+                            <div className="flex items-center gap-2">
+                              {tx.bankName && <BankLogoBadge bankName={tx.bankName} size="xs" />}
+                              <span className="block text-xs font-black text-slate-800 truncate">{tx.bankName}</span>
+                            </div>
                             <span className="block text-[10px] text-slate-400 font-medium">{t('accountNumber')}: {maskAccountNumber(tx.accountNumberOrRef)}</span>
                             <span className="block text-[9px] text-slate-400 flex items-center gap-0.5">
                               <Clock size={8} /> {new Date(tx.createdAt).toLocaleString()}
@@ -2228,16 +2291,21 @@ export const MyTab: React.FC<MyTabProps> = ({
                       {isAccountRegistered && (
                         <div className="bg-amber-50/70 border border-amber-200/80 rounded-2xl p-3.5 space-y-2.5 transition-all">
                           <div className="flex items-center justify-between">
-                            <div className="min-w-0 pr-2">
-                              <span className="text-[9px] font-black uppercase tracking-wider text-amber-800 block">
-                                {localT[language].currentRegisteredAccount || 'Current Registered Account'}
-                              </span>
-                              <span className="text-xs font-bold text-slate-800 block mt-0.5 truncate">
-                                {currentUser.withdrawalBank}
-                              </span>
-                              <span className="text-[10px] font-mono text-slate-600 block truncate">
-                                {maskAccountNumber(currentUser.withdrawalAccNo || '')} {currentUser.withdrawalAccName ? `• ${currentUser.withdrawalAccName}` : ''}
-                              </span>
+                            <div className="flex items-center gap-2.5 min-w-0 pr-2">
+                              {currentUser.withdrawalBank && (
+                                <BankLogoBadge bankName={currentUser.withdrawalBank} size="md" />
+                              )}
+                              <div className="min-w-0">
+                                <span className="text-[9px] font-black uppercase tracking-wider text-amber-800 block">
+                                  {localT[language].currentRegisteredAccount || 'Current Registered Account'}
+                                </span>
+                                <span className="text-xs font-bold text-slate-800 block mt-0.5 truncate">
+                                  {currentUser.withdrawalBank}
+                                </span>
+                                <span className="text-[10px] font-mono text-slate-600 block truncate">
+                                  {maskAccountNumber(currentUser.withdrawalAccNo || '')} {currentUser.withdrawalAccName ? `• ${currentUser.withdrawalAccName}` : ''}
+                                </span>
+                              </div>
                             </div>
                             {!showRemoveConfirm && (
                               <button
@@ -2316,11 +2384,24 @@ export const MyTab: React.FC<MyTabProps> = ({
                         <button
                           type="button"
                           onClick={() => setShowBankDropdown(!showBankDropdown)}
-                          className="w-full bg-slate-50 border border-slate-200 hover:border-slate-300 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 rounded-xl px-4 py-2.5 text-xs text-slate-800 font-semibold flex items-center justify-between transition-all cursor-pointer"
+                          className="w-full bg-slate-50 border border-slate-200 hover:border-slate-300 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 rounded-xl px-3.5 py-2 text-xs text-slate-800 font-semibold flex items-center justify-between gap-2 transition-all cursor-pointer"
                         >
-                          <span className="truncate">
-                            {withdrawalBank || 'Select Bank / Method'}
-                          </span>
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            {withdrawalBank && (
+                              <BankLogoBadge
+                                bankName={withdrawalBank}
+                                fallbackFlag={
+                                  COUNTRY_LOCAL_METHODS.find(m => m.bank === withdrawalBank)?.flag ||
+                                  (ETH_BANKS.includes(withdrawalBank) ? '🇪🇹' : undefined)
+                                }
+                                fallbackIcon={INT_WITHDRAW_METHODS.includes(withdrawalBank) ? 'card' : 'bank'}
+                                size="sm"
+                              />
+                            )}
+                            <span className="truncate">
+                              {withdrawalBank || 'Select Bank / Method'}
+                            </span>
+                          </div>
                           {showBankDropdown ? (
                             <ChevronUp size={14} className="text-slate-400 shrink-0" />
                           ) : (
@@ -2332,7 +2413,7 @@ export const MyTab: React.FC<MyTabProps> = ({
                           <motion.div
                             initial={{ opacity: 0, y: -8 }}
                             animate={{ opacity: 1, y: 0 }}
-                            className="absolute left-0 right-0 mt-1 bg-white border border-slate-200/80 rounded-2xl shadow-xl z-30 max-h-52 overflow-y-auto p-1.5 space-y-1"
+                            className="absolute left-0 right-0 mt-1 bg-white border border-slate-200/80 rounded-2xl shadow-xl z-30 max-h-56 overflow-y-auto p-1.5 space-y-1"
                           >
                             {/* LOCAL METHODS */}
                             <div className="px-2.5 py-1 text-[8px] font-extrabold text-slate-400 uppercase tracking-widest bg-slate-50 rounded-lg">
@@ -2346,9 +2427,12 @@ export const MyTab: React.FC<MyTabProps> = ({
                                   return (
                                     <div
                                       key={`eth-${index}`}
-                                      className="w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center justify-between opacity-60 bg-slate-50/30 cursor-not-allowed select-none"
+                                      className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center justify-between gap-2 opacity-60 bg-slate-50/30 cursor-not-allowed select-none"
                                     >
-                                      <span className="text-slate-400">🇪🇹 {bank}</span>
+                                      <div className="flex items-center gap-2 min-w-0">
+                                        <BankLogoBadge bankName={bank} fallbackFlag="🇪🇹" size="sm" />
+                                        <span className="text-slate-400 truncate">{bank}</span>
+                                      </div>
                                       <span className="text-[8px] bg-amber-100 text-amber-800 font-extrabold uppercase px-1.5 py-0.5 rounded tracking-wider shrink-0">
                                         {localT[language].comingSoon}
                                       </span>
@@ -2363,11 +2447,14 @@ export const MyTab: React.FC<MyTabProps> = ({
                                       setWithdrawalBank(bank);
                                       setShowBankDropdown(false);
                                     }}
-                                    className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center justify-between hover:bg-slate-50 ${
+                                    className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center justify-between gap-2 hover:bg-slate-50 ${
                                       withdrawalBank === bank ? 'text-amber-600 bg-amber-50/40 font-black' : 'text-slate-600'
                                     }`}
                                   >
-                                    <span>🇪🇹 {bank}</span>
+                                    <div className="flex items-center gap-2 min-w-0">
+                                      <BankLogoBadge bankName={bank} fallbackFlag="🇪🇹" size="sm" />
+                                      <span className="truncate">{bank}</span>
+                                    </div>
                                     {withdrawalBank === bank && <Check size={12} className="text-amber-600 shrink-0" />}
                                   </button>
                                 );
@@ -2387,11 +2474,14 @@ export const MyTab: React.FC<MyTabProps> = ({
                                       setWithdrawalBank(method.bank);
                                       setShowBankDropdown(false);
                                     }}
-                                    className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center justify-between hover:bg-slate-50 ${
+                                    className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center justify-between gap-2 hover:bg-slate-50 ${
                                       withdrawalBank === method.bank ? 'text-amber-600 bg-amber-50/40 font-black' : 'text-slate-600'
                                     }`}
                                   >
-                                    <span>{method.flag} {method.bank}</span>
+                                    <div className="flex items-center gap-2 min-w-0">
+                                      <BankLogoBadge bankName={method.bank} fallbackFlag={method.flag} size="sm" />
+                                      <span className="truncate">{method.bank}</span>
+                                    </div>
                                     {withdrawalBank === method.bank && <Check size={12} className="text-amber-600 shrink-0" />}
                                   </button>
                                 ));
@@ -2405,9 +2495,12 @@ export const MyTab: React.FC<MyTabProps> = ({
                             {INT_WITHDRAW_METHODS.map((bank, index) => (
                               <div
                                 key={`int-${index}`}
-                                className="w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center justify-between opacity-60 bg-slate-50/30 cursor-not-allowed select-none"
+                                className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center justify-between gap-2 opacity-60 bg-slate-50/30 cursor-not-allowed select-none"
                               >
-                                <span className="text-slate-400">💳 {bank}</span>
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <BankLogoBadge bankName={bank} fallbackIcon="card" size="sm" />
+                                  <span className="text-slate-400 truncate">{bank}</span>
+                                </div>
                                 <span className="text-[8px] bg-amber-100 text-amber-800 font-extrabold uppercase px-1.5 py-0.5 rounded tracking-wider shrink-0">
                                   {localT[language].comingSoon}
                                 </span>

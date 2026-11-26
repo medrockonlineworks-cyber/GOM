@@ -44,13 +44,23 @@ function lookupImage(
   const normalized = key.replace(/^\/+/, '');
   const lower = normalized.toLowerCase();
 
-  return list.find(
+  const matches = list.filter(
     (img) =>
       img.name.toLowerCase() === lower ||
       img.fileName.toLowerCase() === lower ||
       img.path.toLowerCase() === lower ||
       `remote-images/${img.fileName}`.toLowerCase() === lower
   );
+
+  if (matches.length <= 1) return matches[0];
+
+  return [...matches].sort((a, b) => {
+    if (a.source !== b.source) return a.source === 'cache' ? -1 : 1;
+    const timeA = Date.parse(a.updatedAt || '') || 0;
+    const timeB = Date.parse(b.updatedAt || '') || 0;
+    if (timeA !== timeB) return timeB - timeA;
+    return (b.version || 0) - (a.version || 0);
+  })[0];
 }
 
 export const RemoteImagesProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {

@@ -18,6 +18,7 @@ import { HomeTab } from './components/HomeTab';
 import { OrdersTab } from './components/OrdersTab';
 import { MyTab } from './components/MyTab';
 import { AdminConsole } from './components/AdminConsole';
+import { BankLogoBadge, RemoteIcon } from './components/RemoteImage';
 import { getUserMinWithdrawETB, getUserRequiredOrderCount, isFixedMaterialUser, needsFixedLevelSelection } from './utils/materialModes';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -999,6 +1000,7 @@ function AppContent() {
       setWithdrawError('');
       setWithdrawSuccess(false);
       setLastWithdrawInfo(null);
+      setShowWithdrawBankDropdown(false);
       if (currentUser?.withdrawalBank && currentUser?.withdrawalAccNo) {
         setWithdrawBank(currentUser.withdrawalBank);
         setWithdrawAccNo(currentUser.withdrawalAccNo);
@@ -1027,6 +1029,7 @@ function AppContent() {
 
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [withdrawBank, setWithdrawBank] = useState('Commercial Bank of Ethiopia (CBE)');
+  const [showWithdrawBankDropdown, setShowWithdrawBankDropdown] = useState(false);
   const [withdrawAccNo, setWithdrawAccNo] = useState('');
   const [withdrawAccName, setWithdrawAccName] = useState('');
   const [withdrawError, setWithdrawError] = useState('');
@@ -1334,9 +1337,18 @@ function AppContent() {
       {/* APP TOP HERO UTILITY RAIL */}
       <header className="safe-top-header bg-deep-forest text-white shrink-0 shadow-md">
         <div className="h-14 flex items-center justify-between px-5">
-          <h1 className="text-base font-black tracking-widest uppercase text-white">
-            GOM
-          </h1>
+          <div className="flex items-center gap-2">
+            <RemoteIcon
+              name="icon-app"
+              aliases={['app-logo']}
+              alt="GOM"
+              className="w-7 h-7 rounded-lg object-contain bg-white/10 p-0.5"
+              fallback={null}
+            />
+            <h1 className="text-base font-black tracking-widest uppercase text-white">
+              GOM
+            </h1>
+          </div>
           <div className="flex items-center gap-2">
             <CurrencySelector />
             <LanguageSelector />
@@ -1405,7 +1417,12 @@ function AppContent() {
               activeTab === 'home' ? 'text-bronze scale-105 font-bold' : 'text-slate-400 hover:text-slate-600'
             }`}
           >
-            <HomeIcon size={18} />
+            <RemoteIcon
+              name="icon-home"
+              alt={t('home')}
+              className="w-[18px] h-[18px] object-contain"
+              fallback={<HomeIcon size={18} />}
+            />
             <span className="text-[10px] tracking-wide font-extrabold">{t('home')}</span>
             {activeTab === 'home' && (
               <motion.div layoutId="nav_indicator" className="absolute -bottom-1 w-8 h-1 bg-bronze rounded-full" />
@@ -1418,7 +1435,12 @@ function AppContent() {
               activeTab === 'orders' ? 'text-bronze scale-105 font-bold' : 'text-slate-400 hover:text-slate-600'
             }`}
           >
-            <ShoppingBag size={18} />
+            <RemoteIcon
+              name="icon-orders"
+              alt={t('orders')}
+              className="w-[18px] h-[18px] object-contain"
+              fallback={<ShoppingBag size={18} />}
+            />
             <span className="text-[10px] tracking-wide font-extrabold">{t('orders')}</span>
             {activeTab === 'orders' && (
               <motion.div layoutId="nav_indicator" className="absolute -bottom-1 w-8 h-1 bg-bronze rounded-full" />
@@ -1431,7 +1453,12 @@ function AppContent() {
               activeTab === 'my' ? 'text-bronze scale-105 font-bold' : 'text-slate-400 hover:text-slate-600'
             }`}
           >
-            <UserIcon size={18} />
+            <RemoteIcon
+              name="icon-my"
+              alt={t('my')}
+              className="w-[18px] h-[18px] object-contain"
+              fallback={<UserIcon size={18} />}
+            />
             <span className="text-[10px] tracking-wide font-extrabold">{t('my')}</span>
             {activeTab === 'my' && (
               <motion.div layoutId="nav_indicator" className="absolute -bottom-1 w-8 h-1 bg-bronze rounded-full" />
@@ -1571,8 +1598,13 @@ function AppContent() {
               ) : (
                 <>
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-2xl bg-amber-500/10 text-bronze flex items-center justify-center shrink-0 border border-amber-500/10">
-                      <ArrowUpRight size={22} />
+                    <div className="w-10 h-10 rounded-2xl bg-amber-500/10 text-bronze flex items-center justify-center shrink-0 border border-amber-500/10 overflow-hidden">
+                      <RemoteIcon
+                        name="icon-recharge"
+                        alt="Recharge"
+                        className="w-6 h-6 object-contain"
+                        fallback={<ArrowUpRight size={22} />}
+                      />
                     </div>
                     <div>
                       <h3 className="text-base font-black text-slate-800 tracking-tight">{t('ethiopianBankDeposit')}</h3>
@@ -1587,10 +1619,21 @@ function AppContent() {
                     <button
                       type="button"
                       onClick={() => setShowChannelDropdown(!showChannelDropdown)}
-                      className="w-full bg-slate-50 border border-slate-200 hover:border-slate-300 rounded-2xl px-4 py-3 text-xs text-slate-800 font-extrabold flex items-center justify-between transition-all cursor-pointer shadow-xs"
+                      className="w-full bg-slate-50 border border-slate-200 hover:border-slate-300 rounded-2xl px-3.5 py-2.5 text-xs text-slate-800 font-extrabold flex items-center justify-between gap-2 transition-all cursor-pointer shadow-xs"
                     >
-                      <div className="flex items-center gap-3">
-                        <span>{rechargeBank || t('selectBankAccount')}</span>
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        {rechargeBank && (
+                          <BankLogoBadge
+                            bankName={rechargeBank}
+                            fallbackFlag={
+                              COUNTRY_LOCAL_METHODS.find(m => m.bank === rechargeBank)?.flag ||
+                              (isEth && !INT_RECHARGE_METHODS.some(m => m.bank === rechargeBank) ? '🇪🇹' : undefined)
+                            }
+                            fallbackIcon={INT_RECHARGE_METHODS.some(m => m.bank === rechargeBank) ? 'card' : 'bank'}
+                            size="sm"
+                          />
+                        )}
+                        <span className="truncate">{rechargeBank || t('selectBankAccount')}</span>
                       </div>
                       {showChannelDropdown ? (
                         <ChevronUp size={16} className="text-slate-500 shrink-0" />
@@ -1603,7 +1646,7 @@ function AppContent() {
                       <motion.div
                         initial={{ opacity: 0, y: -8 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className="absolute left-0 right-0 mt-1.5 bg-white border border-slate-200/80 rounded-2xl shadow-xl z-30 max-h-56 overflow-y-auto p-1.5 space-y-2.5"
+                        className="absolute left-0 right-0 mt-1.5 bg-white border border-slate-200/80 rounded-2xl shadow-xl z-30 max-h-60 overflow-y-auto p-1.5 space-y-2.5"
                       >
                         {/* LOCAL METHODS GROUP */}
                         <div className="space-y-1">
@@ -1638,14 +1681,14 @@ function AppContent() {
                                           setRechargeBank(acc.bank);
                                           setShowChannelDropdown(false);
                                         }}
-                                        className={`w-full text-left px-3 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-between hover:bg-amber-50/60 cursor-pointer ${
+                                        className={`w-full text-left px-2.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-between gap-2 hover:bg-amber-50/60 cursor-pointer ${
                                           rechargeBank === acc.bank ? 'text-bronze bg-amber-100/50 font-black border border-amber-200/50' : 'text-slate-700'
                                         }`}
                                       >
-                                        <div className="flex items-center gap-2">
-                                          <span>🇪🇹</span>
-                                          <span>{acc.bank}</span>
-                                          <span className="text-[7.5px] font-black bg-emerald-100 text-emerald-800 border border-emerald-200 px-1.5 py-0.5 rounded-full uppercase">
+                                        <div className="flex items-center gap-2.5 min-w-0">
+                                          <BankLogoBadge bankName={acc.bank} fallbackFlag="🇪🇹" size="sm" />
+                                          <span className="truncate">{acc.bank}</span>
+                                          <span className="text-[7.5px] font-black bg-emerald-100 text-emerald-800 border border-emerald-200 px-1.5 py-0.5 rounded-full uppercase shrink-0">
                                             Local
                                           </span>
                                         </div>
@@ -1659,12 +1702,12 @@ function AppContent() {
                                       onClick={() => {
                                         alert('Telebirr payment method is currently unavailable for recharge. Please use Commercial Bank of Ethiopia (CBE).');
                                       }}
-                                      className="w-full text-left px-3 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-between bg-slate-50/80 text-slate-400 opacity-60 cursor-not-allowed border border-dashed border-slate-200/80"
+                                      className="w-full text-left px-2.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-between gap-2 bg-slate-50/80 text-slate-400 opacity-60 cursor-not-allowed border border-dashed border-slate-200/80"
                                     >
-                                      <div className="flex items-center gap-2">
-                                        <span>🇪🇹</span>
-                                        <span>Telebirr</span>
-                                        <span className="text-[7.5px] font-black bg-amber-50 text-amber-700 border border-amber-200/60 px-1.5 py-0.5 rounded-full uppercase">
+                                      <div className="flex items-center gap-2.5 min-w-0">
+                                        <BankLogoBadge bankName="Telebirr" fallbackFlag="🇪🇹" size="sm" />
+                                        <span className="truncate">Telebirr</span>
+                                        <span className="text-[7.5px] font-black bg-amber-50 text-amber-700 border border-amber-200/60 px-1.5 py-0.5 rounded-full uppercase shrink-0">
                                           Unavailable for now
                                         </span>
                                       </div>
@@ -1684,11 +1727,12 @@ function AppContent() {
                                     onClick={() => {
                                       alert('Unavailable for Ethiopia. Ethiopia has its own local payment methods (CBE / Telebirr).');
                                     }}
-                                    className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-between hover:bg-slate-50 text-slate-400 opacity-60 cursor-not-allowed"
+                                    className="w-full text-left px-2.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-between gap-2 hover:bg-slate-50 text-slate-400 opacity-60 cursor-not-allowed"
                                   >
-                                    <div className="flex items-center gap-2">
-                                      <span>{method.flag} {method.bank}</span>
-                                      <span className="text-[7px] font-extrabold bg-red-50 text-red-600 border border-red-200/50 px-1 py-0.5 rounded">
+                                    <div className="flex items-center gap-2 min-w-0">
+                                      <BankLogoBadge bankName={method.bank} fallbackFlag={method.flag} size="sm" />
+                                      <span className="truncate">{method.bank}</span>
+                                      <span className="text-[7px] font-extrabold bg-red-50 text-red-600 border border-red-200/50 px-1 py-0.5 rounded shrink-0">
                                         Unavailable for Ethiopia
                                       </span>
                                     </div>
@@ -1717,18 +1761,19 @@ function AppContent() {
                                       setRechargeBank(method.bank);
                                       setShowChannelDropdown(false);
                                     }}
-                                    className={`w-full text-left px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-between hover:bg-slate-50 ${
+                                    className={`w-full text-left px-2.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-between gap-2 hover:bg-slate-50 ${
                                       rechargeBank === method.bank ? 'text-bronze bg-amber-50/40 font-black' : 'text-slate-600'
                                     } ${!isAvailable ? 'opacity-40 cursor-not-allowed' : ''}`}
                                   >
-                                    <div className="flex items-center gap-2">
-                                      <span>{method.flag} {method.bank}</span>
+                                    <div className="flex items-center gap-2 min-w-0">
+                                      <BankLogoBadge bankName={method.bank} fallbackFlag={method.flag} size="sm" />
+                                      <span className="truncate">{method.bank}</span>
                                       {!isAvailable ? (
-                                        <span className="text-[7px] font-extrabold bg-slate-50 text-slate-500 border border-slate-200/50 px-1 py-0.5 rounded">
+                                        <span className="text-[7px] font-extrabold bg-slate-50 text-slate-500 border border-slate-200/50 px-1 py-0.5 rounded shrink-0">
                                           Restricted
                                         </span>
                                       ) : (
-                                        <span className="text-[7px] font-extrabold bg-emerald-50 text-emerald-600 border border-emerald-200/50 px-1 py-0.5 rounded">
+                                        <span className="text-[7px] font-extrabold bg-emerald-50 text-emerald-600 border border-emerald-200/50 px-1 py-0.5 rounded shrink-0">
                                           Local
                                         </span>
                                       )}
@@ -1760,14 +1805,15 @@ function AppContent() {
                                   setRechargeBank(method.bank);
                                   setShowChannelDropdown(false);
                                 }}
-                                className={`w-full text-left px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-between hover:bg-slate-50 ${
+                                className={`w-full text-left px-2.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-between gap-2 hover:bg-slate-50 ${
                                   rechargeBank === method.bank ? 'text-bronze bg-amber-50/40 font-black' : 'text-slate-600'
                                 } ${!isAvailable ? 'opacity-40 cursor-not-allowed' : ''}`}
                               >
-                                <div className="flex items-center gap-2">
-                                  <span>💳 {method.bank}</span>
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <BankLogoBadge bankName={method.bank} fallbackIcon="card" size="sm" />
+                                  <span className="truncate">{method.bank}</span>
                                   {!isAvailable && (
-                                    <span className="text-[7px] font-extrabold bg-red-50 text-red-600 border border-red-200/50 px-1 py-0.5 rounded">
+                                    <span className="text-[7px] font-extrabold bg-red-50 text-red-600 border border-red-200/50 px-1 py-0.5 rounded shrink-0">
                                       Unavailable for Ethiopia
                                     </span>
                                   )}
@@ -1823,20 +1869,28 @@ function AppContent() {
                         className="bg-gradient-to-br from-[#0c1f20] via-[#122b2d] to-[#081718] text-white p-4 rounded-2xl border border-emerald-500/30 shadow-xl relative overflow-hidden"
                       >
                         <div className="bg-black/50 border border-amber-500/20 rounded-xl p-3.5 space-y-3 backdrop-blur-md shadow-inner">
-                          {/* Row 1: Bank Name */}
-                          <div className="flex items-center justify-between text-xs pb-2.5 border-b border-white/10">
-                            <span className="text-slate-300 font-bold text-xs">
-                              Bank name :-
-                            </span>
-                            <div className="flex items-center gap-2">
-                              <span className="text-amber-300 font-black text-xs sm:text-sm tracking-wide text-right">
-                                Commercial Bank of Ethiopia
+                          {/* Row 1: Bank Name & Bank Logo */}
+                          <div className="flex items-center justify-between gap-2 text-xs pb-2.5 border-b border-white/10">
+                            <div className="flex items-center gap-2 shrink-0">
+                              <BankLogoBadge
+                                bankName={selectedAccount.bank}
+                                fallbackFlag="🇪🇹"
+                                size="md"
+                                variant="light"
+                              />
+                              <span className="text-slate-300 font-bold text-xs">
+                                Bank name :-
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className="text-amber-300 font-black text-xs sm:text-sm tracking-wide text-right truncate">
+                                {selectedAccount.bank}
                               </span>
                               <button
                                 type="button"
                                 onClick={() => {
-                                  navigator.clipboard.writeText('Commercial Bank of Ethiopia');
-                                  alert('Bank name copied: Commercial Bank of Ethiopia');
+                                  navigator.clipboard.writeText(selectedAccount.bank);
+                                  alert(`Bank name copied: ${selectedAccount.bank}`);
                                 }}
                                 className="p-1 rounded-md bg-white/10 hover:bg-white/20 text-slate-300 hover:text-amber-300 cursor-pointer transition-colors active:scale-95 shrink-0"
                                 title="Copy bank name"
@@ -1913,9 +1967,17 @@ function AppContent() {
                           </div>
                         ) : (
                           <div className="space-y-2">
-                            <span className="block text-[11px] font-black tracking-tight text-amber-400 uppercase">
-                              🌐 {selectedMethod.bank} Gateway
-                            </span>
+                            <div className="flex items-center gap-2.5">
+                              <BankLogoBadge
+                                bankName={selectedMethod.bank}
+                                fallbackIcon="card"
+                                size="sm"
+                                variant="light"
+                              />
+                              <span className="block text-[11px] font-black tracking-tight text-amber-400 uppercase">
+                                {selectedMethod.bank} Gateway
+                              </span>
+                            </div>
                             <p className="text-[10px] text-slate-300 leading-relaxed font-bold">
                               {selectedMethod.bank === 'Binance Pay (USDT)' 
                                 ? 'Transfer USDT directly to USDT-TRC20 Wallet Address. Verification is automated.' 
@@ -1988,9 +2050,17 @@ function AppContent() {
                         ) : (
                           <div className="flex justify-between items-center gap-4">
                             <div className="space-y-1 flex-1">
-                              <span className="block text-[11px] font-black tracking-tight text-amber-400 uppercase">
-                                {selectedMethod.flag} {selectedMethod.bank} (Local Agent)
-                              </span>
+                              <div className="flex items-center gap-2">
+                                <BankLogoBadge
+                                  bankName={selectedMethod.bank}
+                                  fallbackFlag={selectedMethod.flag}
+                                  size="sm"
+                                  variant="light"
+                                />
+                                <span className="block text-[11px] font-black tracking-tight text-amber-400 uppercase">
+                                  {selectedMethod.bank} (Local Agent)
+                                </span>
+                              </div>
                               <div className="space-y-0.5">
                                 <span className="block text-[8px] uppercase text-slate-400 font-bold">Transfer Account / Details</span>
                                 <span className="block text-sm font-mono font-bold text-white select-all">
@@ -2402,9 +2472,14 @@ function AppContent() {
                 </div>
               ) : (
                 <>
-                  <div className="flex items-center gap-2 mb-1">
-                    <div className="w-9 h-9 rounded-xl bg-amber-50 text-bronze flex items-center justify-center">
-                      <ArrowDownLeft size={20} />
+                  <div className="flex items-center gap-2.5 mb-1">
+                    <div className="w-9 h-9 rounded-xl bg-amber-50 text-bronze flex items-center justify-center overflow-hidden shrink-0">
+                      <RemoteIcon
+                        name="icon-withdraw"
+                        alt="Withdraw"
+                        className="w-5 h-5 object-contain"
+                        fallback={<ArrowDownLeft size={20} />}
+                      />
                     </div>
                     <div>
                       <h3 className="text-sm font-black text-slate-800">{t('withdrawalPayout')}</h3>
@@ -2478,43 +2553,148 @@ function AppContent() {
 
 
 
-                          <div>
+                          <div className="relative">
                             <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">{t('selectPayoutBank')}</label>
-                            <select
-                              value={withdrawBank}
+                            <button
+                              type="button"
                               disabled={isLocked}
-                              onChange={(e) => setWithdrawBank(e.target.value)}
-                              className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-bronze disabled:opacity-50"
+                              onClick={() => setShowWithdrawBankDropdown(!showWithdrawBankDropdown)}
+                              className="w-full bg-slate-50 border border-slate-200 hover:border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-800 font-bold flex items-center justify-between gap-2 focus:outline-none focus:ring-1 focus:ring-bronze disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-all"
                             >
-                              <optgroup label="📍 Local Payment Methods">
-                                {/* First show Ethiopian banks if user is Eth, or tag them as restricted otherwise */}
+                              <div className="flex items-center gap-2.5 min-w-0">
+                                {withdrawBank && (
+                                  <BankLogoBadge
+                                    bankName={withdrawBank}
+                                    fallbackFlag={
+                                      COUNTRY_LOCAL_METHODS.find(m => m.bank === withdrawBank)?.flag ||
+                                      (ETH_BANKS.includes(withdrawBank) ? '🇪🇹' : undefined)
+                                    }
+                                    fallbackIcon={INT_WITHDRAW_METHODS.includes(withdrawBank) ? 'card' : 'bank'}
+                                    size="sm"
+                                  />
+                                )}
+                                <span className="truncate">{withdrawBank || 'Select Bank / Method'}</span>
+                              </div>
+                              {showWithdrawBankDropdown ? (
+                                <ChevronUp size={15} className="text-slate-400 shrink-0" />
+                              ) : (
+                                <ChevronDown size={15} className="text-slate-400 shrink-0" />
+                              )}
+                            </button>
+
+                            {showWithdrawBankDropdown && !isLocked && (
+                              <motion.div
+                                initial={{ opacity: 0, y: -6 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className="absolute left-0 right-0 mt-1.5 bg-white border border-slate-200/80 rounded-2xl shadow-xl z-30 max-h-60 overflow-y-auto p-1.5 space-y-1"
+                              >
+                                <div className="px-2.5 py-1 text-[9px] font-extrabold text-slate-400 uppercase tracking-widest bg-slate-50 rounded-lg">
+                                  📍 Local Payment Methods
+                                </div>
+
                                 {ETH_BANKS.map((bank, index) => {
                                   const isComingSoon = ['United Bank (Hibret Bank)', 'Nib International Bank', 'Wegagen Bank'].includes(bank);
                                   return (
-                                    <option key={`eth-${index}`} value={bank} disabled={isComingSoon}>
-                                      🇪🇹 {bank} {isComingSoon ? '(Coming Soon)' : !isEth ? '(Unavailable for your region)' : ''}
-                                    </option>
+                                    <button
+                                      key={`eth-${index}`}
+                                      type="button"
+                                      disabled={isComingSoon}
+                                      onClick={() => {
+                                        if (isComingSoon) return;
+                                        setWithdrawBank(bank);
+                                        setShowWithdrawBankDropdown(false);
+                                      }}
+                                      className={`w-full text-left px-2.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-between gap-2 ${
+                                        isComingSoon
+                                          ? 'opacity-50 bg-slate-50/50 text-slate-400 cursor-not-allowed'
+                                          : withdrawBank === bank
+                                            ? 'text-bronze bg-amber-50/70 font-black border border-amber-200/50 cursor-pointer'
+                                            : 'text-slate-700 hover:bg-slate-50 cursor-pointer'
+                                      }`}
+                                    >
+                                      <div className="flex items-center gap-2.5 min-w-0">
+                                        <BankLogoBadge bankName={bank} fallbackFlag="🇪🇹" size="sm" />
+                                        <span className="truncate">{bank}</span>
+                                        {isComingSoon && (
+                                          <span className="text-[7.5px] font-extrabold bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded uppercase shrink-0">
+                                            Coming Soon
+                                          </span>
+                                        )}
+                                        {!isComingSoon && !isEth && (
+                                          <span className="text-[7.5px] font-extrabold bg-red-50 text-red-600 px-1.5 py-0.5 rounded shrink-0">
+                                            Unavailable
+                                          </span>
+                                        )}
+                                      </div>
+                                      {withdrawBank === bank && !isComingSoon && (
+                                        <Check size={13} className="text-bronze shrink-0" />
+                                      )}
+                                    </button>
                                   );
                                 })}
-                                {/* Next show other countries' local methods */}
+
                                 {COUNTRY_LOCAL_METHODS.map((method, index) => {
                                   const userCountry = getUserCountry(currentUser?.phoneNumber);
                                   const isAvailable = userCountry?.code === method.countryCode;
                                   return (
-                                    <option key={`other-local-${index}`} value={method.bank}>
-                                      {method.flag} {method.bank} {isEth ? '(Unavailable for Ethiopia)' : !isAvailable ? '(Unavailable for your region)' : '(Local)'}
-                                    </option>
+                                    <button
+                                      key={`other-local-${index}`}
+                                      type="button"
+                                      onClick={() => {
+                                        setWithdrawBank(method.bank);
+                                        setShowWithdrawBankDropdown(false);
+                                      }}
+                                      className={`w-full text-left px-2.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-between gap-2 hover:bg-slate-50 cursor-pointer ${
+                                        withdrawBank === method.bank
+                                          ? 'text-bronze bg-amber-50/70 font-black border border-amber-200/50'
+                                          : isEth || !isAvailable
+                                            ? 'text-slate-400 opacity-65'
+                                            : 'text-slate-700'
+                                      }`}
+                                    >
+                                      <div className="flex items-center gap-2.5 min-w-0">
+                                        <BankLogoBadge bankName={method.bank} fallbackFlag={method.flag} size="sm" />
+                                        <span className="truncate">{method.bank}</span>
+                                        {isEth ? (
+                                          <span className="text-[7px] font-extrabold bg-red-50 text-red-600 px-1 py-0.5 rounded shrink-0">
+                                            Unavailable for Ethiopia
+                                          </span>
+                                        ) : !isAvailable ? (
+                                          <span className="text-[7px] font-extrabold bg-slate-100 text-slate-500 px-1 py-0.5 rounded shrink-0">
+                                            Unavailable
+                                          </span>
+                                        ) : (
+                                          <span className="text-[7px] font-extrabold bg-emerald-50 text-emerald-700 px-1 py-0.5 rounded shrink-0">
+                                            Local
+                                          </span>
+                                        )}
+                                      </div>
+                                      {withdrawBank === method.bank && (
+                                        <Check size={13} className="text-bronze shrink-0" />
+                                      )}
+                                    </button>
                                   );
                                 })}
-                              </optgroup>
-                              <optgroup label="🌐 International / Crypto Methods">
+
+                                <div className="px-2.5 py-1 text-[9px] font-extrabold text-slate-400 uppercase tracking-widest bg-slate-50 rounded-lg mt-1">
+                                  🌐 International / Crypto Methods
+                                </div>
                                 {INT_WITHDRAW_METHODS.map((bank, index) => (
-                                  <option key={`int-${index}`} value={bank} disabled>
-                                    💳 {bank} (Coming Soon)
-                                  </option>
+                                  <div
+                                    key={`int-${index}`}
+                                    className="w-full text-left px-2.5 py-2 rounded-xl text-xs font-bold flex items-center justify-between gap-2 opacity-50 bg-slate-50/50 text-slate-400 cursor-not-allowed select-none"
+                                  >
+                                    <div className="flex items-center gap-2.5 min-w-0">
+                                      <BankLogoBadge bankName={bank} fallbackIcon="card" size="sm" />
+                                      <span className="truncate">{bank}</span>
+                                    </div>
+                                    <span className="text-[7.5px] font-extrabold bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded uppercase shrink-0">
+                                      Coming Soon
+                                    </span>
+                                  </div>
                                 ))}
-                              </optgroup>
-                            </select>
+                              </motion.div>
+                            )}
 
                             {INT_WITHDRAW_METHODS.includes(withdrawBank) && isEth && (
                               <div className="mt-1.5 p-2 bg-red-50 text-red-700 text-[9px] font-bold rounded-xl border border-red-100 leading-normal">

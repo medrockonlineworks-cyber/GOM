@@ -6,6 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { useRemoteImages } from '../context/RemoteImagesContext';
+import { RemoteIcon } from './RemoteImage';
 import { useTranslation, formatUserPhoneId } from '../utils/translations';
 import { getUserUniqueCode } from '../utils/security';
 import { getUserRequiredOrderCount } from '../utils/materialModes';
@@ -461,8 +462,13 @@ export const HomeTab: React.FC<HomeTabProps> = ({
           onClick={onOpenRechargeModal}
           className="flex flex-col items-center justify-center p-4 bg-amber-50 hover:bg-amber-100/60 rounded-2xl transition-all cursor-pointer border border-amber-100 shadow-xs"
         >
-          <div className="w-10 h-10 bg-bronze rounded-full mb-2 flex items-center justify-center text-white shadow-sm">
-            <ArrowUpRight size={18} />
+          <div className="w-10 h-10 bg-bronze rounded-full mb-2 flex items-center justify-center text-white shadow-sm overflow-hidden">
+            <RemoteIcon
+              name="icon-recharge"
+              alt="Recharge"
+              className="w-6 h-6 object-contain"
+              fallback={<ArrowUpRight size={18} />}
+            />
           </div>
           <span className="text-[11px] font-black uppercase tracking-wide text-deep-forest">{t('recharge')}</span>
         </button>
@@ -470,8 +476,13 @@ export const HomeTab: React.FC<HomeTabProps> = ({
           onClick={onOpenWithdrawModal}
           className="flex flex-col items-center justify-center p-4 bg-white hover:bg-slate-100 rounded-2xl transition-all cursor-pointer border border-slate-200/60 shadow-xs"
         >
-          <div className="w-10 h-10 bg-white border border-slate-200 rounded-full mb-2 flex items-center justify-center text-slate-600 shadow-sm">
-            <ArrowDownLeft size={18} />
+          <div className="w-10 h-10 bg-white border border-slate-200 rounded-full mb-2 flex items-center justify-center text-slate-600 shadow-sm overflow-hidden">
+            <RemoteIcon
+              name="icon-withdraw"
+              alt="Withdraw"
+              className="w-6 h-6 object-contain"
+              fallback={<ArrowDownLeft size={18} />}
+            />
           </div>
           <span className="text-[11px] font-black uppercase tracking-wide text-slate-700">{t('withdraw')}</span>
         </button>
@@ -480,8 +491,13 @@ export const HomeTab: React.FC<HomeTabProps> = ({
       {/* LIVE WITHDRAWAL TICKER (3 USERS, SLOW-MOTION BOTTOM-TO-TOP) */}
       <div className="bg-white border border-emerald-700/30 rounded-2xl shadow-sm overflow-hidden">
         <div className="bg-emerald-800 px-3.5 py-2 flex items-center gap-2">
-          <div className="w-6 h-6 rounded-lg bg-white/15 flex items-center justify-center shrink-0">
-            <Volume2 className="text-white" size={13} />
+          <div className="w-6 h-6 rounded-lg bg-white/15 flex items-center justify-center shrink-0 overflow-hidden">
+            <RemoteIcon
+              name="icon-congratulations"
+              alt=""
+              className="w-4 h-4 object-contain"
+              fallback={<Volume2 className="text-white" size={13} />}
+            />
           </div>
           <span className="text-[11px] font-black uppercase tracking-wider text-white">
             {t('congratulations')}
@@ -543,8 +559,13 @@ export const HomeTab: React.FC<HomeTabProps> = ({
           onClick={() => setIsAboutOpen(true)}
           className="flex flex-col items-center justify-center py-3 bg-white hover:bg-slate-50 rounded-2xl transition-all cursor-pointer border border-slate-200/60 shadow-xs"
         >
-          <div className="w-8 h-8 bg-emerald-50 rounded-full mb-1 flex items-center justify-center text-emerald-600 shadow-xs">
-            <Info size={15} />
+          <div className="w-8 h-8 bg-emerald-50 rounded-full mb-1 flex items-center justify-center text-emerald-600 shadow-xs overflow-hidden">
+            <RemoteIcon
+              name="icon-about"
+              alt="About Us"
+              className="w-5 h-5 object-contain"
+              fallback={<Info size={15} />}
+            />
           </div>
           <span className="text-[9px] font-black uppercase tracking-widest text-slate-600">{t('aboutUs')}</span>
         </button>
@@ -553,8 +574,13 @@ export const HomeTab: React.FC<HomeTabProps> = ({
           onClick={() => setIsTelegramOpen(true)}
           className="flex flex-col items-center justify-center py-3 bg-white hover:bg-slate-50 rounded-2xl transition-all cursor-pointer border border-slate-200/60 shadow-xs"
         >
-          <div className="w-8 h-8 bg-sky-50 rounded-full mb-1 flex items-center justify-center text-sky-500 shadow-xs">
-            <Send size={15} className="-rotate-12 translate-x-[-1px]" />
+          <div className="w-8 h-8 bg-sky-50 rounded-full mb-1 flex items-center justify-center text-sky-500 shadow-xs overflow-hidden">
+            <RemoteIcon
+              name="icon-support"
+              alt="Customer Support"
+              className="w-5 h-5 object-contain"
+              fallback={<Send size={15} className="-rotate-12 translate-x-[-1px]" />}
+            />
           </div>
           <span className="text-[9px] font-black uppercase tracking-widest text-slate-600">{t('customerSupport')}</span>
         </button>
@@ -563,8 +589,13 @@ export const HomeTab: React.FC<HomeTabProps> = ({
           onClick={() => setIsGiftOpen(true)}
           className="flex flex-col items-center justify-center py-3 bg-white hover:bg-slate-50 rounded-2xl transition-all cursor-pointer border border-slate-200/60 shadow-xs active:scale-98"
         >
-          <div className="w-8 h-8 bg-amber-50 rounded-full mb-1 flex items-center justify-center text-amber-600 shadow-xs">
-            <Gift size={15} />
+          <div className="w-8 h-8 bg-amber-50 rounded-full mb-1 flex items-center justify-center text-amber-600 shadow-xs overflow-hidden">
+            <RemoteIcon
+              name="icon-gift"
+              alt="Gift Box"
+              className="w-5 h-5 object-contain"
+              fallback={<Gift size={15} />}
+            />
           </div>
           <span className="text-[9px] font-black uppercase tracking-widest text-slate-600">{t('giftBox')}</span>
         </button>
