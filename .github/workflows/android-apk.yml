@@ -5,6 +5,8 @@ on:
     branches:
       - main
       - release
+    paths-ignore:
+      - 'public/remote-images/**'
   workflow_dispatch:
     inputs:
       version_name:
@@ -100,6 +102,8 @@ jobs:
         env:
           VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL || secrets.VITE_API_BASE_URL || '' }}
           VITE_GITHUB_REPO: ${{ env.UPDATE_REPO }}
+          VITE_GITHUB_IMAGES_REPO: ${{ github.repository }}
+          VITE_GITHUB_BRANCH: ${{ github.ref_name }}
         run: npm run build
 
       - name: Remove Node server bundle before syncing Android web assets

@@ -1,0 +1,45 @@
+name: Sync Remote Images Manifest
+
+on:
+  push:
+    branches:
+      - main
+      - release
+    paths:
+      - 'public/remote-images/**'
+      - '!public/remote-images/manifest.json'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update-remote-images-manifest:
+    name: Update public/remote-images/manifest.json
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Generate remote images manifest
+        run: node .github/scripts/generate-remote-images-manifest.mjs
+
+      - name: Commit updated manifest if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet public/remote-images/manifest.json && [ -z "$(git ls-files --others --exclude-standard public/remote-images/manifest.json)" ]; then
+            echo "No changes to public/remote-images/manifest.json."
+          else
+            git add public/remote-images/manifest.json
+            git commit -m "chore: update remote images manifest [skip ci]"
+            git push
+          fi

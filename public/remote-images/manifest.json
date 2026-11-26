@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "directory": "public/remote-images",
+  "generatedAt": "2026-11-26T08:10:26.867Z",
+  "images": [
+    {
+      "name": "logo",
+      "fileName": "logo.png",
+      "path": "public/remote-images/logo.png",
+      "version": 1,
+      "hash": "c2e709c982c9a6a09fb63c5ac2b4b2881bc262085da068bb2fcc445b490ac231",
+      "size": 80121,
+      "mimeType": "image/png",
+      "updatedAt": "2026-11-26T08:10:26.867Z"
+    }
+  ]
+}

@@ -6,6 +6,7 @@
 import React, { Component, useState } from 'react';
 import { AppProvider, useApp, EXCHANGE_RATES, isSamePhone } from './context/AppContext';
 import { UpdateProvider } from './context/UpdateContext';
+import { RemoteImagesProvider } from './context/RemoteImagesContext';
 import { useTranslation, maskAccountNumber } from './utils/translations';
 import { isNativePlatform, useNetworkStatus } from './utils/capacitor';
 import LanguageSelector from './components/LanguageSelector';
@@ -2928,10 +2929,12 @@ export default function App() {
     <ErrorBoundary>
       <AppProvider>
         <UpdateProvider>
-          <MobileFrame>
-            <OfflineBanner />
-            <AppContent />
-          </MobileFrame>
+          <RemoteImagesProvider>
+            <MobileFrame>
+              <OfflineBanner />
+              <AppContent />
+            </MobileFrame>
+          </RemoteImagesProvider>
         </UpdateProvider>
       </AppProvider>
     </ErrorBoundary>
