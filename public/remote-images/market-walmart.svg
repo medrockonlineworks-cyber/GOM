@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 56" role="img" aria-label="Walmart">
+  <text x="76" y="36" text-anchor="middle" font-family="Plus Jakarta Sans, Arial, Helvetica, sans-serif" font-weight="800" font-size="25" letter-spacing="-0.5" fill="#0071DC">Walmart</text>
+  <g transform="translate(143, 28)" stroke="#FFC220" stroke-width="3.6" stroke-linecap="round">
+    <line x1="0" y1="-12" x2="0" y2="-5.5"/>
+    <line x1="0" y1="5.5" x2="0" y2="12"/>
+    <line x1="-10.4" y1="-6" x2="-4.8" y2="-2.8"/>
+    <line x1="4.8" y1="2.8" x2="10.4" y2="6"/>
+    <line x1="-10.4" y1="6" x2="-4.8" y2="2.8"/>
+    <line x1="4.8" y1="-2.8" x2="10.4" y2="-6"/>
+  </g>
+</svg>

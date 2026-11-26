@@ -5,6 +5,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
+import { useRemoteImages } from '../context/RemoteImagesContext';
 import { useTranslation, formatUserPhoneId } from '../utils/translations';
 import { getUserUniqueCode } from '../utils/security';
 import { getUserRequiredOrderCount } from '../utils/materialModes';
@@ -40,6 +41,10 @@ import {
 
 const MarketplaceLogoCell: React.FC<{ src: string; alt: string; brandKey: string }> = ({ src, alt, brandKey }) => {
   const [hasError, setHasError] = useState(false);
+
+  useEffect(() => {
+    setHasError(false);
+  }, [src]);
 
   // If the image failed to load or the URL is empty/non-existent, show a highly polished CSS fallback
   if (hasError || !src) {
@@ -84,9 +89,18 @@ const MarketplaceLogoCell: React.FC<{ src: string; alt: string; brandKey: string
             </span>
           </div>
         );
+      case 'ebay':
+        return (
+          <div className="flex items-center justify-center select-none font-black text-[15px] tracking-tighter py-1">
+            <span className="text-[#E53238]">e</span>
+            <span className="text-[#0064D2]">b</span>
+            <span className="text-[#F5AF02]">a</span>
+            <span className="text-[#86B817]">y</span>
+          </div>
+        );
       default:
         return (
-          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{alt}</span>
+          <span className="text-[10px] font-black text-slate-600 uppercase tracking-wider text-center leading-tight">{alt}</span>
         );
     }
   }
@@ -207,6 +221,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
     redeemGiftCode,
     transactions
   } = useApp();
+  const { images: remoteImages, getImageEntry: getRemoteImageEntry } = useRemoteImages();
   const { t } = useTranslation(language);
   const [announcementIndex, setAnnouncementIndex] = useState(0);
   const tickerSeqRef = React.useRef(3);
@@ -555,7 +570,64 @@ export const HomeTab: React.FC<HomeTabProps> = ({
         </button>
       </div>
 
+      {/* PARTNER MARKETPLACE LOGOS (GITHUB REMOTE-IMAGES BACKED) */}
+      {(() => {
+        const defaultMarkets = [
+          { key: 'amazon', label: 'Amazon', remoteName: 'market-amazon', fallbackPath: '/remote-images/market-amazon.svg' },
+          { key: 'walmart', label: 'Walmart', remoteName: 'market-walmart', fallbackPath: '/remote-images/market-walmart.svg' },
+          { key: 'alibaba', label: 'Alibaba', remoteName: 'market-alibaba', fallbackPath: '/remote-images/market-alibaba.svg' },
+          { key: 'shopify', label: 'Shopify', remoteName: 'market-shopify', fallbackPath: '/remote-images/market-shopify.svg' },
+          { key: 'airbnb', label: 'Airbnb', remoteName: 'market-airbnb', fallbackPath: '/remote-images/market-airbnb.svg' },
+          { key: 'ebay', label: 'eBay', remoteName: 'market-ebay', fallbackPath: '/remote-images/market-ebay.svg' },
+        ];
 
+        const knownNames = new Set(defaultMarkets.map((m) => m.remoteName));
+        const extraRemoteMarkets = remoteImages
+          .filter((img) => img.name.toLowerCase().startsWith('market-') && !knownNames.has(img.name.toLowerCase()))
+          .map((img) => {
+            const rawKey = img.name.replace(/^market-/i, '');
+            const prettyLabel = rawKey
+              .replace(/[-_]+/g, ' ')
+              .replace(/\b\w/g, (ch) => ch.toUpperCase());
+            return {
+              key: rawKey.toLowerCase(),
+              label: prettyLabel || 'Partner',
+              remoteName: img.name,
+              fallbackPath: img.url,
+            };
+          });
+
+        const allMarkets = [...defaultMarkets, ...extraRemoteMarkets];
+
+        return (
+          <div className="bg-white border border-slate-200/70 rounded-2xl p-3 shadow-xs">
+            <div className="grid grid-cols-3 gap-2.5">
+              {allMarkets.map((market) => {
+                const remoteEntry = getRemoteImageEntry(market.remoteName);
+                const adminCustomLogo =
+                  marketplaceLogos?.[market.key] &&
+                  !marketplaceLogos[market.key].includes('vectorlogo.zone')
+                    ? marketplaceLogos[market.key]
+                    : '';
+                const resolvedSrc = remoteEntry?.url || adminCustomLogo || market.fallbackPath;
+
+                return (
+                  <div
+                    key={market.key}
+                    className="h-14 rounded-xl bg-slate-50 border border-slate-200/70 flex items-center justify-center p-2.5 overflow-hidden group"
+                  >
+                    <MarketplaceLogoCell
+                      src={resolvedSrc}
+                      alt={market.label}
+                      brandKey={market.key}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* COMPANY ANNOUNCEMENTS CAROUSEL IN DESIGN THEME */}
       {activeAnnouncements.length > 0 && (

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "directory": "public/remote-images",
-  "generatedAt": "2026-11-26T08:30:13.522Z",
+  "generatedAt": "2026-11-26T08:39:41.541Z",
   "images": [
     {
       "name": "logo",
@@ -12,6 +12,66 @@
       "size": 80121,
       "mimeType": "image/png",
       "updatedAt": "2026-11-26T08:10:26.867Z"
+    },
+    {
+      "name": "market-airbnb",
+      "fileName": "market-airbnb.svg",
+      "path": "public/remote-images/market-airbnb.svg",
+      "version": 1,
+      "hash": "0e7c8c18a3987bfec6a125e476c8cc22d8dab1e9ef83b55b9e70597d718d3f8e",
+      "size": 621,
+      "mimeType": "image/svg+xml",
+      "updatedAt": "2026-11-26T08:39:41.541Z"
+    },
+    {
+      "name": "market-alibaba",
+      "fileName": "market-alibaba.svg",
+      "path": "public/remote-images/market-alibaba.svg",
+      "version": 1,
+      "hash": "eafa2e8485afb4a3be467641fafcba7a01fac63b7685f6aedef06c41622f0643",
+      "size": 381,
+      "mimeType": "image/svg+xml",
+      "updatedAt": "2026-11-26T08:39:41.541Z"
+    },
+    {
+      "name": "market-amazon",
+      "fileName": "market-amazon.svg",
+      "path": "public/remote-images/market-amazon.svg",
+      "version": 1,
+      "hash": "597fc5ea149f0b2e204456989a8ec4fbb675310b65b2aa6a27a33e3084a4799b",
+      "size": 537,
+      "mimeType": "image/svg+xml",
+      "updatedAt": "2026-11-26T08:39:41.541Z"
+    },
+    {
+      "name": "market-ebay",
+      "fileName": "market-ebay.svg",
+      "path": "public/remote-images/market-ebay.svg",
+      "version": 1,
+      "hash": "6377e0ba0d1f78b5dc4abe44d885dd5a752248be19d16acfd312be9460e704c0",
+      "size": 398,
+      "mimeType": "image/svg+xml",
+      "updatedAt": "2026-11-26T08:39:41.541Z"
+    },
+    {
+      "name": "market-shopify",
+      "fileName": "market-shopify.svg",
+      "path": "public/remote-images/market-shopify.svg",
+      "version": 1,
+      "hash": "53ed3b6540a0cfb8173156de3d64d2a18cb81444db2e5d8832dfbe32f6f82882",
+      "size": 665,
+      "mimeType": "image/svg+xml",
+      "updatedAt": "2026-11-26T08:39:41.541Z"
+    },
+    {
+      "name": "market-walmart",
+      "fileName": "market-walmart.svg",
+      "path": "public/remote-images/market-walmart.svg",
+      "version": 1,
+      "hash": "b1bd4014cd75a38f00e584d0782a207c61ada325fb8d086f5d81051e03768869",
+      "size": 678,
+      "mimeType": "image/svg+xml",
+      "updatedAt": "2026-11-26T08:39:41.541Z"
     }
   ]
 }
