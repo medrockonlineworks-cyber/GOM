@@ -5,6 +5,12 @@ def resolvedVersionName = (project.findProperty("APP_VERSION_NAME") ?: System.ge
 def resolvedUpdateRepo = (project.findProperty("GITHUB_UPDATE_REPO") ?: System.getenv("GITHUB_UPDATE_REPO") ?: "").toString().trim().replaceAll(/[^A-Za-z0-9_.\/-]/, "")
 def releaseKeystorePath = System.getenv("ANDROID_KEYSTORE_PATH")
 def hasReleaseKeystore = releaseKeystorePath != null && !releaseKeystorePath.trim().isEmpty() && file(releaseKeystorePath).exists()
+def debugKeystoreFile = file('debug.keystore')
+def debugKeystoreB64File = file('debug-keystore.b64')
+if (!debugKeystoreFile.exists() && debugKeystoreB64File.exists()) {
+    def cleanB64 = debugKeystoreB64File.getText('UTF-8').replaceAll('\\s+', '')
+    debugKeystoreFile.bytes = java.util.Base64.decoder.decode(cleanB64)
+}
 
 android {
     namespace = "com.gom.globalonlinemarket"
