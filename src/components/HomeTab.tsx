@@ -241,6 +241,31 @@ export const HomeTab: React.FC<HomeTabProps> = ({
     return () => clearInterval(interval);
   }, []);
 
+  // GitHub remote banner(s) behind the top Welcome / Account section above Wallet Balance
+  const [failedBannerUrls, setFailedBannerUrls] = useState<string[]>([]);
+  const [activeBannerIndex, setActiveBannerIndex] = useState(0);
+
+  const welcomeBanners = React.useMemo(() => {
+    const bannerPattern = /^((welcome|home|header)[-_]?banner.*|banner\d*)$/i;
+    return remoteImages
+      .filter((img) => bannerPattern.test(img.name.trim()) && !failedBannerUrls.includes(img.url))
+      .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
+  }, [remoteImages, failedBannerUrls]);
+
+  useEffect(() => {
+    setActiveBannerIndex(0);
+  }, [welcomeBanners.length]);
+
+  useEffect(() => {
+    if (welcomeBanners.length <= 1) return;
+    const timer = window.setInterval(() => {
+      setActiveBannerIndex((prev) => (prev + 1) % welcomeBanners.length);
+    }, 5000);
+    return () => window.clearInterval(timer);
+  }, [welcomeBanners.length]);
+
+  const activeWelcomeBanner = welcomeBanners[activeBannerIndex] || welcomeBanners[0] || null;
+
   // Local modals state
   const [isAboutOpen, setIsAboutOpen] = useState(false);
   const [isTelegramOpen, setIsTelegramOpen] = useState(false);
@@ -404,10 +429,40 @@ export const HomeTab: React.FC<HomeTabProps> = ({
   return (
     <div className="flex-1 flex flex-col p-5 space-y-5 bg-alabaster">
       
-      {/* HEADER SECTION */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-full bg-amber-50 flex items-center justify-center border border-amber-200/50 overflow-hidden shrink-0">
+      {/* HEADER SECTION (OPTIONAL GITHUB BANNER BEHIND WELCOME / ACCOUNT) */}
+      <div
+        className={
+          activeWelcomeBanner
+            ? 'relative rounded-2xl overflow-hidden px-4 py-4 shadow-sm border border-slate-900/10 min-h-[104px] flex items-center justify-between'
+            : 'flex items-center justify-between'
+        }
+      >
+        {activeWelcomeBanner && (
+          <>
+            <img
+              key={activeWelcomeBanner.url}
+              src={activeWelcomeBanner.url}
+              alt="Welcome Banner"
+              className="absolute inset-0 w-full h-full object-cover"
+              referrerPolicy="no-referrer"
+              onError={() => {
+                setFailedBannerUrls((prev) =>
+                  prev.includes(activeWelcomeBanner.url) ? prev : [...prev, activeWelcomeBanner.url]
+                );
+              }}
+            />
+            <div className="absolute inset-0 bg-gradient-to-r from-slate-950/80 via-slate-950/50 to-slate-950/20 pointer-events-none" />
+          </>
+        )}
+
+        <div className="relative z-10 flex items-center gap-3 min-w-0">
+          <div
+            className={`w-10 h-10 rounded-full flex items-center justify-center border overflow-hidden shrink-0 ${
+              activeWelcomeBanner
+                ? 'bg-white/90 border-white/60 shadow-sm'
+                : 'bg-amber-50 border-amber-200/50'
+            }`}
+          >
             {currentUser.profileImage ? (
               <img
                 src={currentUser.profileImage}
@@ -421,21 +476,55 @@ export const HomeTab: React.FC<HomeTabProps> = ({
               </span>
             )}
           </div>
-          <div>
-            <span className="block text-[10px] text-slate-400 font-bold uppercase tracking-wider">{t('welcome')},</span>
+          <div className="min-w-0">
+            <span
+              className={`block text-[10px] font-bold uppercase tracking-wider ${
+                activeWelcomeBanner ? 'text-amber-300 drop-shadow-xs' : 'text-slate-400'
+              }`}
+            >
+              {t('welcome')},
+            </span>
             {currentUser.username && (
-              <span className="block text-sm font-black text-slate-900 leading-tight truncate max-w-[200px] mt-0.5">
+              <span
+                className={`block text-sm font-black leading-tight truncate max-w-[210px] mt-0.5 ${
+                  activeWelcomeBanner ? 'text-white drop-shadow-xs' : 'text-slate-900'
+                }`}
+              >
                 {currentUser.username}
               </span>
             )}
-            <span className={`block text-xs font-bold text-slate-600 leading-tight ${currentUser.username ? 'mt-0.5' : 'mt-1'}`}>
+            <span
+              className={`block text-xs font-bold leading-tight ${currentUser.username ? 'mt-0.5' : 'mt-1'} ${
+                activeWelcomeBanner ? 'text-white/90 drop-shadow-xs' : 'text-slate-600'
+              }`}
+            >
               {formatUserPhoneId(currentUser.phoneNumber)}
             </span>
-            <span className="inline-block text-[10px] font-black text-slate-500 font-mono tracking-wider mt-0.5">
+            <span
+              className={`inline-block text-[10px] font-black font-mono tracking-wider mt-0.5 ${
+                activeWelcomeBanner ? 'text-white/85 drop-shadow-xs' : 'text-slate-500'
+              }`}
+            >
               ID:{getUserUniqueCode(currentUser)}
             </span>
           </div>
         </div>
+
+        {activeWelcomeBanner && welcomeBanners.length > 1 && (
+          <div className="absolute bottom-2 right-3 z-10 flex items-center gap-1">
+            {welcomeBanners.map((b, idx) => (
+              <button
+                key={b.path}
+                type="button"
+                aria-label={`Banner ${idx + 1}`}
+                onClick={() => setActiveBannerIndex(idx)}
+                className={`h-1.5 rounded-full transition-all cursor-pointer ${
+                  idx === activeBannerIndex ? 'w-4 bg-amber-400' : 'w-1.5 bg-white/50 hover:bg-white/80'
+                }`}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
       {/* PREMIUM FINTECH GRADIENT WALLET CARD */}

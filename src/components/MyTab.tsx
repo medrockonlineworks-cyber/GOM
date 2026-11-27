@@ -9,6 +9,7 @@ import { Transaction } from '../types';
 import { useTranslation, formatUserPhoneId, formatPhoneNumbersInText, maskAccountNumber } from '../utils/translations';
 import { getUserUniqueCode } from '../utils/security';
 import { useAppUpdater } from '../context/UpdateContext';
+import { useRemoteImages } from '../context/RemoteImagesContext';
 import { BankLogoBadge, RemoteIcon } from './RemoteImage';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -264,6 +265,8 @@ export const MyTab: React.FC<MyTabProps> = ({
   const { t } = useTranslation(language);
   const cvt = getCustomVerifyT(language);
   const { currentVersion, isChecking: isCheckingUpdate, manualFeedback, checkManually } = useAppUpdater();
+  const { getImageEntry: getRemoteImageEntry } = useRemoteImages();
+  const [failedAccountBannerUrl, setFailedAccountBannerUrl] = useState<string | null>(null);
 
   const localT = {
     en: {
@@ -1116,12 +1119,44 @@ export const MyTab: React.FC<MyTabProps> = ({
     }
   };
 
+  const accountBannerEntry =
+    getRemoteImageEntry('account-banner') ||
+    getRemoteImageEntry('profile-banner') ||
+    getRemoteImageEntry('welcome-banner') ||
+    getRemoteImageEntry('home-banner') ||
+    getRemoteImageEntry('header-banner') ||
+    getRemoteImageEntry('banner1') ||
+    getRemoteImageEntry('banner');
+  const activeAccountBannerUrl =
+    accountBannerEntry?.url && accountBannerEntry.url !== failedAccountBannerUrl
+      ? accountBannerEntry.url
+      : '';
+
   return (
     <div className="flex-1 flex flex-col p-5 space-y-6 bg-slate-50">
       
-      {/* 1. PROFESSIONAL HEADER PROFILE CARD */}
-      <div className="bg-white rounded-3xl p-5 shadow-xs border border-slate-200/60">
-        <div className="flex items-start justify-between gap-3">
+      {/* 1. PROFESSIONAL HEADER PROFILE CARD (WITH OPTIONAL GITHUB ACCOUNT BANNER) */}
+      <div
+        className={
+          activeAccountBannerUrl
+            ? 'relative rounded-3xl p-5 shadow-md border border-slate-900/15 overflow-hidden'
+            : 'bg-white rounded-3xl p-5 shadow-xs border border-slate-200/60'
+        }
+      >
+        {activeAccountBannerUrl && (
+          <>
+            <img
+              src={activeAccountBannerUrl}
+              alt="Account Banner"
+              className="absolute inset-0 w-full h-full object-cover"
+              referrerPolicy="no-referrer"
+              onError={() => setFailedAccountBannerUrl(activeAccountBannerUrl)}
+            />
+            <div className="absolute inset-0 bg-gradient-to-br from-slate-950/80 via-slate-950/55 to-slate-950/35 pointer-events-none" />
+          </>
+        )}
+
+        <div className="relative z-10 flex items-start justify-between gap-3">
           <div className="flex items-start gap-3.5 min-w-0 flex-1">
             <div 
               onClick={openSettings}
@@ -1148,25 +1183,45 @@ export const MyTab: React.FC<MyTabProps> = ({
             </div>
 
             <div className="min-w-0 flex-1 text-left pt-0.5">
-              <div className="inline-flex items-center gap-1 text-[10px] font-extrabold uppercase tracking-wider text-emerald-700 leading-none">
+              <div
+                className={`inline-flex items-center gap-1 text-[10px] font-extrabold uppercase tracking-wider leading-none ${
+                  activeAccountBannerUrl ? 'text-emerald-300 drop-shadow-xs' : 'text-emerald-700'
+                }`}
+              >
                 <ShieldCheck size={12} className="shrink-0" />
                 <span>{t('verifiedId')}</span>
               </div>
               {currentUser.username ? (
                 <>
-                  <h2 className="text-base font-black text-slate-900 leading-tight truncate mt-1">
+                  <h2
+                    className={`text-base font-black leading-tight truncate mt-1 ${
+                      activeAccountBannerUrl ? 'text-white drop-shadow-xs' : 'text-slate-900'
+                    }`}
+                  >
                     {currentUser.username}
                   </h2>
-                  <p className="text-xs font-bold text-slate-600 tabular-nums mt-0.5">
+                  <p
+                    className={`text-xs font-bold tabular-nums mt-0.5 ${
+                      activeAccountBannerUrl ? 'text-white/90 drop-shadow-xs' : 'text-slate-600'
+                    }`}
+                  >
                     {formatUserPhoneId(currentUser.phoneNumber)}
                   </p>
                 </>
               ) : (
-                <h2 className="text-sm font-black text-slate-900 leading-tight tabular-nums mt-1">
+                <h2
+                  className={`text-sm font-black leading-tight tabular-nums mt-1 ${
+                    activeAccountBannerUrl ? 'text-white drop-shadow-xs' : 'text-slate-900'
+                  }`}
+                >
                   {formatUserPhoneId(currentUser.phoneNumber)}
                 </h2>
               )}
-              <p className="text-[11px] text-slate-500 font-semibold mt-1">
+              <p
+                className={`text-[11px] font-semibold mt-1 ${
+                  activeAccountBannerUrl ? 'text-white/80 drop-shadow-xs' : 'text-slate-500'
+                }`}
+              >
                 {t('joined')}: {new Date(currentUser.createdAt).toLocaleDateString()}
               </p>
             </div>
@@ -1174,7 +1229,11 @@ export const MyTab: React.FC<MyTabProps> = ({
 
           <button 
             onClick={openSettings}
-            className="w-10 h-10 shrink-0 bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 transition-all rounded-xl border border-slate-200/60 cursor-pointer active:scale-95 flex items-center justify-center shadow-2xs group"
+            className={`w-10 h-10 shrink-0 transition-all rounded-xl border cursor-pointer active:scale-95 flex items-center justify-center shadow-2xs group ${
+              activeAccountBannerUrl
+                ? 'bg-white/15 hover:bg-white/25 text-white border-white/25 backdrop-blur-sm'
+                : 'bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 border-slate-200/60'
+            }`}
             aria-label="Settings"
             title="Account & Profile Settings"
           >
@@ -1183,19 +1242,34 @@ export const MyTab: React.FC<MyTabProps> = ({
         </div>
 
         {/* Unique User ID & Invite Code cleanly aligned across card bottom */}
-        <div className="mt-3.5 pt-3 border-t border-slate-100 flex flex-wrap items-center gap-2">
+        <div
+          className={`relative z-10 mt-3.5 pt-3 border-t flex flex-wrap items-center gap-2 ${
+            activeAccountBannerUrl ? 'border-white/20' : 'border-slate-100'
+          }`}
+        >
           <div className="inline-flex items-center gap-1.5">
             <button
               type="button"
               onClick={handleCopyUserCode}
-              className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 hover:bg-slate-200/80 active:bg-slate-200 rounded-lg text-[11px] font-black text-slate-800 tracking-wider font-mono cursor-pointer transition-all border border-slate-200/70 group"
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-black tracking-wider font-mono cursor-pointer transition-all border group ${
+                activeAccountBannerUrl
+                  ? 'bg-black/35 hover:bg-black/50 text-white border-white/20 backdrop-blur-xs'
+                  : 'bg-slate-100 hover:bg-slate-200/80 active:bg-slate-200 text-slate-800 border-slate-200/70'
+              }`}
               title="Click to copy ID"
             >
               <span>ID:{userUniqueCode}</span>
-              <Copy size={11} className="text-slate-400 group-hover:text-slate-700 transition-colors" />
+              <Copy
+                size={11}
+                className={
+                  activeAccountBannerUrl
+                    ? 'text-white/70 group-hover:text-white transition-colors'
+                    : 'text-slate-400 group-hover:text-slate-700 transition-colors'
+                }
+              />
             </button>
             {copiedId && (
-              <span className="text-[10px] font-bold text-emerald-700">
+              <span className={`text-[10px] font-bold ${activeAccountBannerUrl ? 'text-emerald-300' : 'text-emerald-700'}`}>
                 {t('copied') || 'Copied!'}
               </span>
             )}
@@ -1205,14 +1279,25 @@ export const MyTab: React.FC<MyTabProps> = ({
             <button
               type="button"
               onClick={handleCopyInviteCode}
-              className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 hover:bg-slate-200/80 active:bg-slate-200 rounded-lg text-[11px] font-black text-slate-800 tracking-wider font-mono cursor-pointer transition-all border border-slate-200/70 group"
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-black tracking-wider font-mono cursor-pointer transition-all border group ${
+                activeAccountBannerUrl
+                  ? 'bg-black/35 hover:bg-black/50 text-white border-white/20 backdrop-blur-xs'
+                  : 'bg-slate-100 hover:bg-slate-200/80 active:bg-slate-200 text-slate-800 border-slate-200/70'
+              }`}
               title="Click to copy Invite Code"
             >
               <span>Invite:{userInviteCode}</span>
-              <Copy size={11} className="text-slate-400 group-hover:text-slate-700 transition-colors" />
+              <Copy
+                size={11}
+                className={
+                  activeAccountBannerUrl
+                    ? 'text-white/70 group-hover:text-white transition-colors'
+                    : 'text-slate-400 group-hover:text-slate-700 transition-colors'
+                }
+              />
             </button>
             {copiedInviteCode && (
-              <span className="text-[10px] font-bold text-emerald-700">
+              <span className={`text-[10px] font-bold ${activeAccountBannerUrl ? 'text-emerald-300' : 'text-emerald-700'}`}>
                 {t('copied') || 'Copied!'}
               </span>
             )}
