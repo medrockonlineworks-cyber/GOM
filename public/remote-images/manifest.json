@@ -1,18 +1,8 @@
 {
   "schemaVersion": 1,
   "directory": "public/remote-images",
-  "generatedAt": "2026-11-27T05:47:41.618Z",
+  "generatedAt": "2026-11-27T05:50:56.705Z",
   "images": [
-    {
-      "name": "account-banner",
-      "fileName": "account-banner.jpg",
-      "path": "public/remote-images/account-banner.jpg",
-      "version": 1,
-      "hash": "bd7be18f7daa72b78466e315d3df96014194b5123027b04f2161218f17093b78",
-      "size": 37852,
-      "mimeType": "image/jpeg",
-      "updatedAt": "2026-11-27T05:26:56.568Z"
-    },
     {
       "name": "bank-cbe",
       "fileName": "bank-cbe.png",
