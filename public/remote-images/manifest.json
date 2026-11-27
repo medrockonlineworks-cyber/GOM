@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "directory": "public/remote-images",
-  "generatedAt": "2026-11-27T05:35:19.934Z",
+  "generatedAt": "2026-11-27T05:45:38.996Z",
   "images": [
     {
       "name": "account-banner",
@@ -12,6 +12,16 @@
       "size": 37852,
       "mimeType": "image/jpeg",
       "updatedAt": "2026-11-27T05:26:56.568Z"
+    },
+    {
+      "name": "bank-telebirr",
+      "fileName": "bank-telebirr.PNG",
+      "path": "public/remote-images/bank-telebirr.PNG",
+      "version": 1,
+      "hash": "fc41292a3fecbbd1931f95fb41d9b05b40fd657b0d3fb86be49200604547bb79",
+      "size": 29983,
+      "mimeType": "image/png",
+      "updatedAt": "2026-11-27T05:45:38.996Z"
     },
     {
       "name": "logo",
